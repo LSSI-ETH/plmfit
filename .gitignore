@@ -145,6 +145,8 @@ venv.bak/
 .DS_Store
 *.bin
 .bin
+*.txt
+.txt
 
 # mypy
 .mypy_cache/
