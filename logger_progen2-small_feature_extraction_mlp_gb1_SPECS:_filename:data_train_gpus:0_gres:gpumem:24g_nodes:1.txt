@@ -1,1 +1,0 @@
-#---------Logger initiated with name "logger_progen2-small_feature_extraction_mlp_gb1_SPECS:_filename:data_train_gpus:0_gres:gpumem:24g_nodes:1.txt" at 2023-07-25 16:35:36.832093---------#
