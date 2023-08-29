@@ -1,0 +1,8 @@
+{
+  "network_type":"mlp",
+  "input_len": 1024,
+  "hidden_len":  400,
+  "output_len":1,
+  "activation_function": "softmax",
+  "dropout":0.25
+}
