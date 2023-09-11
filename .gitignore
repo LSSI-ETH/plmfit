@@ -147,6 +147,8 @@ venv.bak/
 .bin
 *.txt
 .txt
+*.fasta
+.fasta
 
 # mypy
 .mypy_cache/
