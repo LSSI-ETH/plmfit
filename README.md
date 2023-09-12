@@ -9,7 +9,7 @@ Each data type (i.e. protein, protein families, enrichments etc) should have its
    <ins>Column names</ins><br />
                 **"aa_seq"** : includes AA sequences <br />
                 **"len"**: includes the length of the AA sequence<br />
-                **"score1"**,**"score2"** : includes a fitness score or generally a labels for the specific AA sequence (this values is data type and task dependant <br />
+                **"score1"**,**"score2"** : includes a fitness score or generally labels for the specific AA sequence (this values is data type and task dependant <br />
                 **"{split_name1}"**,**"{split_name2}"** : includes value 'train' , 'test' and 'valid' to facilitate the dataset splits during experiments.<br />
 
 2) data_parse.py : a python script that parses the data corresponding to the data type. Performs data preprocessing (duplicates removal, denoising) and formats the data to produce the {data_type}_data_full.csv
