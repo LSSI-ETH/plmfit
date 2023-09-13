@@ -7,7 +7,7 @@ import psutil
 import argparse
 import utils
 
-    
+memory_usage = psutil.virtual_memory()  
 parser = argparse.ArgumentParser(description='embeddings')
 parser.add_argument('--model_name', type=str, default='progen2-small') ## options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
 parser.add_argument('--gpus', type=int , default=0) 
@@ -36,8 +36,8 @@ else:
 
 
 def extract_embeddings(model, model_name, aa_seq, data_type, tokenizer , max_len , layer = 12, reduction = 'mean'):
-    
     logger.log(f' Encoding {len(aa_seq)} sequences....')
+    fun_start_time = time.time()
     seq_tokens = [ torch.tensor(tokenizer.encode(i).ids) for i in aa_seq ] 
     for i in range(len(seq_tokens)):
         pad = tokenizer.get_vocab()['<|pad|>'] * torch.ones(max_len - seq_tokens[i].shape[0], dtype = int)
@@ -55,30 +55,35 @@ def extract_embeddings(model, model_name, aa_seq, data_type, tokenizer , max_len
         with torch.cuda.amp.autocast(enabled= fp16):
             for batch in seq_loader:
                 start = time.time()
-                out = model(batch[0]).hidden_states
-                memory_usage = psutil.virtual_memory()
+                if args.layer == 13:
+                    out = model(batch[0]).logits
+                else:
+                    out = model(batch[0]).hidden_states
+                    out = out[layer - 1] 
+               
                 
-                embs[i : i+args.batch_size, : ] = torch.mean(out[layer - 1] , dim = 1)
+                embs[i : i+args.batch_size, : ] = torch.mean(out , dim = 1)
                 del out
                 i = i + args.batch_size
+                if i > 20 : break
                 logger.log(f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s | memory usage : {100 - memory_usage.percent:.2f}%')
        
 
 
     torch.save(embs,f'./data/{data_type}/embeddings/{data_type}_{model_name}_embs_layer{layer}_{reduction}.pt')
     t = torch.load(f'./data/{data_type}/embeddings/{data_type}_{model_name}_embs_layer{layer}_{reduction}.pt')
-    logger.log(f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{model_name}_embs_layer{layer}_{reduction}.pt" ')
+    logger.log(f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{model_name}_embs_layer{layer}_{reduction}.pt" ({time.time() - fun_start_time:.2f}s)')
     return embs
  
+    
+
+    
 if __name__=='__main__':
-
-
-
     model = utils.load_model(args.model_name)
-    data = utils.load_dataset(args.data_type , 'splits/low_vs_high')
-    data['len'] = data['sequence'].apply(lambda x : len(x))
+    data = utils.load_dataset(args.data_type , f'{args.data_type}_data_full')
+
     max_len = max(data['len'].values)
     tokenizer = utils.load_tokenizer(args.model_name)
     
-    extract_embeddings(model, args.model_name, data['sequence'], args.data_type, tokenizer, max_len, args.layer , args.reduction)
+    extract_embeddings(model, args.model_name, data['aa_seq'], args.data_type, tokenizer, max_len, args.layer , args.reduction)
     
