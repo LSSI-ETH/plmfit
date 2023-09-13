@@ -149,9 +149,6 @@ venv.bak/
 .txt
 *.fasta
 .fasta
-*.sh
-.sh
-**/euler_parameters
 
 # mypy
 .mypy_cache/
