@@ -12,8 +12,8 @@ def load_embeddings( data_type , embs ):
     embs_file = f'./data/{data_type}/embeddings/{embs}'
     return torch.load(f'{embs_file}.pt', map_location=torch.device('cpu'))
 
-def load_dataset(data_type , data):  
-    return pd.read_csv(f'./data/{data_type}/{data}.csv')
+def load_dataset(data_type):  
+    return pd.read_csv(f'./data/{data_type}/{data_type}_data_full.csv')
 
     
 def get_wild_type(data_type):
@@ -42,7 +42,7 @@ def one_hot_encode(seqs):
     return torch.tensor([0])
 
 
-def categorical_encode(seqs):
+def categorical_encode(seqs, tokenizer):
     return torch.tensor([0])
 
 def get_parameters(model, print_w_mat = False):
@@ -52,7 +52,7 @@ def get_parameters(model, print_w_mat = False):
         c += 1
         
         if print_w_mat:
-            print(f' {name} size : {p.shape}')
+            print(f' {name} size : {p.shape} trainable:{p.requires_grad}')
         s += p.numel()
     return s
 
