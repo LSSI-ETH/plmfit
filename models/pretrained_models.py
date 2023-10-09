@@ -43,9 +43,6 @@ class PretrainedProteinLanguageModel():
         self.tokenizer = tokenizer
 
     def fine_tune(self, data_type , method):
-        #set all parameters require grad
-        # create all the necessary parameters
-        #do the training loop
         pass
     
     def evaluate(self, data_type ):
@@ -157,9 +154,9 @@ class ProgenSmall151M(PretrainedProteinLanguageModel):
                         logger.log(f'({phase}) minibatch :{itr + 1}  / {len(dataloader)} | running_loss : {batch_loss / (itr + 1)}')
                 
                 epoch_loss = batch_loss /itr
-                logger.log('({}) Loss: {:.4f}'.format(phase, epoch_loss))
-        
-            
-
-
-    
+                if phase == 'train':
+                    epoch_train_loss.append(epoch_loss)
+                else:
+                    epoch_val_loss.append(epoch_loss)
+                
+                logger.log('({}) Loss: {:.4f} {:.4f}s'.format(phase, epoch_loss, time.now() - epoch_start_time))
