@@ -42,19 +42,33 @@ def one_hot_encode(seqs):
     return torch.tensor([0])
 
 
-def categorical_encode(seqs, tokenizer):
-    return torch.tensor([0])
+def categorical_encode(seqs, tokenizer , max_len):
+    seq_tokens = [ torch.tensor(tokenizer.encode(i).ids) for i in seqs ] 
+    for i in range(len(seq_tokens)):
+        pad = tokenizer.get_vocab()['<|pad|>'] * torch.ones(max_len - seq_tokens[i].shape[0], dtype = int)
+        seq_tokens[i] = torch.cat((seq_tokens[i], pad), dim = 0)
+    seq_tokens = torch.stack(seq_tokens)
+    return seq_tokens
 
 def get_parameters(model, print_w_mat = False):
     s =  0 
     c = 0
-    for name, p in model.named_parameters():
-        c += 1
+    for name , p in model.named_parameters():
         
+        c += 1   
         if print_w_mat:
             print(f' {name} size : {p.shape} trainable:{p.requires_grad}')
         s += p.numel()
+        
     return s
+
+def set_trainable_parameters(model, ft = 'all'):
+    
+    for name , p in model.named_parameters():
+        p.requires_grad = True
+        
+    return
+
 
 
 def read_fasta(file_path):
