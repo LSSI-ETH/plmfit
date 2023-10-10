@@ -59,9 +59,10 @@ class IPretrainedProteinLanguageModel():
     
     
         
-class ProGenPLM(IPretrainedProteinLanguageModel):
+class ProGenPLM(nn.Module): ##
     def __init__(self , progen_model_name = 'progen2-small'):
         #IPretrainedProteinLanguageModel.__init__(self)
+        super().__init__()
         self.name = progen_model_name
         self.py_model = ProGenForCausalLM.from_pretrained(f'./language_models/progen2/checkpoints/{progen_model_name}')
         self.tokenizer = utils.load_tokenizer(progen_model_name)
@@ -69,20 +70,20 @@ class ProGenPLM(IPretrainedProteinLanguageModel):
         self.no_layers = len(self.py_model.transformer.h)
         self.output_dim = self.py_model.lm_head.out_features
         self.emb_layers_dim = self.py_model.transformer.h[0].attn.out_proj.out_features
+        self.head = None
+        self.head_name = 'none'
             
       
     def concat_task_specific_head(self , head):  
         assert head.in_.in_features == self.output_dim, f' Head\'s input dimension ({head.in_.in_features}) is not compatible with {self.name}\'s output dimension ({self.output_dim}). To concat modules these must be equal.'
         #TODO: Add concat option with lm head or final transformer layer.
-        self.py_model = nn.Sequential(
-          self.py_model,
-          head
-         )
-        self.head = head.__class__.__name__ ## parse name from variable
+        self.head = head 
+        self.head_name = head.__class__.__name__ ## parse name from variable
+        
         return 
         
     def extract_embeddings(self , data_type , batch_size , layer = 11, reduction = 'mean'):
-        logger = l.Logger(f'[logger]extract_embeddings_{data_type}_{self.name}_layer{layer}_{reduction}.txt')
+        logger = l.Logger(f'logger_extract_embeddings_{data_type}_{self.name}_layer{layer}_{reduction}.txt')
         device = 'cpu'
         fp16 = False
         device_ids = []
@@ -137,7 +138,12 @@ class ProGenPLM(IPretrainedProteinLanguageModel):
         return
     
     def fine_tune(self, data_type , method , epochs , lr , optimizer , batch_size , train_split_name , val_split , loss_f , lr_scheduler = None , log_interval = 1000 ):
-        logger = l.Logger(f'[logger]fine_tune_{self.name}_{self.head}_{method}_{data_type}.txt')
+        
+        assert self.head != None , 'Task specific head haven\'t specified.'
+        
+        logger = l.Logger(f'logger_fine_tune_{self.name}_{self.head_name}_{method}_{data_type}.txt')
+        
+        
         
         data = utils.load_dataset(data_type)   
         
@@ -174,6 +180,7 @@ class ProGenPLM(IPretrainedProteinLanguageModel):
         if method == 'full_retrain':
             utils.set_trainable_parameters(self.py_model)
             utils.get_parameters(self.py_model , True)
+            utils.get_parameters(self.head , True)
         else:
             raise 'Unsupported fine tuning method'
             
@@ -181,6 +188,8 @@ class ProGenPLM(IPretrainedProteinLanguageModel):
         epoch_val_loss = []
         
         training_start_time = time.time()
+        
+        
         
         for epoch in range(epochs):
             
@@ -201,9 +210,7 @@ class ProGenPLM(IPretrainedProteinLanguageModel):
                 for itr , trainig_data in enumerate(dataloader , 0):
                     optimizer.zero_grad()
                     training_batch , training_labels = trainig_data
-                    logger.log(f' {training_batch.shape=}')
-                    logger.log(f' {training_labels=}')
-                    outputs = self.py_model(training_batch)  
+                    outputs = self.forward(training_batch)
                     loss = loss_f(torch.squeeze(outputs).float(), training_labels.float())  
                     if phase == 'train':
                            loss.backward()
@@ -229,4 +236,9 @@ class ProGenPLM(IPretrainedProteinLanguageModel):
     def evaluate(self):
         return 0
     
-
+    def forward(self, src):
+        src = self.py_model(src).logits ## 
+        src = torch.mean(src , dim = 1)
+        if self.head != None:
+            src = self.head(src)
+        return src
