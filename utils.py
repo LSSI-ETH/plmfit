@@ -99,3 +99,5 @@ def read_fasta(file_path):
 
     return sequences
 
+def remote_function():
+    return 0 
