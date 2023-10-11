@@ -43,11 +43,9 @@ def one_hot_encode(seqs):
 
 
 def categorical_encode(seqs, tokenizer , max_len):
-    seq_tokens = [ torch.tensor(tokenizer.encode(i).ids) for i in seqs ] 
-    for i in range(len(seq_tokens)):
-        pad = tokenizer.get_vocab()['<|pad|>'] * torch.ones(max_len - seq_tokens[i].shape[0], dtype = int)
-        seq_tokens[i] = torch.cat((seq_tokens[i], pad), dim = 0)
-    seq_tokens = torch.stack(seq_tokens)
+    seq_tokens =  tokenizer.get_vocab()['<|pad|>'] * torch.ones((len(seqs) , max_len) , dtype = int)
+    for itr , seq in enumerate(seqs):
+        seq_tokens[itr][:len(seq)] = torch.tensor(tokenizer.encode(seq).ids)  
     return seq_tokens
 
 def get_parameters(model, print_w_mat = False):
