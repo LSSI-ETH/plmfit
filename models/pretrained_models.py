@@ -141,10 +141,25 @@ class ProGenPLM(nn.Module): ##
     def fine_tune(self, data_type , method , epochs , lr , optimizer , batch_size , train_split_name , val_split , loss_f , lr_scheduler = None , log_interval = 1000 ):
         
         assert self.head != None , 'Task specific head haven\'t specified.'
-        
         logger = l.Logger(f'logger_fine_tune_{self.name}_{self.head_name}_{method}_{data_type}.txt')
+        device = 'cpu'
+        fp16 = False
+        device_ids = []
+        if torch.cuda.is_available():
+            device = "cuda:0"
+            fp16 = True
+            logger.log(f'Available GPUs : {torch.cuda.device_count()}')
+            for i in range(torch.cuda.device_count()):
+                logger.log(f' Running on {torch.cuda.get_device_properties(i).name}')
+                device_ids.append(i)
+
+        else:
+            logger.log(f' No gpu found rolling device back to {device}')
+
         
         
+        self.py_model = self.py_model.to(device)
+        self.head = self.head.to(device)
         
         data = utils.load_dataset(data_type)   
         
@@ -201,9 +216,11 @@ class ProGenPLM(nn.Module): ##
                 
                 if phase == 'train':
                     self.py_model.train()  # Set model to training mode
+                    self.head.train()
                     dataloader = train_dataloader
                 else:
                     self.py_model.eval()   # Set model to evaluate mode
+                    self.head.eval()
                     dataloader = valid_dataloader
                     
                 batch_loss = 0
@@ -212,7 +229,11 @@ class ProGenPLM(nn.Module): ##
                     batch_start_time = time.time()
                     optimizer.zero_grad()
                     training_batch , training_labels = trainig_data
+                    training_batch = training_batch.to(device)
+                    training_labels = training_labels.to(device)
                     outputs = self.forward(training_batch)
+                    logger.log(f'{torch.squeeze(outputs).float()}')
+                    logger.log(f'{training_labels.float()}')
                     loss = loss_f(torch.squeeze(outputs).float(), training_labels.float())  
                     if phase == 'train':
                            loss.backward()
