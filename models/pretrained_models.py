@@ -102,6 +102,7 @@ class ProGenPLM(nn.Module): ##
         logger.log(f' Encoding {data.shape[0]} sequences....')
         encs = utils.categorical_encode(data['aa_seq'].values, self.tokenizer , max(data['len'].values))   
         logger.log(f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
+        encs = encs.to(device)
         seq_dataset = data_utils.TensorDataset(encs)
         seq_loader =  data_utils.DataLoader(seq_dataset, batch_size= batch_size, shuffle=False)
         logger.log(f'Extracting embeddings for {len(seq_dataset)} sequences...')
