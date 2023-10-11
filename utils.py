@@ -44,8 +44,9 @@ def one_hot_encode(seqs):
 
 def categorical_encode(seqs, tokenizer , max_len):
     seq_tokens =  tokenizer.get_vocab()['<|pad|>'] * torch.ones((len(seqs) , max_len) , dtype = int)
+    seq_tokens = seq_tokens
     for itr , seq in enumerate(seqs):
-        seq_tokens[itr][:len(seq)] = torch.tensor(tokenizer.encode(seq).ids)  
+        seq_tokens[itr][:len(seq)] = torch.tensor(tokenizer.encode(seq).ids)
     return seq_tokens
 
 def get_parameters(model, print_w_mat = False):
@@ -97,5 +98,4 @@ def read_fasta(file_path):
 
     return sequences
 
-def remote_function():
-    return 0 
+
