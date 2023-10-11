@@ -183,7 +183,8 @@ class ProGenPLM(nn.Module): ##
     
         
         if optimizer == 'adam':
-            optimizer = torch.optim.Adam(self.py_model.parameters(), lr=lr , betas=(0.9, 0.95))
+            optimizer = torch.optim.Adam(self.py_model.parameters(), lr=lr , betas=(0.9, 0.99), weight_decay= 0.1)
+            #torch.nn.utils.clip_grad_norm_(self.py_model.parameters(), 1 , norm_type=2.0, error_if_nonfinite=False)
         else:
             raise 'Unsupported optimizer'
             
