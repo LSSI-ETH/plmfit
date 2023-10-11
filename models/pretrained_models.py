@@ -209,6 +209,7 @@ class ProGenPLM(nn.Module): ##
                 batch_loss = 0
                     
                 for itr , trainig_data in enumerate(dataloader , 0):
+                    batch_start_time = time.time()
                     optimizer.zero_grad()
                     training_batch , training_labels = trainig_data
                     outputs = self.forward(training_batch)
@@ -219,7 +220,7 @@ class ProGenPLM(nn.Module): ##
                     batch_loss += loss.item()       
                     
                     if itr%log_interval == 0:
-                        logger.log(f'({phase}) minibatch :{itr + 1}  / {len(dataloader)} | running_loss : {batch_loss / (itr + 1)}')
+                        logger.log(f'({phase}) batch : {itr + 1}  / {len(dataloader)} | running_loss : {batch_loss / (itr + 1)} (batch time : {time.time() - batch_start_time:.4f})')
                 
                 epoch_loss = batch_loss /itr
                 if phase == 'train':
