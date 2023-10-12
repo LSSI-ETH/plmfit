@@ -12,6 +12,6 @@ if __name__ == '__main__':
 
     head = LinearRegression(32 , 1)
     model.concat_task_specific_head(head)
-    model.fine_tune('aav' , 'full_retrain' , epochs = 5 , lr = 0.0006, optimizer = 'adam' , batch_size = 8, train_split_name = 'two_vs_many_split', val_split = 0.2 , loss_f = 'mse' , log_interval = 1)
+    #model.fine_tune('aav' , 'full_retrain' , epochs = 5 , lr = 0.0006, optimizer = 'adam' , batch_size = 8, train_split_name = 'two_vs_many_split', val_split = 0.2 , loss_f = 'mse' , log_interval = 1)
 
-    #model.extract_embeddings('aav' , batch_size = args.batch_size , layer = args.layer )
+    model.extract_embeddings('aav' , batch_size = args.batch_size , layer = args.layer )
