@@ -7,16 +7,20 @@ class LinearRegression(nn.Module):
     def __init__(self, in_features ,num_classes):
         super().__init__()
 
-        self.in_head = nn.Linear(in_features,  num_classes)
+
+
+
+        self.in_ = nn.Linear(in_features,  num_classes)
         self.dropout = nn.Dropout(0.25)
         self.init_weights(nn.Module)
 
     def init_weights(self, module) -> None:
-        self.in_head.weight.data.fill_(0.01)
-        self.in_head.bias.data.fill_(0.01)
+        self.in_.weight.data.fill_(0.01)
+
+        self.in_.bias.data.fill_(0.01)
         
     def forward(self, src):
-        out = self.in_head(src)
+        out = self.in_(src)
         return out
 
 class CnnReg(nn.Module):
