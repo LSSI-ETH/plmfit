@@ -57,7 +57,7 @@ class IPretrainedProteinLanguageModel():
         
     
     
-    
+  #Implement class for every supported Portein Language Model family  
         
 class ProGenPLM(nn.Module): ##
     def __init__(self , progen_model_name = 'progen2-small'):
@@ -206,8 +206,6 @@ class ProGenPLM(nn.Module): ##
         
         training_start_time = time.time()
         
-        
-        
         for epoch in range(epochs):
             
             epoch_start_time = time.time()
@@ -266,3 +264,18 @@ class ProGenPLM(nn.Module): ##
         if self.head != None:
             src = self.head(src)
         return src
+
+###TODO: Implement handler classes for different PLM families
+
+class ESMPLM():
+    pass
+
+class ProtBERTPLM():
+    pass
+
+class AnkahPLM():
+    pass
+
+class SapiesPLM():
+    pass
+
