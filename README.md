@@ -10,8 +10,6 @@ PLMFit is a framework that facilitates finetuning of  protein Language Models (c
   - [Task-Specific Head Concatenation](#task-specific-head-concatenation)
   - [Fine-Tuning](#fine-tuning)
   - [Feature Extraction](#feature-extraction)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Installation
 
@@ -40,7 +38,7 @@ To use the ProGenPLM package in your project, follow these installation steps:
 
 This section provides an overview of how to use the PLMFit package for various tasks.
 
-### Fine-Tuning
+### Initialization
 
 To get started, you'll need to initialize a ProGenPLM model (for ProGen family PLMs):
 
@@ -59,6 +57,9 @@ from models.models import LinearRegression
 head = LinearRegression(input_dim=32, output_dim=1) 
 model.concat_task_specific_head(head)
 ```
+
+### Fine-Tuning
+
 Fine-tuning allows you to train the ProGenPLM model for a specific task. You can specify various training parameters, such as the dataset, number of epochs, learning rate, optimizer, batch size, and more. Here's an example:
 (for demonstration purposes the model will be fully_retrained ("full_retrain") on the 'aav' dataset with the correspoding labels)
 
