@@ -24,8 +24,9 @@ import argparse
 import utils
 
 from models.models import MLP, LogisticRegression, AdapterLayer , LinearRegression
-import ft_frameworks
+
 import torchmetrics
+
 
 
 parser = argparse.ArgumentParser(description='plmfit_args')
@@ -44,12 +45,14 @@ parser.add_argument('--mem-per-cpu', type=int , default= 0)
 parser.add_argument('--nodes', type=int , default= 1)
 
 
+
 parser.add_argument('--training_split', type=str , default='two_vs_many_split') 
 parser.add_argument('--batch_size', type=int , default= 5)
 parser.add_argument('--epochs', type=int , default= 5)
 parser.add_argument('--val_split', type=float , default= 0.2)
 parser.add_argument('--lr', type=float , default= 0.0001)
 parser.add_argument('--optimizer', type=str , default='adam') 
+
 
 
 args = parser.parse_args()  
@@ -62,10 +65,8 @@ data = utils.load_dataset(args.data_type)
 wild_type = utils.get_wild_type(args.data_type)
 
 if __name__=='__main__':
-    
-
   
-    
+   
 ############# Preparing input token (embeddings, one hot encoded or categorical encoded)
     embs = None
     
@@ -108,6 +109,9 @@ if __name__=='__main__':
     
 ########### Prepare data loaders
 
+
+ 
+    
     train_dataset = data_utils.TensorDataset( embs_train , torch.tensor(data_train['score'].values))  
     n_val_samples = int( args.val_split * len(train_dataset))
     n_train_samples = len(train_dataset) - n_val_samples
@@ -131,8 +135,8 @@ if __name__=='__main__':
         print('feature_extraction')
         ft_model = head
         #ft_model = ft_frameworks.feature_extraction(train_dataset , head)
-            
-        
+          
+       
     elif args.ft_method == 'retrain':
         
         ft_model = nn.Sequential(
@@ -150,6 +154,8 @@ if __name__=='__main__':
 
     assert ft_model != None, f' {args.task} head did not initialize'
 
+   
+    
     logger.log(f' Number of trainable parameters ({args.model_name}/{args.ft_method}): {utils.get_parameters(ft_model)}')
 
 
@@ -217,6 +223,7 @@ if __name__=='__main__':
             #TODO : Save ft_model after finetuning
     
         
+
     
     
     

@@ -7,6 +7,9 @@ class LinearRegression(nn.Module):
     def __init__(self, in_features ,num_classes):
         super().__init__()
 
+
+
+
         self.in_ = nn.Linear(in_features,  num_classes)
         self.dropout = nn.Dropout(0.25)
         self.init_weights(nn.Module)

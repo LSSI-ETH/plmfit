@@ -27,7 +27,7 @@ def load_tokenizer(model_name):
     if 'progen2' in model_name:
         model_file = 'progen2'
     file = f'./language_models/{model_file}/tokenizer.json'
-   
+  
     with open(file, 'r') as f:
         return Tokenizer.from_str(f.read())
     
@@ -97,5 +97,4 @@ def read_fasta(file_path):
         sequences[current_sequence_id] = ''.join(current_sequence)
 
     return sequences
-
 
