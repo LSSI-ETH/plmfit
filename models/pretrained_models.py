@@ -7,6 +7,7 @@ import torch.utils.data as data_utils
 from torch.utils.data import DataLoader
 import time
 from abc import abstractmethod
+from models.fine_tuning import *
 
 class IPretrainedProteinLanguageModel():
 
@@ -20,8 +21,9 @@ class IPretrainedProteinLanguageModel():
     no_layers = 0
     emb_layers_dim = 0
     output_dim = 0
+    tuner = None
     
-    def __init__(self):
+    def __init__(self , progen_model_name = 'progen2-small'):
         pass
         
     def get_name(self):
@@ -54,13 +56,18 @@ class IPretrainedProteinLanguageModel():
     @abstractmethod
     def evaluate(self, data_type ):
         pass
+
+#TODO: infere based on aa_seq list
+    @abstractmethod
+    def infere(self, aa_seq_list):
+        pass
         
     
     
   #Implement class for every supported Portein Language Model family  
         
-class ProGenPLM(nn.Module): ##
-    def __init__(self , progen_model_name = 'progen2-small'):
+class ProGenPLM(IPretrainedProteinLanguageModel): ##
+    def __init__(self , progen_model_name : str, tuner : Tuner):
         #IPretrainedProteinLanguageModel.__init__(self)
         super().__init__()
         self.name = progen_model_name
@@ -72,14 +79,14 @@ class ProGenPLM(nn.Module): ##
         self.emb_layers_dim = self.py_model.transformer.h[0].attn.out_proj.out_features
         self.head = None
         self.head_name = 'none'
-            
+        self.tuner = tuner 
       
     def concat_task_specific_head(self , head):  
         assert head.in_.in_features == self.output_dim, f' Head\'s input dimension ({head.in_.in_features}) is not compatible with {self.name}\'s output dimension ({self.output_dim}). To concat modules these must be equal.'
         #TODO: Add concat option with lm head or final transformer layer.
         self.head = head 
         self.head_name = head.__class__.__name__ ## parse name from variable
-        
+        self.no_parameters += utils.get_parameters(self.head)
         return 
         
     def extract_embeddings(self , data_type , batch_size , layer = 11, reduction = 'mean'):
@@ -194,13 +201,9 @@ class ProGenPLM(nn.Module): ##
             raise 'Unsupported criterion'
             
         
-        if method == 'full_retrain':
-            utils.set_trainable_parameters(self.py_model)
-            utils.get_parameters(self.py_model , True)
-            utils.get_parameters(self.head , True)
-        else:
-            raise 'Unsupported fine tuning method'
-            
+        self.tuner.set_trainable_parameters(self)
+        ## Check if parameters of self model are affected just by calling them as argument
+            ##TODO: move the whole training loop in tuner method train
         epoch_train_loss = []
         epoch_val_loss = []
         
