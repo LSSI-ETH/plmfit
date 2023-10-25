@@ -6,17 +6,12 @@ import torch.nn.functional as F
 class LinearRegression(nn.Module):
     def __init__(self, in_features ,num_classes):
         super().__init__()
-
-
-
-
         self.in_ = nn.Linear(in_features,  num_classes)
         self.dropout = nn.Dropout(0.25)
         self.init_weights(nn.Module)
 
     def init_weights(self, module) -> None:
         self.in_.weight.data.fill_(0.01)
-
         self.in_.bias.data.fill_(0.01)
         
     def forward(self, src):
@@ -28,8 +23,7 @@ class CnnReg(nn.Module):
         super().__init__()
         self.conv1 = nn.Conv2d(1 ,1, kernel_size=(3,3), stride=2, padding=1)
         self.act1 = nn.ReLU()
-        self.drop1 = nn.Dropout(0.25)
-        
+        self.drop1 = nn.Dropout(0.25)   
         self.flat = nn.Flatten()
         self.pool2 = nn.MaxPool2d(kernel_size=(4, 4))
         self.fc3 = nn.Linear(144, 70)
@@ -47,22 +41,16 @@ class CnnReg(nn.Module):
         
     def forward(self, src):
         x = self.act1(self.conv1(src))
-       
-        
         x = self.pool2(x)
         x = self.flat(x)
         x = self.act1(self.fc3(x))
-        x = self.drop1(x)
-
-        
+        x = self.drop1(x) 
         return self.fc4(x)
 
     
 class MLP(nn.Module):
     def __init__(self, in_features, hidden_layers ,num_classes,activation_function ,dropout = 0.25):
         super().__init__()
-    
-    
         self.in_ = nn.Linear(in_features, hidden_layers)
         self.out =nn.Linear(hidden_layers, num_classes)
         self.dropout = nn.Dropout(dropout)
@@ -71,30 +59,20 @@ class MLP(nn.Module):
             self.activation_function = nn.Softmax(dim = 1)
         elif activation_function == 'sigmoid':
             self.activation_function = nn.Sigmoid()
-        print(f'{self.activation_function=}')
-
         self.init_weights(nn.Module)
         
         
     def init_weights(self, module) -> None:
-        #self.in_ .weight.data.fill_(0.01)
-        #elf.in_ .bias.data.fill_(0.01)
-        #self.out.weight.data.fill_(0.01)
-        #self.out.bias.data.fill_(0.01)
-        print('init weights')
         init.kaiming_normal_(self.in_.weight)
         self.in_.bias.data.zero_()
         init.kaiming_normal_(self.out.weight)
         self.out.bias.data.zero_()
-        #self.out.bias.data.fill_(7)
         
     def forward(self, src ):
         src = src[0]
         src = torch.mean(src , dim = 1)
         src = src/ torch.max(src)
-
         src = self.in_(src)
-
         src = F.relu(self.dropout(src))
         return self.out(src)
     
@@ -110,13 +88,9 @@ class LogisticRegression(nn.Module):
     def init_weights(self, module) -> None:
         init.kaiming_normal_(self.in_.weight)
         self.in_.bias.data.zero_()
-        #self.in_ .bias.data.fill_(7)
-        
-        print("change34534d")
 
     def forward(self, src):
         src = self.dropout(self.in_(src))
-        #src = self.act1(src)
         return src
     
 class AdapterLayer(nn.Module):
