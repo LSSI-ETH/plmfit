@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 import torch.nn.functional as F
+
   
 class LinearRegression(nn.Module):
     def __init__(self, in_features ,num_classes):
@@ -31,7 +32,6 @@ class CnnReg(nn.Module):
         self.init_weights(nn.Module)
 
     def init_weights(self, module) -> None:
-        
         torch.nn.init.xavier_uniform(self.conv1.weight)
         self.conv1.bias.data.fill_(0.01)
         init.kaiming_normal_(self.fc3.weight)
