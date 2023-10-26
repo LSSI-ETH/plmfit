@@ -10,13 +10,10 @@ args = parser.parse_args()
 
 if __name__ == '__main__':  
     
-    fttuner = FullRetrainTuner(epochs = 5 , lr = 0.0006, optimizer = 'adam' , batch_size = 8, train_split_name = 'two_vs_many_split', val_split = 0.2 , loss_f = 'mse' , log_interval = 1)
-    model = ProGenPLM(progen_model_name = 'progen2-small' , tuner = fttuner)
-
+    fttuner = FullRetrainTuner(epochs = 5 , lr = 0.0006, batch_size = 8,  val_split = 0.2 , log_interval = 1)
+    model = ProGenPLM(progen_model_name = 'progen2-small')
     head = LinearRegression(32 , 1)
     model.concat_task_specific_head(head)
-    
-   # 
-   # model.fine_tune('aav' , tuner)
+    model.fine_tune('aav' , fttuner, 'two_vs_many_split', 'adam' , 'mse')
 
     #model.extract_embeddings('aav' , batch_size = args.batch_size , layer = args.layer )
