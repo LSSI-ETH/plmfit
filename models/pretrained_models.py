@@ -71,7 +71,7 @@ class IPretrainedProteinLanguageModel(nn.Module):
     
   #Implement class for every supported Portein Language Model family  
         
-class ProGenPLM(IPretrainedProteinLanguageModel): ##
+class ProGenFamily(IPretrainedProteinLanguageModel): ##
 
     tokenizer : Tokenizer
     
@@ -195,15 +195,15 @@ class ProGenPLM(IPretrainedProteinLanguageModel): ##
 
 ###TODO: Implement handler classes for different PLM families
 
-class ESMPLM():
+class ESMFamily():
     pass
 
-class ProtBERTPLM():
+class ProtBERTFamilyM():
     pass
 
-class AnkahPLM():
+class AnkahFamily():
     pass
 
-class SapiesPLM():
+class SapiesFamily():
     pass
 
