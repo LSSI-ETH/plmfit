@@ -49,10 +49,10 @@ class IPretrainedProteinLanguageModel(nn.Module):
     def concat_task_specific_head(self , head):
         pass
     @abstractmethod
-    def extract_embeddings(self, layer):
+    def extract_embeddings(self , data_type , batch_size , layer = 11, reduction = 'mean'):
         pass
     @abstractmethod
-    def fine_tune(self, data_type , method):
+    def fine_tune(self, data_type, fine_tuner , train_split_name, optimizer , loss_f ):
         pass 
     @abstractmethod
     def evaluate(self, data_type ):
@@ -150,10 +150,10 @@ class ProGenFamily(IPretrainedProteinLanguageModel): ##
         logger.log(f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt" ({time.time() - start_enc_time:.2f}s)')
         return
     
-    def fine_tune(self, data_type, tuner , train_split_name, optimizer , loss_f ):
+    def fine_tune(self, data_type, fine_tuner , train_split_name, optimizer , loss_f ):
         
         assert self.head != None , 'Task specific head haven\'t specified.'
-        logger = l.Logger(f'logger_fine_tune_{self.name}_{self.head_name}_{tuner.method}_{data_type}.txt')
+        logger = l.Logger(f'logger_fine_tune_{self.name}_{self.head_name}_{fine_tuner.method}_{data_type}.txt')
         data = utils.load_dataset(data_type)           
         logger.log(f' Encoding {data.shape[0]} sequences....')
         start_enc_time = time.time()
@@ -164,23 +164,23 @@ class ProGenFamily(IPretrainedProteinLanguageModel): ##
         encs_train = encs[data_train.index]
         encs_test = encs[data_test.index]
         train_dataset = data_utils.TensorDataset( encs_train , torch.tensor(data_train['score'].values))  
-        n_val_samples = int(tuner.val_split * len(train_dataset))
+        n_val_samples = int(fine_tuner.val_split * len(train_dataset))
         n_train_samples = len(train_dataset) - n_val_samples 
         train_set, val_set = torch.utils.data.random_split(train_dataset , [n_train_samples, n_val_samples]) 
         test_dataset = data_utils.TensorDataset( encs_test  , torch.tensor(data_test['score'].values))             
-        train_dataloader = DataLoader(train_set, batch_size = tuner.batch_size , shuffle=True)
-        valid_dataloader = DataLoader(val_set, batch_size = tuner.batch_size , shuffle=True)
-        test_dataloader = DataLoader(test_dataset, batch_size = tuner.batch_size, shuffle=True)
+        train_dataloader = DataLoader(train_set, batch_size = fine_tuner.batch_size , shuffle=True)
+        valid_dataloader = DataLoader(val_set, batch_size = fine_tuner.batch_size , shuffle=True)
+        test_dataloader = DataLoader(test_dataset, batch_size = fine_tuner.batch_size, shuffle=True)
         
         dataloader_dict = { 'train' : train_dataloader , 'val' : valid_dataloader}
     
-        tuner.set_trainable_parameters(self)
+        fine_tuner .set_trainable_parameters(self)
         ## Check if parameters of self model are affected just by calling them as argument
             ##TODO: move the whole training loop in tuner method train
         training_start_time = time.time()
-        tuner.train(self, dataloader_dict , optimizer , loss_f , logger)
-        logger.log(' Finetuning  ({}) on {} data completed after {:.4f}s '.format(tuner.method , data_type , time.time() - training_start_time))
-        self.fine_tuned = tuner.method
+        fine_tuner.train(self, dataloader_dict , optimizer , loss_f , logger)
+        logger.log(' Finetuning  ({}) on {} data completed after {:.4f}s '.format(fine_tuner.method , data_type , time.time() - training_start_time))
+        self.fine_tuned = fine_tuner.method
         return
 
     def evaluate(self):

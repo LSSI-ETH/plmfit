@@ -7,7 +7,7 @@ import torch
 import time
 import os
 
-class Tuner():
+class FineTuner():
 
     method = ''
     lr = 0.0006
@@ -32,7 +32,7 @@ class Tuner():
     def train(self, model , dataloader):
         pass
 
-class FullRetrainTuner(Tuner):  
+class FullRetrainFineTuner(FineTuner):  
     def __init__(self, epochs,  lr , batch_size, val_split, log_interval):
         method = 'full_retrain'
         super().__init__(method, epochs, lr ,  batch_size, val_split,  log_interval)
