@@ -9,10 +9,11 @@ import time
 from abc import abstractmethod
 from models.fine_tuning import *
 from tokenizers import Tokenizer
+from transformers import AutoTokenizer, EsmForMaskedLM
 
 class IPretrainedProteinLanguageModel(nn.Module):
     
-    name : str
+    version : str
     py_model : nn.Module
     head : nn.Module
     head_name : str
@@ -26,24 +27,6 @@ class IPretrainedProteinLanguageModel(nn.Module):
         self.head = None
         self.head_name = 'none'
         pass
-        
-    def get_name(self):
-        return self.name
-
-    def set_name(self, name):
-        self.name = name
-        
-    def get_py_model(self):
-        return self.py_model
-
-    def set_py_model(self, py_model):
-        self.py_model = py_model
-                
-    def get_tokenizer(self):
-        return self.tokenizer
-
-    def set_tokenizer(self, tokenizer):
-        self.tokenizer = tokenizer
         
     @abstractmethod    
     def concat_task_specific_head(self , head):
@@ -195,10 +178,23 @@ class ProGenFamily(IPretrainedProteinLanguageModel): ##
 
 ###TODO: Implement handler classes for different PLM families
 
-class ESMFamily():
-    pass
+class ESMFamily(IPretrainedProteinLanguageModel):
+    
+    
+    tokenizer : AutoTokenizer
+    
+    def __init__(self , esm_version : str):
+        super().__init__()
+        self.version = esm_version 
+        self.py_model = EsmForMaskedLM.from_pretrained(f'facebook/{esm_version}')
+        self.no_parameters = utils.get_parameters(self.py_model)
+        self.no_layers = len(self.py_model.esm.encoder.layer)
+        self.output_dim = None
+        self.emb_layers_dim =  None
+        self.tokenizer = AutoTokenizer.from_pretrained(f'facebook/{esm_version}') 
 
-class ProtBERTFamilyM():
+
+class ProtBERTFamily():
     pass
 
 class AnkahFamily():
