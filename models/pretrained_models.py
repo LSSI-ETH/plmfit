@@ -38,6 +38,15 @@ class IPretrainedProteinLanguageModel(nn.Module):
     @abstractmethod
     def extract_embeddings(self , data_type , batch_size , layer = 11, reduction = 'mean'):
         pass
+    
+    @abstractmethod
+    def categorical_encode(seqs, tokenizer , max_len):
+        seq_tokens =  tokenizer.get_vocab()['<pad>'] * torch.ones((len(seqs) , max_len) , dtype = int)
+        seq_tokens = seq_tokens
+        for itr , seq in enumerate(seqs):
+            seq_tokens[itr][:len(seq)] = torch.tensor(tokenizer.encode(seq).ids)
+        return seq_tokens
+        
     @abstractmethod
     def fine_tune(self, data_type, fine_tuner , train_split_name, optimizer , loss_f ):
         pass 
@@ -172,6 +181,13 @@ class ProGenFamily(IPretrainedProteinLanguageModel): ##
         if self.head != None:
             src = self.head(src)
         return src
+    
+    def categorical_encode(seqs, tokenizer , max_len):
+        seq_tokens =  tokenizer.get_vocab()['<|pad|>'] * torch.ones((len(seqs) , max_len) , dtype = int)
+        seq_tokens = seq_tokens
+        for itr , seq in enumerate(seqs):
+            seq_tokens[itr][:len(seq)] = torch.tensor(tokenizer.encode(seq).ids)
+        return seq_tokens
 
 ###TODO: Implement handler classes for different PLM families
 
@@ -183,7 +199,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
     def __init__(self , esm_version : str):
         super().__init__()
         self.version = esm_version 
-        self.py_model = EsmForMaskedLM.from_pretrained(f'facebook/{esm_version}')
+        self.py_model = EsmForMaskedLM.from_pretrained(f'facebook/{esm_version}' , output_hidden_states = True)
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.esm.encoder.layer)
         self.output_dim = self.py_model.esm.encoder.layer[11].output.dense.out_features
@@ -192,7 +208,57 @@ class ESMFamily(IPretrainedProteinLanguageModel):
    
     
     def extract_embeddings(self , data_type , batch_size , layer = 11, reduction = 'mean'):
-        pass
+        logger = l.Logger(f'logger_extract_embeddings_{data_type}_{self.version}_layer{layer}_{reduction}.txt')
+        device = 'cpu'
+        fp16 = False
+        device_ids = []
+        if torch.cuda.is_available():
+            device = "cuda:0"
+            fp16 = True
+            logger.log(f'Available GPUs : {torch.cuda.device_count()}')
+            for i in range(torch.cuda.device_count()):
+                logger.log(f' Running on {torch.cuda.get_device_properties(i).name}')
+                device_ids.append(i)
+
+        else:
+            logger.log(f' No gpu found rolling device back to {device}')
+        data = utils.load_dataset(data_type)  
+        start_enc_time = time.time()
+        logger.log(f' Encoding {data.shape[0]} sequences....')
+        encs = self.categorical_encode(data['aa_seq'].values[:50], self.tokenizer , max(data['len'].values))   ## remove 50
+        logger.log(f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
+        encs = encs.to(device)
+        seq_dataset = data_utils.TensorDataset(encs)
+        seq_loader =  data_utils.DataLoader(seq_dataset, batch_size= batch_size, shuffle=False)
+        logger.log(f'Extracting embeddings for {len(seq_dataset)} sequences...')
+        
+        embs = torch.zeros((len(seq_dataset), self.emb_layers_dim)).to(device) ### FIX: Find embeddings dimension either hard coded for model or real the pytorch model of ProGen. Maybe add reduction dimension as well
+        self.py_model = self.py_model.to(device)
+        i = 0
+        
+        self.py_model.eval()
+        with torch.no_grad():
+            with torch.cuda.amp.autocast(enabled= fp16):
+                for batch in seq_loader:
+                    start = time.time()
+                    out = self.py_model(batch[0]).hidden_states
+                    out = out[layer]
+                    if reduction == 'mean':
+                        embs[i : i+ batch_size, : ] = torch.mean(out , dim = 1)
+                    elif reduction == 'sum':
+                        embs[i : i+ batch_size, : ] = torch.sum(out , dim = 1)
+                    else:
+                        raise 'Unsupported reduction option'
+                    del out
+                    i = i + batch_size
+                    logger.log(f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ') # | memory usage : {100 - memory_usage.percent:.2f}%
+           
+
+
+        torch.save(embs,f'./data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer}_{reduction}.pt')
+        t = torch.load(f'./data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer}_{reduction}.pt')
+        logger.log(f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer}_{reduction}.pt" ({time.time() - start_enc_time:.2f}s)')
+        return
 
     
     def fine_tune(self, data_type, fine_tuner , train_split_name, optimizer , loss_f ):
@@ -205,8 +271,17 @@ class ESMFamily(IPretrainedProteinLanguageModel):
     
     def forward(self, src):
         pass
+    
+    def categorical_encode(self, seqs, tokenizer , max_len):
+        seq_tokens =  tokenizer.get_vocab()['<pad>'] * torch.ones((len(seqs) , max_len + 2) , dtype = int) ### Adding  to max_len because ESMTokenizer adds cls and eos tokens in the begging and the neding of aa_seq
+        for itr , seq in enumerate(seqs):
+            tok_seq = torch.tensor(tokenizer.encode(seq))
+            seq_tokens[itr][:tok_seq.shape[0]] = tok_seq
+        return seq_tokens
 
 
+
+############################ To add ##############
 class ProtBERTFamily():
     pass
 
