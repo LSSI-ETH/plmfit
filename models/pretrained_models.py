@@ -35,6 +35,14 @@ class IPretrainedProteinLanguageModel(nn.Module):
         self.head_type = head.__class__.__name__ ## parse name from variable
         self.no_parameters += utils.get_parameters(self.head)
         
+    
+    def forward(self, src):
+        src = self.py_model(src).logits# 
+        src = torch.mean(src , dim = 1)
+        if self.head != None:
+            src = self.head(src)
+        return src
+        
     @abstractmethod
     def extract_embeddings(self , data_type , batch_size , layer = 11, reduction = 'mean'):
         pass
@@ -54,9 +62,6 @@ class IPretrainedProteinLanguageModel(nn.Module):
     def evaluate(self, data_type ):
         pass
     
-    @abstractmethod
-    def forward(self, src):
-        pass
 
 #TODO: infere based on aa_seq list
     @abstractmethod
@@ -143,7 +148,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel): ##
         
         assert self.head != None , 'Task specific head haven\'t specified.'
         logger = l.Logger(f'logger_fine_tune_{self.name}_{self.head_name}_{fine_tuner.method}_{data_type}.txt')
-        data = utils.load_dataset(data_type)           
+        data = utils.load_dataset(data_type) 
         logger.log(f' Encoding {data.shape[0]} sequences....')
         start_enc_time = time.time()
         encs = utils.categorical_encode(data['aa_seq'].values, self.tokenizer , max(data['len'].values))   
@@ -202,7 +207,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         self.py_model = EsmForMaskedLM.from_pretrained(f'facebook/{esm_version}' , output_hidden_states = True)
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.esm.encoder.layer)
-        self.output_dim = self.py_model.esm.encoder.layer[11].output.dense.out_features
+        self.output_dim = self.py_model.lm_head.decoder.out_features
         self.emb_layers_dim =  self.py_model.esm.encoder.layer[0].attention.self.query.in_features
         self.tokenizer = AutoTokenizer.from_pretrained(f'facebook/{esm_version}') 
    
@@ -225,7 +230,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         data = utils.load_dataset(data_type)  
         start_enc_time = time.time()
         logger.log(f' Encoding {data.shape[0]} sequences....')
-        encs = self.categorical_encode(data['aa_seq'].values[:50], self.tokenizer , max(data['len'].values))   ## remove 50
+        encs = self.categorical_encode(data['aa_seq'].values, self.tokenizer , max(data['len'].values)) 
         logger.log(f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
         encs = encs.to(device)
         seq_dataset = data_utils.TensorDataset(encs)
@@ -262,15 +267,45 @@ class ESMFamily(IPretrainedProteinLanguageModel):
 
     
     def fine_tune(self, data_type, fine_tuner , train_split_name, optimizer , loss_f ):
-        pass 
+        assert self.head != None , 'Task specific head haven\'t specified.'
+        logger = l.Logger(f'logger_fine_tune_{self.version}_{self.head_type}_{fine_tuner.method}_{data_type}.txt')
+        data = utils.load_dataset(data_type) 
+        #data = data[data[train_split_name] == 'train'].head(50)
+        #data.reset_index(inplace = True) #### Remove after testing          
+        logger.log(f' Encoding {data.shape[0]} sequences....')
+        start_enc_time = time.time()
+        encs = self.categorical_encode(data['aa_seq'].values, self.tokenizer , max(data['len'].values))
+        logger.log(f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
+        print(data[train_split_name].value_counts())
+        data_train = data[data[train_split_name] == 'train']
+        data_test = data[data[train_split_name] == 'test']
+        encs_train = encs[data_train.index]
+        encs_test = encs[data_test.index]
+        train_dataset = data_utils.TensorDataset( encs_train , torch.tensor(data_train['score'].values))  
+        print(f' {data_train.shape=}')
+        n_val_samples = int(fine_tuner.val_split * len(train_dataset))
+        n_train_samples = len(train_dataset) - n_val_samples 
+        train_set, val_set = torch.utils.data.random_split(train_dataset , [n_train_samples, n_val_samples]) 
+        test_dataset = data_utils.TensorDataset( encs_test  , torch.tensor(data_test['score'].values))             
+        train_dataloader = DataLoader(train_set, batch_size = fine_tuner.batch_size , shuffle=True)
+        valid_dataloader = DataLoader(val_set, batch_size = fine_tuner.batch_size , shuffle=True)
+        #test_dataloader = DataLoader(test_dataset, batch_size = fine_tuner.batch_size, shuffle=True)
+        
+        dataloader_dict = { 'train' : train_dataloader , 'val' : valid_dataloader}
+    
+        fine_tuner .set_trainable_parameters(self)
+        ## Check if parameters of self model are affected just by calling them as argument
+            ##TODO: move the whole training loop in tuner method train
+        training_start_time = time.time()
+        fine_tuner.train(self, dataloader_dict , optimizer , loss_f , logger)
+        logger.log(' Finetuning  ({}) on {} data completed after {:.4f}s '.format(fine_tuner.method , data_type , time.time() - training_start_time))
+        self.fine_tuned = fine_tuner.method
+        return
 
     
     def evaluate(self, data_type ):
         pass
     
-    
-    def forward(self, src):
-        pass
     
     def categorical_encode(self, seqs, tokenizer , max_len):
         seq_tokens =  tokenizer.get_vocab()['<pad>'] * torch.ones((len(seqs) , max_len + 2) , dtype = int) ### Adding  to max_len because ESMTokenizer adds cls and eos tokens in the begging and the neding of aa_seq

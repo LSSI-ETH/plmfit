@@ -27,8 +27,9 @@ if __name__ == '__main__':
     seq = 'ABCDEFG'
     esm_version  = 'esm2_t30_150M_UR50D'
     model = ESMFamily(esm_version)
-    head = LinearRegression(640 , 1)
+    head = LinearRegression(33 , 1)
     model.concat_task_specific_head(head)
     fine_tuner = FullRetrainFineTuner(epochs = 5 , lr = 0.0006, batch_size = 8,  val_split = 0.2 , log_interval = 1)
-    model.extract_embeddings('aav' , batch_size = args.batch_size , layer = args.layer )
+    model.fine_tune('aav' ,  fine_tuner, 'two_vs_many_split', 'adam' , 'mse')
+   # model.extract_embeddings('aav' , batch_size = args.batch_size , layer = args.layer )
     print(model.no_parameters)

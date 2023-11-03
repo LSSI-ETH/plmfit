@@ -118,11 +118,11 @@ class FullRetrainFineTuner(FineTuner):
                 else:
                     epoch_val_loss.append(epoch_loss)
                 
-                logger.log('({}) Loss: {:.4f} {:.4f}s'.format(phase, epoch_loss, time.now() - epoch_start_time))
+                logger.log('({}) Loss: {:.4f} {:.4f}s'.format(phase, epoch_loss, time.time() - epoch_start_time))
                 
             ##TODO: Implement early stopping
             if epoch_val_loss[-1] < best_val_loss:
                 best_val_loss = epoch_val_loss[-1] 
-                torch.save(model.state_dict(), f'./models/saved_models/model:{model.name}_head:{model.head_name}_ft:{self.method}.pt')
+                torch.save(model.state_dict(), f'./models/saved_models/model:{model.version}_head:{model.head_type}_ft:{self.method}.pt')
                 best_epoch  = epoch
           
