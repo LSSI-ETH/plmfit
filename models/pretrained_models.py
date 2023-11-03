@@ -276,13 +276,11 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         start_enc_time = time.time()
         encs = self.categorical_encode(data['aa_seq'].values, self.tokenizer , max(data['len'].values))
         logger.log(f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
-        print(data[train_split_name].value_counts())
         data_train = data[data[train_split_name] == 'train']
         data_test = data[data[train_split_name] == 'test']
         encs_train = encs[data_train.index]
         encs_test = encs[data_test.index]
         train_dataset = data_utils.TensorDataset( encs_train , torch.tensor(data_train['score'].values))  
-        print(f' {data_train.shape=}')
         n_val_samples = int(fine_tuner.val_split * len(train_dataset))
         n_train_samples = len(train_dataset) - n_val_samples 
         train_set, val_set = torch.utils.data.random_split(train_dataset , [n_train_samples, n_val_samples]) 
