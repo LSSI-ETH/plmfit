@@ -16,7 +16,7 @@ class IPretrainedProteinLanguageModel(nn.Module):
     version : str
     py_model : nn.Module
     head : nn.Module
-    head_name : str
+    head_type : str
     no_parameters : int
     emb_layers_dim : int
     output_dim : int
@@ -28,9 +28,13 @@ class IPretrainedProteinLanguageModel(nn.Module):
         self.head_name = 'none'
         pass
         
-    @abstractmethod    
     def concat_task_specific_head(self , head):
-        pass
+        assert head.in_.in_features == self.output_dim, f' Head\'s input dimension ({head.in_.in_features}) is not compatible with {self.version}\'s output dimension ({self.output_dim}). To concat modules these must be equal.'
+        #TODO: Add concat option with lm head or final transformer layer.
+        self.head = head 
+        self.head_type = head.__class__.__name__ ## parse name from variable
+        self.no_parameters += utils.get_parameters(self.head)
+        
     @abstractmethod
     def extract_embeddings(self , data_type , batch_size , layer = 11, reduction = 'mean'):
         pass
@@ -69,16 +73,9 @@ class ProGenFamily(IPretrainedProteinLanguageModel): ##
         self.emb_layers_dim = self.py_model.transformer.h[0].attn.out_proj.out_features
         self.tokenizer = utils.load_tokenizer(progen_model_name)
       
-    def concat_task_specific_head(self , head):  
-        assert head.in_.in_features == self.output_dim, f' Head\'s input dimension ({head.in_.in_features}) is not compatible with {self.name}\'s output dimension ({self.output_dim}). To concat modules these must be equal.'
-        #TODO: Add concat option with lm head or final transformer layer.
-        self.head = head 
-        self.head_name = head.__class__.__name__ ## parse name from variable
-        self.no_parameters += utils.get_parameters(self.head)
-        return 
         
     def extract_embeddings(self , data_type , batch_size , layer = 11, reduction = 'mean'):
-        logger = l.Logger(f'logger_extract_embeddings_{data_type}_{self.name}_layer{layer}_{reduction}.txt')
+        logger = l.Logger(f'logger_extract_embeddings_{data_type}_{self.version}_layer{layer}_{reduction}.txt')
         device = 'cpu'
         fp16 = False
         device_ids = []
@@ -189,9 +186,25 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         self.py_model = EsmForMaskedLM.from_pretrained(f'facebook/{esm_version}')
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.esm.encoder.layer)
-        self.output_dim = None
-        self.emb_layers_dim =  None
+        self.output_dim = self.py_model.esm.encoder.layer[11].output.dense.out_features
+        self.emb_layers_dim =  self.py_model.esm.encoder.layer[0].attention.self.query.in_features
         self.tokenizer = AutoTokenizer.from_pretrained(f'facebook/{esm_version}') 
+   
+    
+    def extract_embeddings(self , data_type , batch_size , layer = 11, reduction = 'mean'):
+        pass
+
+    
+    def fine_tune(self, data_type, fine_tuner , train_split_name, optimizer , loss_f ):
+        pass 
+
+    
+    def evaluate(self, data_type ):
+        pass
+    
+    
+    def forward(self, src):
+        pass
 
 
 class ProtBERTFamily():
