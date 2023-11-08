@@ -259,7 +259,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                     logger.log(f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ') # | memory usage : {100 - memory_usage.percent:.2f}%
            
 
-
+        os.makedirs(f'./data/{data_type}/embeddings', exist_ok = True)
         torch.save(embs,f'./data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer}_{reduction}.pt')
         t = torch.load(f'./data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer}_{reduction}.pt')
         logger.log(f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer}_{reduction}.pt" ({time.time() - start_enc_time:.2f}s)')
