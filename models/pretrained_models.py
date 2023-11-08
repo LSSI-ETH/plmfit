@@ -76,16 +76,16 @@ class ProGenFamily(IPretrainedProteinLanguageModel): ##
 
     tokenizer : Tokenizer
     
-    def __init__(self , progen_model_name : str):
+    def __init__(self , progen_version : str):
         #IPretrainedProteinLanguageModel.__init__(self)
         super().__init__()
-        self.name = progen_model_name 
-        self.py_model = ProGenForCausalLM.from_pretrained(f'./language_models/progen2/checkpoints/{progen_model_name}')    
+        self.version = progen_version
+        self.py_model = ProGenForCausalLM.from_pretrained(f'./language_models/progen2/checkpoints/{progen_version}')    
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.transformer.h)
         self.output_dim = self.py_model.lm_head.out_features
         self.emb_layers_dim = self.py_model.transformer.h[0].attn.out_proj.out_features
-        self.tokenizer = utils.load_tokenizer(progen_model_name)
+        self.tokenizer = utils.load_tokenizer(progen_version)
       
         
     def extract_embeddings(self , data_type , batch_size , layer = 11, reduction = 'mean'):
@@ -139,9 +139,9 @@ class ProGenFamily(IPretrainedProteinLanguageModel): ##
            
 
 
-        torch.save(embs,f'./data/{data_type}/embeddings/{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt')
-        t = torch.load(f'./data/{data_type}/embeddings/{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt')
-        logger.log(f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt" ({time.time() - start_enc_time:.2f}s)')
+        torch.save(embs,f'./data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer}_{reduction}.pt')
+        t = torch.load(f'./data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer}_{reduction}.pt')
+        logger.log(f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer}_{reduction}.pt" ({time.time() - start_enc_time:.2f}s)')
         return
     
     def fine_tune(self, data_type, fine_tuner , train_split_name, optimizer , loss_f ):
@@ -259,7 +259,6 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                     logger.log(f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ') # | memory usage : {100 - memory_usage.percent:.2f}%
            
 
-
         torch.save(embs,f'./data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer}_{reduction}.pt')
         t = torch.load(f'./data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer}_{reduction}.pt')
         logger.log(f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer}_{reduction}.pt" ({time.time() - start_enc_time:.2f}s)')
@@ -323,4 +322,12 @@ class AnkahFamily():
 
 class SapiesFamily():
     pass
+
+
+
+
+
+
+
+
 
