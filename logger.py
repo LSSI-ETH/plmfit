@@ -10,6 +10,7 @@ class Logger():
         self.created_at = datetime.datetime.now()
         self.file_name = f'{file_name}_{self.created_at}'
         #file_name = f'{file_name}_{self.created_at}'
+        os.makedirs(self.location, exist_ok = True)
         with open(f'{self.location}/{self.file_name}', 'w') as f:
             f.truncate(0)
             f.close()
