@@ -54,6 +54,7 @@ def update_mutation_counts(wildtype_seq, mutation_seq, mask, log=False):
             mutation_counts[mask[j]][i] += 1
         j += 1
     
+    # Optional logging
     if log: 
         print(mask, " - Length: ", len(mask), " - Deletions: ", deletions, " - Insertions: ", insertions)
         print(region, " - Length: ", len(region))
