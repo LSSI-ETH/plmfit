@@ -30,7 +30,8 @@ def plot_score_distribution(data, column="score", log_scale=False, path=None):
     ax = sns.histplot(data[column], bins=1000, kde=True, log_scale=(False, log_scale))
     plt.title('Fitness Score Distribution', fontsize=16)
     plt.xlabel('Fitness Score', fontsize=14)
-    plt.ylabel('Frequency', fontsize=14)
+    y_label = 'Frequency (Log Scale)' if log_scale else 'Frequency'
+    plt.ylabel(y_label, fontsize=14)
     plt.grid(True, which="both", ls="--", linewidth=0.5)
     plt.tight_layout()
     if path is not None:
@@ -54,7 +55,9 @@ def plot_normalized_score_distribution(data, column="normalized_score", log_scal
     ax = sns.histplot(data[column], bins=1000, kde=True, log_scale=(False, log_scale))
     plt.title('Normalized Fitness Score Distribution', fontsize=16)
     plt.xlabel('Normalized Fitness Score', fontsize=14)
-    plt.ylabel('Frequency', fontsize=14)
+    # Set the y-axis label based on whether log scale is used
+    y_label = 'Frequency (Log Scale)' if log_scale else 'Frequency'
+    plt.ylabel(y_label, fontsize=14)
     plt.grid(True, which="both", ls="--", linewidth=0.5)
     plt.tight_layout()
     if path is not None:
