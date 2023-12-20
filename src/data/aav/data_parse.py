@@ -33,16 +33,16 @@ if __name__ == "__main__":
     )
 
     # Various plots for data visualization
-    data_explore.plot_label_distribution(data)
-    data_explore.plot_score_distribution(data)
+    data_explore.plot_label_distribution(data, path=os.path.join(script_dir,"plots/labels.png"))
+    data_explore.plot_score_distribution(data, path=os.path.join(script_dir,"plots/score.png"))
 
     # Normalize the scores and plot the distribution
     data["normalized_score"] = data_explore.normalized_score(data)
-    data_explore.plot_normalized_score_distribution(data)
+    data_explore.plot_normalized_score_distribution(data, path=os.path.join(script_dir,"plots/norm_score.png"))
 
     # Plot distributions of sequence lengths and number of mutations
-    data_explore.plot_sequence_length_distribution(data)
-    data_explore.plot_mutations_number(data)
+    data_explore.plot_sequence_length_distribution(data, path=os.path.join(script_dir,"plots/seq_len.png"))
+    data_explore.plot_mutations_number(data, path=os.path.join(script_dir,"plots/mut_no.png"))
 
     # Function to update mutation counts based on the wild type sequence, mutation region, and mask
     def update_mutation_counts(wildtype_seq, region, mask, log=False):
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     )
 
     # Plot a heatmap of mutations
-    data_explore.plot_mutations_heatmap(mutation_counts)
+    data_explore.plot_mutations_heatmap(mutation_counts, zoom_region=[555, 595], path=os.path.join(script_dir,"plots/mut_heatmap.png"))
 
     # Creating a new DataFrame with the specified columns
     new_data = pd.DataFrame(
