@@ -26,7 +26,7 @@ Adeno-Associated Virus (AAV) is a small virus that infects humans and some other
 *Figure 5: Frequency distribution of the number of mutations per mutation mask. It indicates how many mutations are typically present in the sequences.*
 
 ### Mutation Heatmap
-![Mutation Heatmap](./plots/aav_mut_heatmap.png)
+![Mutation Heatmap](./plots/mut_heatmap.png)
 *Figure 6: Heatmap showing the distribution of mutations across sequences. '+' marks represent insertions, and '-' marks represent deletions, providing insight into mutation patterns.*
 
 ## Score Interpretation
