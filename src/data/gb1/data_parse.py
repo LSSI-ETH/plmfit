@@ -1,35 +1,23 @@
-import argparse
 import pandas as pd
-import matplotlib.pyplot as plt
-import json
-import numpy as np
-import warnings
-import seaborn as sns
-from Bio import SeqIO
-import Bio.Seq
-from Bio.Seq import Seq
+from src import data_explore
 import os
-import math
+import json
 
-parser = argparse.ArgumentParser(description='gb1_parser')
-parser.add_argument('--split', type=str, default='one_vs_rest') ## options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
+script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
+
+# Define file paths for the CSV and FASTA files
+csv_path = "four_mutations_full_data.csv"
+fasta_path = "5LDE_1.fasta"
+
+# Read the dataset from the CSV file
+data = pd.read_csv(os.path.join(script_dir, csv_path))
 
 
-args = parser.parse_args()
-
-
-def load_data(split):
-    return pd.read_csv('/Users/tbikias/workspace/dms_pLM/data/gb1/four_mutations_full_data.csv') #f'./splits/{split}.csv'
-
-#
-
-data = load_data(args.split)
-wild_type = data[data['target'] == 1]['sequence'].values[0]
-c = 0
-def get_pos_mut(seq):
+# Legacy function, might remove in the future
+def get_pos_mut(seq, wildtype_seq):
     ret = []
     for i in range(len(seq)):
-       if seq[i] != wild_type[i]:
+       if seq[i] != wildtype_seq[i]:
             ret.append(i)
             ret.append(seq[i])
     if len(ret) == 0: 
@@ -39,14 +27,98 @@ def get_pos_mut(seq):
         ret = [-2, '@']
     return ret
 
-if __name__ == '__main__':
-    
-    data_format = pd.DataFrame(columns = ["aa_seq","pos_mut", "aa_new", "score" , "err"])
-    data_format['aa_seq'] = data['sequence']
-    data_format['score'] = data['target']
-    data_format['set'] = data['set']
-    data_format['pos_mut'] = data['sequence'].apply(lambda x : get_pos_mut(x)[0])
-    data_format['aa_new'] = data['sequence'].apply(lambda x : get_pos_mut(x)[1])
-    data_format['len'] = data_format.apply(lambda x : len(x))
-    data_format.reset_index(inplace = True)
-    data_format.to_csv('data_format.csv')
+# Function to update mutation counts based on the wildtype sequence, mutation sequence, and mask
+def update_mutation_counts(mutation_counts, wildtype_seq, mask, mutation_sites, log=False):
+    insertions = 0
+    deletions = 0
+    region = ""
+    for i in mutation_sites:
+        seq_char = wildtype_seq[i]
+        region += mask[i]
+        if mask[i] != seq_char:  # Exclude no change and deletions
+            mutation_counts[mask[i]][i] += 1
+
+    # Optional logging
+    if log:
+        print(
+            mask,
+            " - Length: ",
+            len(mask),
+            " - Deletions: ",
+            deletions,
+            " - Insertions: ",
+            insertions,
+        )
+        print(region, " - Length: ", len(region))
+        print("\n")
+
+if __name__ == "__main__":
+
+    # Define the indices for the mutation sites in the protein sequence according to the paper
+    v39 = 38
+    d40 = 39
+    g41 = 40
+    v54 = 53
+
+    # List containing the mutation site indices
+    mutation_sites = [v39, d40, g41, v54]
+
+    # Print the shape of the dataset
+    print(data.shape)
+
+    # Add a new column to the DataFrame for sequence length
+    data["sequence_length"] = data["sequence"].apply(len)
+
+    # Find the maximum sequence length in the dataset for use in the mutation matrix
+    max_length = max(data["sequence"].apply(len))
+
+    # Initialize a dictionary to count mutations at each position for all amino acids
+    mutation_counts = {aa: [0] * max_length for aa in "+-ACDEFGHIKLMNPQRSTVWY"}
+
+    # Parse the FASTA file to get the sequence ID and sequence
+    sequence_id, sequence = data_explore.parse_fasta(
+        os.path.join(script_dir, fasta_path)
+    )
+
+    # Various visualization utility function calls
+    data_explore.plot_label_distribution(data, label="keep", path=os.path.join(script_dir,"plots/labels.png"))
+    data_explore.plot_score_distribution(data, column="Fitness", path=os.path.join(script_dir,"plots/score.png"))
+    data["normalized_score"] = data_explore.normalized_score(
+        data, column="Fitness"
+    )  # Normalize score first
+    data_explore.plot_normalized_score_distribution(data, log_scale=True, path=os.path.join(script_dir,"plots/norm_score.png"))
+    data_explore.plot_sequence_length_distribution(data, path=os.path.join(script_dir,"plots/seq_len.png"))
+    data_explore.plot_mutations_number(data, column="HD", annotation=True, path=os.path.join(script_dir,"plots/mut_no.png"))
+
+    # Apply the function to update mutation counts for each row in the DataFrame
+    data.apply(
+        lambda row: update_mutation_counts(mutation_counts, sequence, row["sequence"], mutation_sites), axis=1
+    )
+
+    # Plot a heatmap of mutations
+    data_explore.plot_mutations_heatmap(mutation_counts, zoom_region=[35, 60], path=os.path.join(script_dir,"plots/mut_heatmap.png"))
+
+    # Create a new DataFrame with specified columns and save it as a CSV file
+    new_data = pd.DataFrame(
+        {
+            "aa_seq": data["sequence"],
+            "len": data["sequence_length"],
+            "no_mut": data["HD"],
+            "score": data["normalized_score"],
+        }
+    )
+
+    new_data = new_data[~new_data["aa_seq"].str.contains("\*")]
+    new_data.drop_duplicates(subset="aa_seq", keep="first", inplace=True)
+
+    # Save the new DataFrame to a CSV file
+    new_data.to_csv(os.path.join(script_dir, "gb1_data_full.csv"), index=False)
+
+    # Define the JSON file path
+    json_file_path = "wild_type.json"
+
+    wildtype = {"wild_type": sequence, "meta": sequence_id}
+
+    # Write the data to the JSON file
+    with open(os.path.join(script_dir, json_file_path), "w") as json_file:
+        json.dump(wildtype, json_file, indent=4)
