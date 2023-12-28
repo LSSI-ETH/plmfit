@@ -27,7 +27,7 @@ def plot_label_distribution(data, label="binary_score", path=None):
 def plot_score_distribution(data, column="score", log_scale=False, path=None):
     sns.set(style="whitegrid")
     plt.figure(figsize=(10, 6))
-    ax = sns.histplot(data[column], bins=1000, kde=True, log_scale=(False, log_scale))
+    sns.histplot(data[column], bins=1000, kde=True, log_scale=(False, log_scale))
     plt.title('Fitness Score Distribution', fontsize=16)
     plt.xlabel('Fitness Score', fontsize=14)
     y_label = 'Frequency (Log Scale)' if log_scale else 'Frequency'
@@ -37,9 +37,6 @@ def plot_score_distribution(data, column="score", log_scale=False, path=None):
     if path is not None:
         plt.savefig(path, format='png')
     plt.show(block=False)
-
-
-
 
 def normalized_score(data, column="score"):
     # Calculate the minimum and maximum values of the score column
@@ -52,7 +49,7 @@ def normalized_score(data, column="score"):
 def plot_normalized_score_distribution(data, column="normalized_score", log_scale=False, path=None):
     sns.set(style="whitegrid")
     plt.figure(figsize=(10, 6))
-    ax = sns.histplot(data[column], bins=1000, kde=True, log_scale=(False, log_scale))
+    sns.histplot(data[column], bins=1000, kde=True, log_scale=(False, log_scale))
     plt.title('Normalized Fitness Score Distribution', fontsize=16)
     plt.xlabel('Normalized Fitness Score', fontsize=14)
     # Set the y-axis label based on whether log scale is used
