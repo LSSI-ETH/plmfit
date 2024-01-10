@@ -3,12 +3,12 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_label_distribution(data, label="binary_score", path=None):
+def plot_label_distribution(data, label="binary_score", path=None, text="Keep"):
     sns.set(style="whitegrid")
     plt.figure(figsize=(10, 6))
     ax = sns.countplot(x=label, data=data, hue=label, palette=["coral", "skyblue"])
     plt.title('Label Distribution', fontsize=16)
-    plt.xlabel('Keep Label', fontsize=14)
+    plt.xlabel(text + ' Label', fontsize=14)
     plt.ylabel('Count', fontsize=14)
     plt.xticks(rotation=45, fontsize=12)
 
@@ -20,23 +20,25 @@ def plot_label_distribution(data, label="binary_score", path=None):
     plt.tight_layout()
     if path is not None:
         plt.savefig(path, format='png')
-    plt.show(block=False)
+    plt.ion()
+    plt.show()
 
 
 
-def plot_score_distribution(data, column="score", log_scale=False, path=None):
+def plot_score_distribution(data, column="score", text="Fitness Score", log_scale=False, path=None):
     sns.set(style="whitegrid")
     plt.figure(figsize=(10, 6))
     sns.histplot(data[column], bins=1000, kde=True, log_scale=(False, log_scale))
-    plt.title('Fitness Score Distribution', fontsize=16)
-    plt.xlabel('Fitness Score', fontsize=14)
+    plt.title(text + ' Distribution', fontsize=16)
+    plt.xlabel(text, fontsize=14)
     y_label = 'Frequency (Log Scale)' if log_scale else 'Frequency'
     plt.ylabel(y_label, fontsize=14)
     plt.grid(True, which="both", ls="--", linewidth=0.5)
     plt.tight_layout()
     if path is not None:
         plt.savefig(path, format='png')
-    plt.show(block=False)
+    plt.ion()
+    plt.show()
 
 def normalized_score(data, column="score"):
     # Calculate the minimum and maximum values of the score column
@@ -46,12 +48,12 @@ def normalized_score(data, column="score"):
     # Apply Min-Max Normalization
     return (data[column] - min_score) / (max_score - min_score)
 
-def plot_normalized_score_distribution(data, column="normalized_score", log_scale=False, path=None):
+def plot_normalized_score_distribution(data, column="normalized_score", text="Fitness Score", log_scale=False, path=None):
     sns.set(style="whitegrid")
     plt.figure(figsize=(10, 6))
     sns.histplot(data[column], bins=1000, kde=True, log_scale=(False, log_scale))
-    plt.title('Normalized Fitness Score Distribution', fontsize=16)
-    plt.xlabel('Normalized Fitness Score', fontsize=14)
+    plt.title('Normalized ' + text + ' Distribution', fontsize=16)
+    plt.xlabel('Normalized ' + text, fontsize=14)
     # Set the y-axis label based on whether log scale is used
     y_label = 'Frequency (Log Scale)' if log_scale else 'Frequency'
     plt.ylabel(y_label, fontsize=14)
@@ -59,7 +61,8 @@ def plot_normalized_score_distribution(data, column="normalized_score", log_scal
     plt.tight_layout()
     if path is not None:
         plt.savefig(path, format='png')
-    plt.show(block=False)
+    plt.ion()
+    plt.show()
 
 
 def plot_sequence_length_distribution(data, path=None):
@@ -73,7 +76,8 @@ def plot_sequence_length_distribution(data, path=None):
     plt.tight_layout()
     if path is not None:
         plt.savefig(path, format='png')
-    plt.show(block=False)
+    plt.ion()
+    plt.show()
 
 
 def plot_mutations_number(data, column='number_of_mutations', annotation=False, path=None):
@@ -94,7 +98,8 @@ def plot_mutations_number(data, column='number_of_mutations', annotation=False, 
     plt.tight_layout()
     if path is not None:
         plt.savefig(path, format='png')
-    plt.show(block=False)
+    plt.ion()
+    plt.show()
 
 
 
@@ -115,7 +120,7 @@ def parse_fasta(fasta_file, log=False):
 def plot_mutations_heatmap(mutation_counts, zoom_region=None, path=None):
     sns.set(style="white")
     mutation_df = pd.DataFrame(mutation_counts)
-
+    fig = plt.figure() 
     fig, (ax_main, ax_zoom) = plt.subplots(1, 2, figsize=(20, 10), gridspec_kw={'width_ratios': [3, 1]})
     sns.heatmap(np.transpose(mutation_df), cmap='viridis', cbar=True, ax=ax_main)
     ax_main.set_title('Mutation Heatmap per Amino Acid and Position', fontsize=16)
@@ -134,6 +139,7 @@ def plot_mutations_heatmap(mutation_counts, zoom_region=None, path=None):
     plt.tight_layout()
     if path is not None:
         plt.savefig(path, format='png')
+    plt.ion()
     plt.show()
 
 
