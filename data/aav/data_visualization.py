@@ -1,5 +1,5 @@
 import pandas as pd
-from src import data_explore
+import data_explore
 import os
 
 script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
@@ -28,7 +28,8 @@ def update_mutation_counts(mutation_counts, wildtype_seq, region, mask, log=Fals
     # Update mutation counts, aligning with the full sequence
     j = 0
     for i in range(start_pos, end_pos):
-        seq_char = wildtype_seq[i]  # Current amino acid in the wildtype sequence
+        # Current amino acid in the wildtype sequence
+        seq_char = wildtype_seq[i]
 
         # Corresponding character in the mutation mask, if mask is smaller than the region just use padding
         if len(mask) > j:

@@ -1,5 +1,5 @@
 import pandas as pd
-from src import data_explore
+import data_explore
 import os
 
 script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
@@ -12,7 +12,6 @@ data = pd.read_csv(os.path.join(script_dir, csv_path))
 
 if __name__ == "__main__":
 
-
     # Print the shape of the dataset
     print(data.shape)
 
@@ -23,5 +22,7 @@ if __name__ == "__main__":
             print(data["sequence_length"][i])
 
     # Various visualization utility function calls
-    data_explore.plot_score_distribution(data, column="target", path=os.path.join(script_dir,"plots/score.png"))
-    data_explore.plot_sequence_length_distribution(data, path=os.path.join(script_dir,"plots/seq_len.png"))
+    data_explore.plot_score_distribution(
+        data, column="target", path=os.path.join(script_dir, "plots/score.png"))
+    data_explore.plot_sequence_length_distribution(
+        data, path=os.path.join(script_dir, "plots/seq_len.png"))
