@@ -1,5 +1,5 @@
 import pandas as pd
-from src import data_explore
+import data_explore
 import os
 
 script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
@@ -16,17 +16,19 @@ data = pd.read_csv(os.path.join(script_dir, csv_path))
 def get_pos_mut(seq, wildtype_seq):
     ret = []
     for i in range(len(seq)):
-       if seq[i] != wildtype_seq[i]:
+        if seq[i] != wildtype_seq[i]:
             ret.append(i)
             ret.append(seq[i])
-    if len(ret) == 0: 
-        ret = [-1 , '-']
-    
+    if len(ret) == 0:
+        ret = [-1, '-']
+
     if len(ret) > 2:
         ret = [-2, '@']
     return ret
 
 # Function to update mutation counts based on the wildtype sequence, mutation sequence, and mask
+
+
 def update_mutation_counts(mutation_counts, wildtype_seq, mask, mutation_sites, log=False):
     insertions = 0
     deletions = 0
@@ -50,6 +52,7 @@ def update_mutation_counts(mutation_counts, wildtype_seq, mask, mutation_sites, 
         )
         print(region, " - Length: ", len(region))
         print("\n")
+
 
 if __name__ == "__main__":
 
@@ -80,14 +83,19 @@ if __name__ == "__main__":
     )
 
     # Various visualization utility function calls
-    data_explore.plot_label_distribution(data, label="keep", path=os.path.join(script_dir,"plots/labels.png"))
-    data_explore.plot_score_distribution(data, column="Fitness", path=os.path.join(script_dir,"plots/score.png"))
+    data_explore.plot_label_distribution(
+        data, label="keep", path=os.path.join(script_dir, "plots/labels.png"))
+    data_explore.plot_score_distribution(
+        data, column="Fitness", path=os.path.join(script_dir, "plots/score.png"))
     data["normalized_score"] = data_explore.normalized_score(
         data, column="Fitness"
     )  # Normalize score first
-    data_explore.plot_normalized_score_distribution(data, log_scale=True, path=os.path.join(script_dir,"plots/norm_score.png"))
-    data_explore.plot_sequence_length_distribution(data, path=os.path.join(script_dir,"plots/seq_len.png"))
-    data_explore.plot_mutations_number(data, column="HD", annotation=True, path=os.path.join(script_dir,"plots/mut_no.png"))
+    data_explore.plot_normalized_score_distribution(
+        data, log_scale=True, path=os.path.join(script_dir, "plots/norm_score.png"))
+    data_explore.plot_sequence_length_distribution(
+        data, path=os.path.join(script_dir, "plots/seq_len.png"))
+    data_explore.plot_mutations_number(
+        data, column="HD", annotation=True, path=os.path.join(script_dir, "plots/mut_no.png"))
 
     # Apply the function to update mutation counts for each row in the DataFrame
     data.apply(
@@ -95,4 +103,5 @@ if __name__ == "__main__":
     )
 
     # Plot a heatmap of mutations
-    data_explore.plot_mutations_heatmap(mutation_counts, zoom_region=[35, 60], path=os.path.join(script_dir,"plots/mut_heatmap.png"))
+    data_explore.plot_mutations_heatmap(mutation_counts, zoom_region=[
+                                        35, 60], path=os.path.join(script_dir, "plots/mut_heatmap.png"))

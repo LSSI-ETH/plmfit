@@ -1,5 +1,4 @@
 import pandas as pd
-from src import data_explore
 import os
 import json
 
@@ -15,7 +14,6 @@ if __name__ == "__main__":
 
     # Add a new column to the DataFrame for sequence length
     data["sequence_length"] = data["sequence"].apply(len)
-
 
     # Create a new DataFrame with specified columns and save it as a CSV file
     new_data = pd.DataFrame(
@@ -35,4 +33,5 @@ if __name__ == "__main__":
     new_data = new_data[new_data["len"] <= 1000]
 
     # Save the new DataFrame to a CSV file
-    new_data.to_csv(os.path.join(script_dir, "meltome_data_full.csv"), index=False)
+    new_data.to_csv(os.path.join(
+        script_dir, "meltome_data_full.csv"), index=False)
