@@ -45,8 +45,12 @@ To get started, you'll need to initialize a ProGenPLM model (for ProGen family P
 ```python
 from models.pretrained_models import ProGenPLM
 
-model = ProGenPLM()
+model = ProGenFamily()
 ```
+| PLM          | PLM Family class Name | Versions       | Publication Date | Source Link               | Owner        |
+| ------------ | --------------------- | -------------- | ----------------- | ------------------------- | ------------ |
+| ProGen  | ProGenFamily()          |    | 2022-01-01        |  | Salesforce     |
+| ESM | ESMFamily()          | v2.0, v2.1     | 2022-02-15        | [Source Link 2](link2)    | Meta   |
 
 ### Task-Specific Head Concatenation
 
@@ -58,25 +62,20 @@ head = LinearRegression(input_dim=32, output_dim=1)
 model.concat_task_specific_head(head)
 ```
 
-### Fine-Tuning
+### Transfer learning
 
 Fine-tuning allows you to train the ProGenPLM model for a specific task. You can specify various training parameters, such as the dataset, number of epochs, learning rate, optimizer, batch size, and more. Here's an example:
 (for demonstration purposes the model will be fully_retrained ("full_retrain") on the 'aav' dataset with the correspoding labels)
 
 ```python
-model.fine_tune(
-    dataset_name='aav',
-    fine_tuning_mode='full_retrain',
-    epochs=5,
-    lr=0.0006,
-    optimizer='adam',
-    batch_size=8,
-    train_split_name='two_vs_many_split',
-    val_split=0.2,
-    loss_function='mse',
-    log_interval=1
-)
+fine_tuner = FullRetrainFineTuner(epochs = 5 , lr = 0.0006, batch_size = 8,  val_split = 0.2 , log_interval = 1)
+model.fine_tune('aav' ,  fine_tuner, 'two_vs_many_split', 'adam' , 'mse')
 ```
+| **Transfer learning method**          | **Class / method **   | **Decription** | **Relevant publication** | **Publication date** |
+| ------------ | --------------------- | -------------- | ----------------- | ------------------------- |
+| Full retraining | FullRetrainFineTuner(...)           |   |    | [Source Link 1](link1)    | 
+| Feature extraction | PLMFamily.extract_embeddings(dataset, layer)         |     |       | [Source Link 2](link2)    | 
+
 Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for your specific use case. (See supported data_types and fine_tuning_mode)
 
 ### Feature Extraction
@@ -90,22 +89,9 @@ model.extract_embeddings(
     layer=11
 )
 ```
-
 Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for your specific use case. (See supported data_types)
 
-## PLMfit support
-
-| PLM          | PLM Family class Name | Versions       | Publication Date | Source Link               | Owner        |
-| ------------ | --------------------- | -------------- | ----------------- | ------------------------- | ------------ |
-| ProGen  | ProGenPLMFamily()          |    | 2022-01-01        |  | Salesforce     |
-| ESM | ESMPLMFamily()          | v2.0, v2.1     | 2022-02-15        | [Source Link 2](link2)    | Meta   |
-
-
-| **Transfer learning method**          | **Class / method **   | **Decription** | **Relevant publication** | **Publication date** |
-| ------------ | --------------------- | -------------- | ----------------- | ------------------------- |
-| Full retraining | FullRetrainer()           |   |    | [Source Link 1](link1)    | 
-| Feature extraction | PLMFamily.extract_embeddings()         |     |       | [Source Link 2](link2)    | 
-
+## Explainability analysis
 
 | **Explainability analysis function**     | **Decription** | **Relevant publication** | **Publication date** |
 | ------------ | --------------------- | -------------- | ----------------- | 
