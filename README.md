@@ -95,11 +95,21 @@ Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for yo
 
 ## PLMfit support
 
-| PLM          | PLM Family Class Name | Versions       | Publication Date | Source Link               | Owner        |
+| PLM          | PLM Family class Name | Versions       | Publication Date | Source Link               | Owner        |
 | ------------ | --------------------- | -------------- | ----------------- | ------------------------- | ------------ |
-| Example PLM1 | FamilyClass1           | v1.0, v1.1     | 2022-01-01        | [Source Link 1](link1)    | John Doe      |
-| Example PLM2 | FamilyClass2           | v2.0, v2.1     | 2022-02-15        | [Source Link 2](link2)    | Jane Smith    |
-| Example PLM3 | FamilyClass3           | v3.0, v3.1     | 2022-03-31        | [Source Link 3](link3)    | Bob Johnson   |
+| ProGen  | ProGenPLMFamily()          |    | 2022-01-01        |  | Salesforce     |
+| ESM | ESMPLMFamily()          | v2.0, v2.1     | 2022-02-15        | [Source Link 2](link2)    | Meta   |
+
+
+| **Transfer learning method**          | **Class / method **   | **Decription** | **Relevant publication** | **Publication date** |
+| ------------ | --------------------- | -------------- | ----------------- | ------------------------- |
+| Full retraining | FullRetrainer()           |   |    | [Source Link 1](link1)    | 
+| Feature extraction | PLMFamily.extract_embeddings()         |     |       | [Source Link 2](link2)    | 
+
+
+| **Explainability analysis function**     | **Decription** | **Relevant publication** | **Publication date** |
+| ------------ | --------------------- | -------------- | ----------------- | 
+| TBD |       |    |      |     |
 
 
 **Disclaimer**: Replace 'your-username' with the actual GitHub username or organization name where you intend to host this repository.
