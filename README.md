@@ -47,6 +47,7 @@ from models.pretrained_models import ProGenPLM
 
 model = ProGenFamily()
 ```
+**Currently supports**
 | PLM          | PLM Family class Name | Versions       | Publication Date | Source Link               | Owner        |
 | ------------ | --------------------- | -------------- | ----------------- | ------------------------- | ------------ |
 | ProGen  | ProGenFamily()          |    | 2022-01-01        |  | Salesforce     |
@@ -71,14 +72,9 @@ Fine-tuning allows you to train the ProGenPLM model for a specific task. You can
 fine_tuner = FullRetrainFineTuner(epochs = 5 , lr = 0.0006, batch_size = 8,  val_split = 0.2 , log_interval = 1)
 model.fine_tune('aav' ,  fine_tuner, 'two_vs_many_split', 'adam' , 'mse')
 ```
-| **Transfer learning method**          | **Class / method **   | **Decription** | **Relevant publication** | **Publication date** |
-| ------------ | --------------------- | -------------- | ----------------- | ------------------------- |
-| Full retraining | FullRetrainFineTuner(...)           |   |    | [Source Link 1](link1)    | 
-| Feature extraction | PLMFamily.extract_embeddings(dataset, layer)         |     |       | [Source Link 2](link2)    | 
 
-Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for your specific use case. (See supported data_types and fine_tuning_mode)
 
-### Feature Extraction
+### Feature / Embeddings extraction
 
 To extract embeddings or features from the model, you can use the following code:
 (for demonstration purposes the ProGen embeddings (features) will be extracted from the 'aav' dataset from layer 11)
@@ -90,7 +86,14 @@ model.extract_embeddings(
 )
 ```
 Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for your specific use case. (See supported data_types)
+**Currently supports**
+| **Transfer learning method**          | **Class / method **   | **Decription** | **Relevant publication** | **Publication date** |
+| ------------ | --------------------- | -------------- | ----------------- | ------------------------- |
+| Full retraining | FullRetrainFineTuner(...)           |   |    | [Source Link 1](link1)    | 
+| Feature extraction | PLMFamily.extract_embeddings(dataset, layer)         |     |       | [Source Link 2](link2)    | 
 
+
+Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for your specific use case. (See supported data_types and fine_tuning_mode)
 ## Explainability analysis
 
 | **Explainability analysis function**     | **Decription** | **Relevant publication** | **Publication date** |
