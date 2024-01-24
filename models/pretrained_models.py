@@ -1,5 +1,5 @@
 from language_models.progen2.models.progen.modeling_progen import ProGenForCausalLM
-import utils
+import shared_utils.utils as utils
 import torch.nn as nn
 import logger as l
 import torch
