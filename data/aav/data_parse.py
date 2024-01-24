@@ -1,5 +1,5 @@
 import pandas as pd
-import data_explore
+import shared_utils.data_explore as data_explore
 import os
 import json
 
