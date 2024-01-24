@@ -30,7 +30,7 @@ To use the ProGenPLM package in your project, follow these installation steps:
 3. Install PLMFit using pip:
 
    ```shell
-   pip install plmfit
+   pip install .
    ```
 
 
