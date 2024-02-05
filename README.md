@@ -37,15 +37,17 @@ Before installing PLMFit, ensure you have Python installed on your system. It's 
    Create a new virtual environment in the project directory:
    ```shell
    python -m venv venv
-
+   ```
    Activate the virtual environment:
    - On Windows:
    ```shell
    venv\Scripts\activate
+   ```
 
    - On macOS and Linux:
    ```shell
    source venv/bin/activate
+   ```
 
 4. **Install PLMFit**
    ```shell
