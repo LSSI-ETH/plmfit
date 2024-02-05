@@ -1,30 +1,13 @@
 import os
-from pathlib import Path
 from setuptools import find_packages, setup
 
 
-def parse_requirements(filename: os.PathLike):
+def read_requirements(filename: os.PathLike):
     with open(filename) as f:
-        requirements = f.read().splitlines()
-
-        def extract_url(line):
-            return next(filter(lambda x: x[0] != "-", line.split()))
-
-        extra_URLs = []
-        deps = []
-        for line in requirements:
-            if line.startswith("#") or line.startswith("-r"):
-                continue
-
-            # handle -i and --extra-index-url options
-            if "-i " in line or "--extra-index-url" in line:
-                extra_URLs.append(extract_url(line))
-            else:
-                deps.append(line)
-    return deps, extra_URLs
+        return [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
 
-required_deps, extra_URLs = parse_requirements(Path("requirements.txt"))
+required_deps = read_requirements("requirements.txt")
 
 setup(
     name="plmfit",

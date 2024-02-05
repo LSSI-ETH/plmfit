@@ -5,13 +5,11 @@ matplotlib
 numpy
 scipy
 transformers
-tokenizer
+tokenizers
 scikit-learn
 seaborn
 tensorflow
 tensorflow_addons
-numpy
-pandas
 h5py
 lxml
 pyfaidx
