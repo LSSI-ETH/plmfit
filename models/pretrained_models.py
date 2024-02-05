@@ -1,4 +1,6 @@
 from language_models.progen2.models.progen.modeling_progen import ProGenForCausalLM
+from language_models.proteinbert import load_pretrained_model
+
 import shared_utils.utils as utils
 import torch.nn as nn
 import logger as l
@@ -223,8 +225,27 @@ class ESMFamily():
     pass
 
 
-class ProtBERTFamilyM():
-    pass
+class ProteinBERTFamily(IPretrainedProteinLanguageModel):
+    def __init__(self, bert_model_name: str):
+        super().__init__()
+        self.name = bert_model_name
+        # Load the pre-trained BERT model. Replace with the appropriate method for BERT.
+        self.py_model = YourBERTModelClass.from_pretrained(
+            f'./language_models/proteinbert/checkpoints/{bert_model_name}')
+        # Rest of the initialization similar to ProGenFamily...
+
+    # Implement the abstract methods for BERT
+    def concat_task_specific_head(self, head):
+        # Implementation for BERT...
+        pass
+
+    def extract_embeddings(self, data_type, batch_size, layer, reduction):
+        # Implementation for BERT...
+        pass
+
+    def fine_tune(self, data_type, fine_tuner, train_split_name, optimizer, loss_f):
+        # Implementation for BERT...
+        pass
 
 
 class AnkahFamily():
