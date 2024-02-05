@@ -84,7 +84,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         super().__init__()
         self.name = progen_model_name
         self.py_model = ProGenForCausalLM.from_pretrained(
-            f'./language_models/progen2/checkpoints/{progen_model_name}')
+            f'./plmfit/language_models/progen2/checkpoints/{progen_model_name}')
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.transformer.h)
         self.output_dim = self.py_model.lm_head.out_features
