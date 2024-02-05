@@ -182,3 +182,4 @@ loggers/logger_fine_tune_progen2-small_LinearRegression_full_retrain_aav.txt_202
 *.gz
 data/meltome/full_dataset.json
 loggers/
+*.out
