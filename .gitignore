@@ -149,6 +149,7 @@ src/data/*/*.json
 .bin
 *.txt
 .txt
+!requirements.txt
 *.fasta
 .fasta
 *.sh
