@@ -1,5 +1,5 @@
 import pandas as pd
-import shared_utils.data_explore as data_explore
+import plmfit.shared_utils.data_explore as data_explore
 import os
 
 script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
