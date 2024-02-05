@@ -1,7 +1,7 @@
 from abc import abstractmethod
 import ctypes
-import models.pretrained_models
-import shared_utils.utils as utils
+import plmfit.models.pretrained_models
+import plmfit.shared_utils.utils as utils
 import torch.nn as nn
 import torch
 import time

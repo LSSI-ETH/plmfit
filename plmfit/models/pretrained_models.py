@@ -1,7 +1,7 @@
-from language_models.progen2.models.progen.modeling_progen import ProGenForCausalLM
-from language_models.proteinbert import load_pretrained_model
+from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForCausalLM
+from plmfit.language_models.proteinbert import load_pretrained_model
 
-import shared_utils.utils as utils
+import plmfit.shared_utils.utils as utils
 import torch.nn as nn
 import logger as l
 import torch
@@ -9,7 +9,7 @@ import torch.utils.data as data_utils
 from torch.utils.data import DataLoader
 import time
 from abc import abstractmethod
-from models.fine_tuning import *
+from plmfit.models.fine_tuning import *
 from tokenizers import Tokenizer
 
 
