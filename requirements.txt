@@ -1,0 +1,17 @@
+torch
+torchmetrics
+pandas
+matplotlib
+numpy
+scipy
+transformers
+tokenizer
+scikit-learn
+seaborn
+tensorflow
+tensorflow_addons
+numpy
+pandas
+h5py
+lxml
+pyfaidx
