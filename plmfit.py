@@ -1,7 +1,7 @@
 import os
 import math
 import pandas as pd
-from language_models.progen2.models.progen.modeling_progen import ProGenForCausalLM
+from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForCausalLM
 from tokenizers import Tokenizer
 import torch
 import time
@@ -19,11 +19,11 @@ import numpy as np
 from scipy import stats
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
-import logger as l
+import plmfit.logger as l
 import argparse
-import shared_utils.utils as utils
+import plmfit.shared_utils.utils as utils
 
-from models.pretrained_models import MLP, LogisticRegression, AdapterLayer, LinearRegression
+from plmfit.models.pretrained_models import MLP, LogisticRegression, AdapterLayer, LinearRegression
 
 import torchmetrics
 
