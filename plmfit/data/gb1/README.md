@@ -1,6 +1,8 @@
 ## GB1 Dataset Description
 This dataset focuses on mutations at specific sites (V39, D40, G41, V54) of the GB1 protein, with an emphasis on the impact of these mutations. The fitness score of each mutation is normalized to facilitate analysis.
 
+The dataset can be found in the FLIP repo: https://github.com/J-SNACKKB/FLIP/tree/main/splits/gb1
+
 ### Biological Context
 GB1, a domain of Protein G from Streptococcus, is widely used in studies of protein folding and stability. The mutation sites V39, D40, G41, and V54 are key to its structural and functional properties, making them critical for understanding the protein's behavior under mutational changes.
 

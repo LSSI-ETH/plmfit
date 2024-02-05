@@ -1,6 +1,8 @@
 ## AAV Dataset Description
 The dataset focuses on mutations within the region [561, 588] of the Adeno-Associated Virus (AAV) and includes fitness scores for these mutations. The fitness score quantifies the impact of mutations on the virus's function and is normalized for better comparability and analysis.
 
+The dataset can be found in the FLIP repo: https://github.com/J-SNACKKB/FLIP/tree/main/splits/aav
+
 ### Biological Context
 Adeno-Associated Virus (AAV) is a small virus that infects humans and some other primate species. It is widely used as a vector for gene therapy due to its low pathogenicity and stable gene delivery. The region [561, 588] is crucial for its capsid protein structure, influencing the virus's ability to deliver genetic material effectively.
 

@@ -1,6 +1,8 @@
 ## Meltome Dataset Description
 The Meltome dataset offers an extensive collection of data related to protein sequences and their stability across various conditions. Emphasis is placed on understanding the thermal stability and structural integrity of proteins under different environmental factors.
 
+The dataset can be found in the FLIP repo (splits.zip): https://github.com/J-SNACKKB/FLIP/tree/main/splits/meltome
+
 ### Biological Context
 The Meltome dataset compiles data from a wide range of organisms, providing insights into how proteins maintain their functionality under thermal stress. This dataset is instrumental in advancing our knowledge of protein behavior, especially in response to temperature changes.
 
