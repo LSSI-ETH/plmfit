@@ -1,6 +1,6 @@
-from models.pretrained_models import *
-from models.downstream_heads import LinearRegression
-from models.fine_tuning import *
+from plmfit.models.pretrained_models import *
+from plmfit.models.downstream_heads import LinearRegression
+from plmfit.models.fine_tuning import *
 import argparse
 
 parser = argparse.ArgumentParser(
