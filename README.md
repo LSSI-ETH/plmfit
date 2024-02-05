@@ -13,26 +13,43 @@ PLMFit is a framework that facilitates finetuning of  protein Language Models (c
 
 ## Installation
 
-To use the ProGenPLM package in your project, follow these installation steps:
+To install and use the PLMFit package, follow these steps:
 
-1. Clone this repository:
+### Prerequisites
+
+Before installing PLMFit, ensure you have Python installed on your system. It's also recommended to use a virtual environment for installation to avoid conflicts with other Python packages.
+
+### Steps
+
+1. **Clone the Repository**
+
+   First, clone the PLMFit repository from GitHub to your local machine:
 
    ```shell
    git clone https://github.com/LSSI-ETH/plmfit.git
-   ```
 
-2. Navigate to the project directory:
-
+2. **Navigate to the Project Directory**
    ```shell
    cd plmfit
-   ```
 
-3. Install PLMFit using pip:
+3. **Create and Activate a Virtual Environment (Optional but Recommended)**
 
+   Create a new virtual environment in the project directory:
+   ```shell
+   python -m venv venv
+
+   Activate the virtual environment:
+   - On Windows:
+   ```shell
+   venv\Scripts\activate
+
+   - On macOS and Linux:
+   ```shell
+   source venv/bin/activate
+
+4. **Install PLMFit**
    ```shell
    pip install .
-   ```
-
 
 ## Usage
 
