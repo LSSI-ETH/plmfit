@@ -3,7 +3,7 @@ from plmfit.language_models.proteinbert import load_pretrained_model
 
 import plmfit.shared_utils.utils as utils
 import torch.nn as nn
-import logger as l
+import plmfit.logger as l
 import torch
 import torch.utils.data as data_utils
 from torch.utils.data import DataLoader
