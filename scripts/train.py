@@ -11,7 +11,7 @@ parser.add_argument('--batch_size', type=int, default=1)
 args = parser.parse_args()
 
 if __name__ == '__main__':
-    logger = l.Logger("./train_logger")
+    logger = l.Logger("train_logger")
     fine_tuner = FullRetrainFineTuner(
         epochs=5, lr=0.0006, batch_size=8,  val_split=0.2, log_interval=1)
     model = ProGenFamily(progen_model_name='progen2-small')
