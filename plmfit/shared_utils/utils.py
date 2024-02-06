@@ -48,12 +48,15 @@ def one_hot_encode(seqs):
     return torch.tensor([0])
 
 
-def categorical_encode(seqs, tokenizer, max_len):
-    seq_tokens = tokenizer.get_vocab(
-    )['<|pad|>'] * torch.ones((len(seqs), max_len), dtype=int)
-    seq_tokens = seq_tokens
+def categorical_encode(seqs, tokenizer, max_len, logger = None):
+    if logger != None:
+        logger.log(f'Initiating categorical encoding')
+        logger.log(f'Memory needed for encoding: {len(seqs) * max_len * 4}B')
+    seq_tokens = tokenizer.get_vocab()['<|pad|>'] * torch.ones((len(seqs), max_len), dtype=int)
     for itr, seq in enumerate(seqs):
         seq_tokens[itr][:len(seq)] = torch.tensor(tokenizer.encode(seq).ids)
+    if logger != None:
+        logger.log(f'Categorical encoding finished')
     return seq_tokens
 
 

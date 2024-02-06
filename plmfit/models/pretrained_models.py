@@ -101,7 +101,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 
     def extract_embeddings(self, data_type, batch_size, layer=11, reduction='mean'):
         logger = l.Logger(
-            f'logger_extract_embeddings_{data_type}_{self.name}_layer{layer}_{reduction}.txt')
+            f'logger_extract_embeddings_{data_type}_{self.name}_layer{layer}_{reduction}')
         device = 'cpu'
         fp16 = False
         device_ids = []
@@ -120,7 +120,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         start_enc_time = time.time()
         logger.log(f' Encoding {data.shape[0]} sequences....')
         encs = utils.categorical_encode(
-            data['aa_seq'].values, self.tokenizer, max(data['len'].values))
+            data['aa_seq'].values, self.tokenizer, max(data['len'].values), logger=logger)
         logger.log(
             f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
         encs = encs.to(device)
@@ -150,17 +150,18 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                     elif reduction == 'sum':
                         embs[i: i + batch_size, :] = torch.sum(out, dim=1)
                     else:
-                        raise 'Unsupported reduction option'
+                        raise ValueError('Unsupported reduction option')
                     del out
                     i = i + batch_size
-                    # | memory usage : {100 - memory_usage.percent:.2f}%
                     logger.log(
                         f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ')
 
+        output_path = f'./output/{data_type}/embeddings/'
+        os.makedirs(output_path, exist_ok=True)
         torch.save(
-            embs, f'./data/{data_type}/embeddings/{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt')
+            embs, os.path.join(output_path, f'{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt'))
         t = torch.load(
-            f'./data/{data_type}/embeddings/{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt')
+            os.path.join(output_path, f'{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt'))
         logger.log(
             f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt" ({time.time() - start_enc_time:.2f}s)')
         return
