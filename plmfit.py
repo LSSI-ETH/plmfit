@@ -30,7 +30,7 @@ import torchmetrics
 
 parser = argparse.ArgumentParser(description='plmfit_args')
 # options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
-parser.add_argument('--model_name', type=str, default='progen2-small')
+parser.add_argument('--plm', type=str, default='progen2-small')
 parser.add_argument('--ft_method', type=str, default='feature_extraction')
 parser.add_argument('--data_type', type=str, default='aav')
 # here you specifcy the different splits
@@ -54,6 +54,7 @@ parser.add_argument('--epochs', type=int, default=5)
 parser.add_argument('--val_split', type=float, default=0.2)
 parser.add_argument('--lr', type=float, default=0.0001)
 parser.add_argument('--optimizer', type=str, default='adam')
+parser.add_argument('--function', type=str, default='extract_embeddings')
 
 
 args = parser.parse_args()
@@ -69,6 +70,22 @@ wild_type = utils.get_wild_type(args.data_type)
 if __name__ == '__main__':
 
     # Preparing input token (embeddings, one hot encoded or categorical encoded)
+    model = [] 
+
+    if args.mo
+
+    if args.function == 'extract_embeddings':
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
     embs = None
 
     if args.ft_method == 'feature_extraction':  # added False here to not load embedding during development
