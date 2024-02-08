@@ -11,6 +11,7 @@ import time
 from abc import abstractmethod
 from plmfit.models.fine_tuning import *
 from tokenizers import Tokenizer
+from transformers import AutoTokenizer, AutoModel, EsmForMaskedLM
 
 
 class IPretrainedProteinLanguageModel(nn.Module):
@@ -303,14 +304,13 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                     logger.log(f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ') # | memory usage : {100 - memory_usage.percent:.2f}%
 
            
-        os.makedirs(f'./data/{data_type}/embeddings', exist_ok = True)
+        os.makedirs(f'.plmfit/data/{data_type}/embeddings', exist_ok = True)
         for j in range(len(layer)):
             lay = layer[j]
             for k in range(len(reduction)):
                 tmp = embs[j,k].detach().clone()
-                torch.save(tmp,f'./data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt')
-                t = torch.load(f'./data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt')
-                logger.log(f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt" ({time.time() - start_enc_time:.2f}s)')
+                torch.save(tmp,f'./plmfit/data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt')
+                logger.log(f'Saved embeddings ({tmp.shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt" ({time.time() - start_enc_time:.2f}s)')
                 del tmp
         return
 
@@ -466,14 +466,13 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
                 logger.log(f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ') # | memory usage : {100 - memory_usage.percent:.2f}%
 
            
-        os.makedirs(f'./data/{data_type}/embeddings', exist_ok = True)
+        os.makedirs(f'./plmfit/data/{data_type}/embeddings', exist_ok = True)
         for j in range(len(layer)):
             lay = layer[j]
             for k in range(len(reduction)):
                 tmp = embs[j,k].detach().clone()
-                torch.save(tmp,f'./data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt')
-                t = torch.load(f'./data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt')
-                logger.log(f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt" ({time.time() - start_enc_time:.2f}s)')
+                torch.save(tmp,f'./plmfit/data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt')
+                logger.log(f'Saved embeddings ({tmp.shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt" ({time.time() - start_enc_time:.2f}s)')
                 del tmp
         return
     
