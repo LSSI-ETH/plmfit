@@ -184,3 +184,4 @@ data/meltome/full_dataset.json
 loggers/
 *.out
 *.err
+sandbox.py
