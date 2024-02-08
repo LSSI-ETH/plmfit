@@ -99,7 +99,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.no_parameters += utils.get_parameters(self.head)
         return
 
-    def extract_embeddings(self, data_type, batch_size, layer=11, reduction='mean'):
+    def extract_embeddings(self, data_type, batch_size = 2, layer=11, reduction='mean'):
         logger = l.Logger(
             f'logger_extract_embeddings_{data_type}_{self.name}_layer{layer}_{reduction}')
         device = 'cpu'
