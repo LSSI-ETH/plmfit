@@ -1,13 +1,12 @@
-from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForCausalLM
+#from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForCausalLM
 import torch
 import json
 import pandas as pd
 from tokenizers import Tokenizer
-from transformers import AutoTokenizer
 
 
-def load_model(model_name):
-    return ProGenForCausalLM.from_pretrained(f'./plmfit/language_models/progen2/checkpoints/{model_name}')
+#def load_model(model_name):
+#   return ProGenForCausalLM.from_pretrained(f'./plmfit/language_models/progen2/checkpoints/{model_name}')
 
 
 def load_embeddings(data_type, embs):
