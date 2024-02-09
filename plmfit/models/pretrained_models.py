@@ -93,7 +93,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.tokenizer = utils.load_tokenizer(progen_model_name)
 
     def concat_task_specific_head(self, head):
-        assert head.in_.in_features == self.output_dim, f' Head\'s input dimension ({head.in_.in_features}) is not compatible with {self.name}\'s output dimension ({self.output_dim}). To concat modules these must be equal.'
+        assert head.in_.in_features == self.output_dim, f'Head\'s input dimension ({head.in_.in_features}) is not compatible with {self.name}\'s output dimension ({self.output_dim}). To concat modules these must be equal.'
         # TODO: Add concat option with lm head or final transformer layer.
         self.head = head
         self.head_name = head.__class__.__name__  # parse name from variable
@@ -102,7 +102,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 
     def extract_embeddings(self, data_type, batch_size = 2, layer=11, reduction='mean'):
         logger = l.Logger(
-            f'logger_extract_embeddings_{data_type}_{self.name}_layer{layer}_{reduction}')
+            f'extract_embeddings_{data_type}_{self.name}_layer-{layer}_{reduction}')
         device = 'cpu'
         fp16 = False
         device_ids = []
@@ -112,18 +112,18 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             logger.log(f'Available GPUs : {torch.cuda.device_count()}')
             for i in range(torch.cuda.device_count()):
                 logger.log(
-                    f' Running on {torch.cuda.get_device_properties(i).name}')
+                    f'Running on {torch.cuda.get_device_properties(i).name}')
                 device_ids.append(i)
 
         else:
-            logger.log(f' No gpu found rolling device back to {device}')
+            logger.log(f'No gpu found rolling device back to {device}')
         data = utils.load_dataset(data_type)
         start_enc_time = time.time()
-        logger.log(f' Encoding {data.shape[0]} sequences....')
+        logger.log(f'Encoding {data.shape[0]} sequences....')
         encs = utils.categorical_encode(
             data['aa_seq'].values, self.tokenizer, max(data['len'].values), logger=logger)
         logger.log(
-            f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
+            f'Encoding completed! {time.time() -  start_enc_time:.4f}s')
         encs = encs.to(device)
         seq_dataset = data_utils.TensorDataset(encs)
         seq_loader = data_utils.DataLoader(
@@ -136,20 +136,49 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.py_model = self.py_model.to(device)
         i = 0
         self.py_model.eval()
+        logger.log(self.py_model)
         with torch.no_grad():
             with torch.cuda.amp.autocast(enabled=fp16):
                 for batch in seq_loader:
                     start = time.time()
-                    if layer == 13:
+                    if layer == 'logits':
                         out = self.py_model(batch[0]).logits
                     else:
-                        out = self.py_model(batch[0]).hidden_states
-                        out = out[layer - 1]
+                        model_output = self.py_model(batch[0])
+                        hidden_states = model_output.hidden_states  # Get all hidden states
+
+                        # Log the shape of each layer's embeddings for the first batch
+                        if i == 0:  # Assuming 'i' tracks the batch index; make sure it's reset appropriately
+                            for layer_index, layer_output in enumerate(hidden_states):
+                                logger.log(f'Layer {layer_index} shape: {layer_output.shape}')
+
+                        # Determine the layer index based on the 'layer' description
+                        if layer == 'last':
+                            # The last hidden layer (not counting the logits layer)
+                            selected_layer_index = len(hidden_states) - 1
+                        elif layer == 'middle':
+                            # Adjusted to consider the first transformer block as the "first" layer
+                            selected_layer_index = 1 + (len(hidden_states) - 1) // 2
+                        elif layer == 'first':
+                            # The first transformer block after the input embeddings
+                            selected_layer_index = 1  # Adjusted to 1 to skip the input embeddings
+                        else:
+                            # Fallback for numeric layer specification or unexpected strings
+                            selected_layer_index = int(layer) if layer.isdigit() else 0
+
+                        # Now select the specific layer's output
+                        out = hidden_states[selected_layer_index]
 
                     if reduction == 'mean':
                         embs[i: i + batch_size, :] = torch.mean(out, dim=1)
                     elif reduction == 'sum':
                         embs[i: i + batch_size, :] = torch.sum(out, dim=1)
+                    elif reduction == 'bos':
+                        # Select the embeddings for the first token of each sequence in the batch
+                        embs[i: i + batch_size, :] = out[:, 0, :]
+                    elif reduction == 'eos':
+                        # Select the embeddings for the last token of each sequence in the batch
+                        embs[i: i + batch_size, :] = out[:, -1, :]
                     else:
                         raise ValueError('Unsupported reduction option')
                     del out
