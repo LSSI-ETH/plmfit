@@ -55,12 +55,12 @@ parser.add_argument('--lr', type=float, default=0.0001)
 parser.add_argument('--optimizer', type=str, default='adam')
 parser.add_argument('--function', type=str, default='extract_embeddings')
 parser.add_argument('--reduction', type=str, default='mean')
-parser.add_argument('--layer', type=int, default=0)
+parser.add_argument('--layer', type=str, default=0)
 
 args = parser.parse_args()
 
 logger = l.Logger(
-    f'logger_{args.ft_method}_{args.head}_{args.data_type}_SPECS:_filename:{args.data_file_name}_gpus:{args.gpus}_gres:{args.gres}_nodes:{args.nodes}.txt')
+    f'logger_{args.ft_method}_{args.head}_{args.data_type}_SPECS:_filename:{args.data_file_name}_gpus:{args.gpus}_gres:{args.gres}_nodes:{args.nodes}')
 
 if __name__ == '__main__':
 
