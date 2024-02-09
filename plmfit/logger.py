@@ -6,7 +6,7 @@ class Logger():
     def __init__(self, file_name: str):
         self.created_at = datetime.datetime.now()
         formatted_date = self.created_at.strftime("%Y%m%d_%H%M%S")
-        self.file_name = f'{file_name}_{formatted_date}.log'
+        self.file_name = f'{formatted_date}_{file_name}.log'
 
         # Set the location relative to the root of the project
         self.location = os.path.join(
@@ -25,4 +25,4 @@ class Logger():
 
     def log(self, text: str):
         with open(os.path.join(self.location, self.file_name), 'a') as f:
-            f.write(text + '\n')
+            f.write(f'{text}\n')
