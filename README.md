@@ -58,12 +58,20 @@ Before installing PLMFit, ensure you have Python installed on your system. It's 
 This section provides an overview of how to use the PLMFit package for various tasks.
 
 **Currently supports**
-| PLM         | Versions       | Publication Date | Source Link               | Owner        |
-| ------------  | -------------- | ----------------- | ------------------------- | ------------ |
-| ProGen         |    | 2022-01-01        |  | Salesforce     |
-| ESM         | v2.0, v2.1     | 2022-02-15        | [Source Link 2](link2)    | Meta   |
+| PLM          | PLM Family class Name | Versions       | Publication Date | Source Link               | Owner        |
+| ------------ | --------------------- | -------------- | ----------------- | ------------------------- | ------------ |
+| ProGen  | ProGenFamily()          |    | 2022-01-01        |  | Salesforce     |
+| ESM | ESMFamily()          | v2.0, v2.1     | 2022-02-15        | [Source Link 2](link2)    | Meta   |
+| Ankh| AnkhFamily()          | ankh-base, ankh-large     | 2023-01-18        |     | Proteinea   |
+### Task-Specific Head Concatenation
 
+You can concatenate a task-specific head to the model as follows (for demonstration purposes a simple LinearRegression head is being created):
 
+```python
+from models.models import LinearRegression
+head = LinearRegression(input_dim=32, output_dim=1) 
+model.concat_task_specific_head(head)
+```
 ### Transfer learning
 
 Fine-tuning allows you to train a PLM  for a specific task. Here's an example:
