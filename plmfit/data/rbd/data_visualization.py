@@ -44,14 +44,14 @@ os.makedirs(os.path.join(script_dir, "plots"), exist_ok = True)
 
 # Plot for label distribution
 data["label"] = data["label"].map(bool)
-save_path =  os.path.join(script_dir, "plots\\labels.png")
+save_path =  os.path.join(script_dir, "plots/labels.png")
 plot_label_distribution(data, label="label", path=save_path, text="Binding")
 
 # Plot for distribution of number of mutations
 mut_count_data = pd.DataFrame({"number_of_mutations":mut_counts})
-save_path =  os.path.join(script_dir, "plots\\mut_no.png")
+save_path =  os.path.join(script_dir, "plots/mut_no.png")
 plot_mutations_number(mut_count_data, annotation=False, path=save_path)
 
 # Plot for mutation heat map
-save_path =  os.path.join(script_dir, "plots\\mut_heat_map")
+save_path =  os.path.join(script_dir, "plots/mut_heat_map.png")
 plot_mutations_heatmap(mut_dict,zoom_region=[60,90], path=save_path)
