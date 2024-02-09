@@ -304,7 +304,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                     logger.log(f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ') # | memory usage : {100 - memory_usage.percent:.2f}%
 
            
-        os.makedirs(f'.plmfit/data/{data_type}/embeddings', exist_ok = True)
+        os.makedirs(f'./plmfit/data/{data_type}/embeddings', exist_ok = True)
         for j in range(len(layer)):
             lay = layer[j]
             for k in range(len(reduction)):
