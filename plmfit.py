@@ -57,6 +57,8 @@ parser.add_argument('--function', type=str, default='extract_embeddings')
 parser.add_argument('--reduction', type=str, default='mean')
 parser.add_argument('--layer', type=str, default=0)
 
+parser.add_argument('--output_dir', type=str, default='default')
+
 args = parser.parse_args()
 
 logger = l.Logger(
@@ -89,7 +91,7 @@ if __name__ == '__main__':
 
     if args.function == 'extract_embeddings':
 
-        model.extract_embeddings(data_type = args.data_type , layer= args.layer , reduction= args.reduction)
+        model.extract_embeddings(data_type = args.data_type , layer= args.layer , reduction= args.reduction, output_dir=args.output_dir)
     
     else:
 

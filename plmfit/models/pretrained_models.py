@@ -100,7 +100,16 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.no_parameters += utils.get_parameters(self.head)
         return
 
-    def extract_embeddings(self, data_type, batch_size = 2, layer=11, reduction='mean'):
+    def extract_embeddings(self, data_type, batch_size = 2, layer=11, reduction='mean', output_dir = 'default'):
+        if output_dir == 'default':
+            output_path = f'./plmfit/data/{data_type}/embeddings/'
+        else:
+            output_path = f'{output_dir}/{data_type}/embeddings/'
+        if not os.path.exists(output_path):
+            os.makedirs(output_path, exist_ok=True)
+        # Initialize the log file
+        with open(os.path.join(output_path, 'test.txt'), 'w') as f:
+            f.truncate(0)
         logger = l.Logger(
             f'extract_embeddings_{data_type}_{self.name}_layer-{layer}_{reduction}')
         device = 'cpu'
@@ -186,7 +195,10 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                     logger.log(
                         f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ')
 
-        output_path = f'./output/{data_type}/embeddings/'
+        if output_dir == 'default':
+            output_path = f'./plmfit/data/{data_type}/embeddings/'
+        else:
+            output_path = f'{output_dir}/{data_type}/embeddings/'
         os.makedirs(output_path, exist_ok=True)
         torch.save(
             embs, os.path.join(output_path, f'{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt'))
