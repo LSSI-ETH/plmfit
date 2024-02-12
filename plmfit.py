@@ -92,7 +92,8 @@ if __name__ == '__main__':
     if args.function == 'extract_embeddings':
 
         model.extract_embeddings(data_type = args.data_type , layer= args.layer , reduction= args.reduction, output_dir=args.output_dir)
-    
+    elif args.function == 'fine_tuning':
+        model.f
     else:
 
         raise 'Function is not supported'
