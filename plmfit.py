@@ -66,14 +66,22 @@ if __name__ == '__main__':
 
     # Preparing input token (embeddings, one hot encoded or categorical encoded)
     model = None
-
+    supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D", 
+                     "esm2_t30_150M_UR50D", "esm2_t33_650M_UR50D"]
+    supported_Ankh = ['ankh-base', 'ankh-large', 'ankh2-large']
+    
     if 'progen' in args.plm:
         assert args.plm in ['progen2-small'], 'Progen version is not supported'
         model = ProGenFamily(args.plm)
 
     elif 'esm' in args.plm:
-        assert args.plm in [''], 'ESM version is not supported'
+        assert args.plm in supported_ESM, 'ESM version is not supported'
         model = ESMFamily(args.plm)
+        
+    elif 'ankh' in args.plm:
+        assert args.plm in supported_Ankh, 'Ankh version is not supported'
+        model = AnkhFamily(args.plm)
+        
     else: 
         raise 'PLM not supported'
 
