@@ -178,10 +178,11 @@ cython_debug/
 #.idea/
 .vscode/launch.json
 .vscode/
-loggers/logger_fine_tune_progen2-small_LinearRegression_full_retrain_aav.txt_2024-01-16 15:42:09.689757
+loggers/*
 *.gz
 data/meltome/full_dataset.json
 loggers/
 *.out
 *.err
 sandbox.py
+plmfit/data/*/models/*
