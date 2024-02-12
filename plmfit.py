@@ -61,8 +61,8 @@ parser.add_argument('--output_dir', type=str, default='default')
 
 args = parser.parse_args()
 
-logger = l.Logger(
-    f'logger_{args.ft_method}_{args.head}_{args.data_type}_SPECS:_filename:{args.data_file_name}_gpus:{args.gpus}_gres:{args.gres}_nodes:{args.nodes}')
+# logger = l.Logger(
+#     f'logger_{args.ft_method}_{args.head}_{args.data_type}_SPECS:_filename:{args.data_file_name}_gpus:{args.gpus}_gres:{args.gres}_nodes:{args.nodes}')
 
 if __name__ == '__main__':
 
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     supported_Ankh = ['ankh-base', 'ankh-large', 'ankh2-large']
     
     if 'progen' in args.plm:
-        assert args.plm in ['progen2-small'], 'Progen version is not supported'
+        assert args.plm in ['progen2-small', 'progen2-medium', 'progen2-xlarge'], 'Progen version is not supported'
         model = ProGenFamily(args.plm)
 
     elif 'esm' in args.plm:
