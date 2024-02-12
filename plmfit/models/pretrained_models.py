@@ -84,13 +84,18 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         # IPretrainedProteinLanguageModel.__init__(self)
         super().__init__()
         self.name = progen_model_name
+        self.logger = l.Logger(
+            f'{self.name}')
         self.py_model = ProGenForCausalLM.from_pretrained(
             f'./plmfit/language_models/progen2/checkpoints/{progen_model_name}')
+        self.logger.log("Initialized model")
+        self.logger.log(self.py_model)
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.transformer.h)
         self.output_dim = self.py_model.lm_head.out_features
         self.emb_layers_dim = self.py_model.transformer.h[0].attn.out_proj.out_features
         self.tokenizer = utils.load_tokenizer(progen_model_name)
+        
 
     def concat_task_specific_head(self, head):
         assert head.in_.in_features == self.output_dim, f'Head\'s input dimension ({head.in_.in_features}) is not compatible with {self.name}\'s output dimension ({self.output_dim}). To concat modules these must be equal.'
@@ -107,9 +112,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             output_path = f'{output_dir}/{data_type}/embeddings/'
         if not os.path.exists(output_path):
             os.makedirs(output_path, exist_ok=True)
-        # Initialize the log file
-        with open(os.path.join(output_path, 'test.txt'), 'w') as f:
-            f.truncate(0)
+            
         logger = l.Logger(
             f'extract_embeddings_{data_type}_{self.name}_layer-{layer}_{reduction}')
         device = 'cpu'
@@ -177,9 +180,13 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 
                         # Now select the specific layer's output
                         out = hidden_states[selected_layer_index]
-
+                    # Log the shape of each layer's embeddings for the first batch
+                    if i == 0:  # Assuming 'i' tracks the batch index; make sure it's reset appropriately
+                        logger.log(f'{out[:, 0, :].size()}')
                     if reduction == 'mean':
                         embs[i: i + batch_size, :] = torch.mean(out, dim=1)
+                        if i == 0:  # Assuming 'i' tracks the batch index; make sure it's reset appropriately
+                            logger.log(f'{(torch.mean(out, dim=1)).size()}')
                     elif reduction == 'sum':
                         embs[i: i + batch_size, :] = torch.sum(out, dim=1)
                     elif reduction == 'bos':
@@ -195,11 +202,6 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                     logger.log(
                         f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ')
 
-        if output_dir == 'default':
-            output_path = f'./plmfit/data/{data_type}/embeddings/'
-        else:
-            output_path = f'{output_dir}/{data_type}/embeddings/'
-        os.makedirs(output_path, exist_ok=True)
         torch.save(
             embs, os.path.join(output_path, f'{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt'))
         t = torch.load(
