@@ -35,6 +35,7 @@ if __name__ == "__main__":
             "len": data["sequence_length"],
             "no_mut": data["number_of_mutations"],
             "score": data["normalized_score"],
+            "binary_score": data["binary_score"]
         }
     )
     new_data = new_data[~new_data["aa_seq"].str.contains("\*")]
