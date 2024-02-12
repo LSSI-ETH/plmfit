@@ -235,7 +235,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         self.tokenizer = AutoTokenizer.from_pretrained(f'facebook/{esm_version}') 
    
     
-    def extract_embeddings(self , data_type , batch_size , layer = 48, reduction = 'mean',mut_pos = None):
+    def extract_embeddings(self , data_type , batch_size = 4 , layer = 48, reduction = 'mean',mut_pos = None):
         logger = l.Logger(f'logger_extract_embeddings_{data_type}_{self.version}_layer{layer}_{reduction}')
         device = 'cpu'
         fp16 = False
@@ -399,7 +399,7 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
         self.emb_layers_dim =  self.py_model.config.hidden_size
         self.tokenizer = AutoTokenizer.from_pretrained(f'ElnaggarLab/{ankh_version}')
         
-    def extract_embeddings(self , data_type , batch_size , layer = 48, reduction = 'mean', mut_pos= None):
+    def extract_embeddings(self , data_type , batch_size = 4 , layer = 48, reduction = 'mean', mut_pos= None):
         logger = l.Logger(f'logger_extract_embeddings_{data_type}_{self.version}_layer{layer}_{reduction}')
         device = 'cpu'
         fp16 = False
