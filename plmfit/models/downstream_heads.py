@@ -76,22 +76,14 @@ class MLP(nn.Module):
         src = F.relu(self.dropout(src))
         return self.out(src)
     
-    
 class LogisticRegression(nn.Module):
-    def __init__(self, in_features):
-        super().__init__()
-        self.in_ = nn.Linear(in_features, 1)
-        self.act1 = nn.ReLU()
-        self.dropout = nn.Dropout(0.25)
-        self.init_weights(nn.Module)
-        
-    def init_weights(self, module) -> None:
-        init.kaiming_normal_(self.in_.weight)
-        self.in_.bias.data.zero_()
+    def __init__(self, n_inputs, n_outputs):
+        super(LogisticRegression, self).__init__()
+        self.linear = torch.nn.Linear(n_inputs, n_outputs)
 
-    def forward(self, src):
-        src = self.dropout(self.in_(src))
-        return src
+    def forward(self, x):
+        y_pred = torch.sigmoid(self.linear(x))
+        return y_pred
     
 class AdapterLayer(nn.Module):
     def __init__(self, in_features, bottleneck_dim ,dropout= 0.25 , eps = 1e-5):
