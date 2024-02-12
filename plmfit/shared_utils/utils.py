@@ -107,3 +107,23 @@ def read_fasta(file_path):
         sequences[current_sequence_id] = ''.join(current_sequence)
 
     return sequences
+
+def log_model_info(log_file_path, data_params, model_params, training_params, eval_metrics):
+    with open(log_file_path, 'w') as log_file:
+        log_file.write("Data Parameters:\n")
+        for param, value in data_params.items():
+            log_file.write(f"{param}: {value}\n")
+
+        log_file.write("\nModel Parameters:\n")
+        for param, value in model_params.items():
+            log_file.write(f"{param}: {value}\n")
+        
+        log_file.write("\nTraining Parameters:\n")
+        for param, value in training_params.items():
+            log_file.write(f"{param}: {value}\n")
+        
+        log_file.write("\nEvaluation Metrics:\n")
+        for metric, value in eval_metrics.items():
+            log_file.write(f"{metric}: {value}\n")
+    
+    print(f"Model information logged to {log_file_path}")
