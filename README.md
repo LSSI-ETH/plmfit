@@ -61,7 +61,7 @@ This section provides an overview of how to use the PLMFit package for various t
 | PLM          | Versions       | Publication Date | Source Link               | Owner        |
 | ------------ | -------------- | ----------------- | ------------------------- | ------------ |
 | ESM | esm2_t6_8M_UR50D, esm2_t12_35M_UR50D, esm2_t30_150M_UR50D, esm2_t33_650M_UR50D, esm2_t36_3B_UR50D     | 2021-11-17, 2023-03-16        | [Source Link 1](https://www.biorxiv.org/content/10.1101/2021.07.09.450648v2.full), [Source Link 2](https://www.science.org/doi/10.1126/science.ade2574)   | Meta   |
-| Ankh| ankh-base, ankh-large,ankh2-large     | 2023-01-16        | [Source Link 1](https://arxiv.org/abs/2301.06568)    | Proteinea   |
+| Ankh| ankh-base, ankh-large, ankh2-large     | 2023-01-16        | [Source Link 1](https://arxiv.org/abs/2301.06568)    | Proteinea   |
 | ProGen  | progen2-small, progen2-medium, progen2-xlarge   | 2022-01-01        | [Source Link 1](https://github.com/salesforce/progen) | Salesforce     |
 
 ### Task-Specific Head Concatenation
