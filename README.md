@@ -63,6 +63,9 @@ This section provides an overview of how to use the PLMFit package for various t
 | ProGen  | ProGenFamily()          |    | 2022-01-01        |  | Salesforce     |
 | ESM | ESMFamily()          | v2.0, v2.1     | 2022-02-15        | [Source Link 2](link2)    | Meta   |
 | Ankh| AnkhFamily()          | ankh-base, ankh-large     | 2023-01-18        |     | Proteinea   |
+| ProGen  | progen2-small, progen2-medium, progen2-xlarge   | 2022-01-01        | [Source Link 1](https://github.com/salesforce/progen) | Salesforce     |
+| ESM | v2.0, v2.1     | 2022-02-15        | [Source Link 2](link2)    | Meta   |
+
 ### Task-Specific Head Concatenation
 
 You can concatenate a task-specific head to the model as follows (for demonstration purposes a simple LinearRegression head is being created):
