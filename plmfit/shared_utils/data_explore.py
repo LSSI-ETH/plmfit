@@ -20,8 +20,9 @@ def plot_label_distribution(data, label="binary_score", path=None, text="Keep"):
     plt.tight_layout()
     if path is not None:
         plt.savefig(path, format='png')
-    plt.ion()
-    plt.show()
+    else:
+        plt.ion()
+        plt.show()
 
 
 
@@ -37,8 +38,9 @@ def plot_score_distribution(data, column="score", text="Fitness Score", log_scal
     plt.tight_layout()
     if path is not None:
         plt.savefig(path, format='png')
-    plt.ion()
-    plt.show()
+    else:
+        plt.ion()
+        plt.show()
 
 def normalized_score(data, column="score"):
     # Calculate the minimum and maximum values of the score column
@@ -61,8 +63,9 @@ def plot_normalized_score_distribution(data, column="normalized_score", text="Fi
     plt.tight_layout()
     if path is not None:
         plt.savefig(path, format='png')
-    plt.ion()
-    plt.show()
+    else:
+        plt.ion()
+        plt.show()
 
 
 def plot_sequence_length_distribution(data, path=None):
@@ -76,8 +79,9 @@ def plot_sequence_length_distribution(data, path=None):
     plt.tight_layout()
     if path is not None:
         plt.savefig(path, format='png')
-    plt.ion()
-    plt.show()
+    else: 
+        plt.ion()
+        plt.show()
 
 
 def plot_mutations_number(data, column='number_of_mutations', annotation=False, path=None):
@@ -98,8 +102,9 @@ def plot_mutations_number(data, column='number_of_mutations', annotation=False, 
     plt.tight_layout()
     if path is not None:
         plt.savefig(path, format='png')
-    plt.ion()
-    plt.show()
+    else:
+        plt.ion()
+        plt.show()
 
 
 
@@ -139,8 +144,9 @@ def plot_mutations_heatmap(mutation_counts, zoom_region=None, path=None):
     plt.tight_layout()
     if path is not None:
         plt.savefig(path, format='png')
-    plt.ion()
-    plt.show()
+    else:
+        plt.ion()
+        plt.show()
 
 
 
