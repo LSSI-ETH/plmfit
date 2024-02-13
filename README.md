@@ -99,5 +99,5 @@ Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for yo
 | ------------ | --------------------- | -------------- | ----------------- | 
 | TBD |       |    |      |     |
 
+## Running on Euler
 
-**Disclaimer**: Replace 'your-username' with the actual GitHub username or organization name where you intend to host this repository.
