@@ -152,13 +152,13 @@ def plot_mutations_heatmap(mutation_counts, zoom_region=None, path=None):
         plt.ion()
         plt.show()
 
-def PCA_2d(data_type, model, layers, reduction, output_path='default', labels_col='score', labeling='continuous'):
+def PCA_2d(data_type, model, layers, reduction, output_path='default', labels_col='score', labeling='continuous', custom_data=None):
     if output_path == 'default':
         output_path = f'./plmfit/data/{data_type}/embeddings/plots'
     else:
         output_path = output_path
     
-    data = utils.load_dataset(data_type)
+    data = utils.load_dataset(data_type) if custom_data is None else custom_data
 
     if labeling=='discrete':
         # Mapping species to colors for the filtered dataset
