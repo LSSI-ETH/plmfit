@@ -9,8 +9,8 @@
 #SBATCH --gres=gpumem:60g        #gpu memory
 #SBATCH --gpus-per-node=1
 #SBATCH --time=12:00:00          # total run time limit (HH:MM:SS)
-#SBATCH --output=experiments/config_%a/out.out
-#SBATCH --error=experiments/config_%a/error.err
+#SBATCH --output=experiments/config_%j/out.out
+#SBATCH --error=experiments/config_%j/error.err
 
 module load gcc/8.2.0  python_gpu/3.11.2
 
