@@ -106,3 +106,5 @@ Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for yo
 | progen2-small    |   24g | 8000     | 
 | progen2-medium       | 24g    | 12000       | 
 | progen2-xlarge       | 80g    | 100000      | 
+| ankh-base       | 40g    | 16000     | 
+| esm2_t33_650M_UR50D | 40g    | 32000     | 
