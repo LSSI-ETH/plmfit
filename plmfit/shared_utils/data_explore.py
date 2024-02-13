@@ -2,6 +2,10 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import utils
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.decomposition import PCA
+import torch
 
 def plot_label_distribution(data, label="binary_score", path=None, text="Keep"):
     sns.set(style="whitegrid")
@@ -148,6 +152,54 @@ def plot_mutations_heatmap(mutation_counts, zoom_region=None, path=None):
         plt.ion()
         plt.show()
 
+def PCA_2d(dataset, model, layers, reduction, output_path='default', labels_col='score', labeling='continuous'):
+    if output_path == 'default':
+        output_path = f'./plmfit/data/{dataset}/embeddings/plots'
+    else:
+        output_path = output_path
+    data = pd.read_csv(utils.load_dataset(dataset))
+    # Ensure that the 'score' column aligns with your embeddings
+    
 
+    if labeling=='discrete':
+            # Mapping species to colors for the filtered dataset
+            labels_unique = data[labels_col].unique()
+            labels_to_int = {labels: i for i, labels in enumerate(labels_unique)}
+            labels_colors = data[labels_col].map(labels_to_int).values
 
+            # Generate a discrete colormap
+            num_labels = len(labels_unique)
+            c = labels_colors
+            cmap = plt.get_cmap('tab20', num_labels)  # Using 'tab20' colormap
+    else:
+        scores = data[labels_col].values
+        scaler = MinMaxScaler()
+        scores_scaled = scaler.fit_transform(scores.reshape(-1, 1)).flatten()
+        c = scores_scaled
+        cmap='viridis'
+
+    for layer in layers:
+        # Load embeddings
+        file_path = f'./plmfit/data/{dataset}/embeddings/{dataset}_{model}_embs_layer{layer}_{reduction}.pt'
+        embeddings = torch.load(file_path, map_location=torch.device('cpu'))
+        embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
+
+        # Perform PCA
+        pca = PCA(n_components=2)
+        reduced_embeddings = pca.fit_transform(embeddings)
+
+        # Plot
+        plt.figure(figsize=(10, 10))
+        scatter = plt.scatter(
+            reduced_embeddings[:, 0], reduced_embeddings[:, 1], c=c, cmap=cmap)
+        plt.title(
+            f"2D PCA of {dataset} Embeddings\n{labels_col} coloring - Layer {layer} - {reduction} - {model}")
+        plt.xlabel("Principal Component 1")
+        plt.ylabel("Principal Component 2")
+        plt.colorbar(scatter, label=f'{labels_col}')
+        # Save the figure to a file
+        plt.savefig(
+            f'{output_path}/PCA_{dataset}_{model}_Layer-{layer}_{reduction}.png', bbox_inches='tight')
+
+        plt.close()
 
