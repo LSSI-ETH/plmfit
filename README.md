@@ -57,39 +57,21 @@ Before installing PLMFit, ensure you have Python installed on your system. It's 
 
 This section provides an overview of how to use the PLMFit package for various tasks.
 
-### Initialization
-
-To get started, you'll need to initialize a ProGenPLM model (for ProGen family PLMs):
-
-```python
-from models.pretrained_models import ProGenPLM
-
-model = ProGenFamily()
-```
 **Currently supports**
 | PLM         | Versions       | Publication Date | Source Link               | Owner        |
 | ------------  | -------------- | ----------------- | ------------------------- | ------------ |
 | ProGen         |    | 2022-01-01        |  | Salesforce     |
 | ESM         | v2.0, v2.1     | 2022-02-15        | [Source Link 2](link2)    | Meta   |
 
-### Task-Specific Head Concatenation
-
-You can concatenate a task-specific head to the model as follows (for demonstration purposes a simple LinearRegression head is being created):
-
-```python
-from models.models import LinearRegression
-head = LinearRegression(input_dim=32, output_dim=1) 
-model.concat_task_specific_head(head)
-```
 
 ### Transfer learning
 
-Fine-tuning allows you to train the ProGenPLM model for a specific task. You can specify various training parameters, such as the dataset, number of epochs, learning rate, optimizer, batch size, and more. Here's an example:
+Fine-tuning allows you to train a PLM  for a specific task. Here's an example:
 (for demonstration purposes the model will be fully_retrained ("full_retrain") on the 'aav' dataset with the correspoding labels)
 
-```python
-fine_tuner = FullRetrainFineTuner(epochs = 5 , lr = 0.0006, batch_size = 8,  val_split = 0.2 , log_interval = 1)
-model.fine_tune('aav' ,  fine_tuner, 'two_vs_many_split', 'adam' , 'mse')
+```
+python3 plmfit.py --function fine-tuning --layer last --reduction mean --data_type gb1 --plm progen2-medium --emb_dir $SCRATCH --head linear
+
 ```
 
 
@@ -104,10 +86,10 @@ python3 plmfit.py --function extract_embeddings --layer last --reduction mean --
 ```
 Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for your specific use case. (See supported data_types)
 **Currently supports**
-| **Transfer learning method**          | **Class / method **   | **Decription** | **Relevant publication** | **Publication date** |
-| ------------ | --------------------- | -------------- | ----------------- | ------------------------- |
-| Full retraining | FullRetrainFineTuner(...)           |   |    | [Source Link 1](link1)    | 
-| Feature extraction | PLMFamily.extract_embeddings(dataset, layer)         |     |       | [Source Link 2](link2)    | 
+| **Transfer learning method**          | **Methods name**   | **Arguments** | **Relevant publication** | 
+| ------------ | --------------------- | -------------- | ----------------- | 
+| Full retraining | full-retrain           |   | data_type,plm   | NA    | 
+| Feature extraction | feature-extraction       |   data_type,layer,reduction,plm,head,emb_dir |       | NA   | 
 
 
 Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for your specific use case. (See supported data_types and fine_tuning_mode)
