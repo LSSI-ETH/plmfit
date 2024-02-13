@@ -2,7 +2,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
-import utils
+import plmfit.shared_utils.utils as utils
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
 import torch
@@ -152,25 +152,24 @@ def plot_mutations_heatmap(mutation_counts, zoom_region=None, path=None):
         plt.ion()
         plt.show()
 
-def PCA_2d(dataset, model, layers, reduction, output_path='default', labels_col='score', labeling='continuous'):
+def PCA_2d(data_type, model, layers, reduction, output_path='default', labels_col='score', labeling='continuous'):
     if output_path == 'default':
-        output_path = f'./plmfit/data/{dataset}/embeddings/plots'
+        output_path = f'./plmfit/data/{data_type}/embeddings/plots'
     else:
         output_path = output_path
-    data = pd.read_csv(utils.load_dataset(dataset))
-    # Ensure that the 'score' column aligns with your embeddings
     
+    data = utils.load_dataset(data_type)
 
     if labeling=='discrete':
-            # Mapping species to colors for the filtered dataset
-            labels_unique = data[labels_col].unique()
-            labels_to_int = {labels: i for i, labels in enumerate(labels_unique)}
-            labels_colors = data[labels_col].map(labels_to_int).values
+        # Mapping species to colors for the filtered dataset
+        labels_unique = data[labels_col].unique()
+        labels_to_int = {labels: i for i, labels in enumerate(labels_unique)}
+        labels_colors = data[labels_col].map(labels_to_int).values
 
-            # Generate a discrete colormap
-            num_labels = len(labels_unique)
-            c = labels_colors
-            cmap = plt.get_cmap('tab20', num_labels)  # Using 'tab20' colormap
+        # Generate a discrete colormap
+        num_labels = len(labels_unique)
+        c = labels_colors
+        cmap = plt.get_cmap('tab20', num_labels)  # Using 'tab20' colormap
     else:
         scores = data[labels_col].values
         scaler = MinMaxScaler()
@@ -180,7 +179,7 @@ def PCA_2d(dataset, model, layers, reduction, output_path='default', labels_col=
 
     for layer in layers:
         # Load embeddings
-        file_path = f'./plmfit/data/{dataset}/embeddings/{dataset}_{model}_embs_layer{layer}_{reduction}.pt'
+        file_path = f'./plmfit/data/{data_type}/embeddings/{data_type}_{model}_embs_layer{layer}_{reduction}.pt'
         embeddings = torch.load(file_path, map_location=torch.device('cpu'))
         embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
 
@@ -193,13 +192,21 @@ def PCA_2d(dataset, model, layers, reduction, output_path='default', labels_col=
         scatter = plt.scatter(
             reduced_embeddings[:, 0], reduced_embeddings[:, 1], c=c, cmap=cmap)
         plt.title(
-            f"2D PCA of {dataset} Embeddings\n{labels_col} coloring - Layer {layer} - {reduction} - {model}")
+            f"2D PCA of {data_type} Embeddings\n{labels_col} coloring - Layer {layer} - {reduction} - {model}")
         plt.xlabel("Principal Component 1")
         plt.ylabel("Principal Component 2")
-        plt.colorbar(scatter, label=f'{labels_col}')
+
+        if labeling == 'continuous':
+            plt.colorbar(scatter, label=f'{labels_col}')
+        else:
+            # Create a color bar with tick marks and labels for each species
+            cbar = plt.colorbar(scatter, ticks=range(num_labels))
+            cbar.set_ticklabels(labels_unique)
+            cbar.set_label(f'{labels_col}')
+
         # Save the figure to a file
         plt.savefig(
-            f'{output_path}/PCA_{dataset}_{model}_Layer-{layer}_{reduction}.png', bbox_inches='tight')
+            f'{output_path}/PCA_{data_type}_{model}_Layer-{layer}_{reduction}.png', bbox_inches='tight')
 
         plt.close()
 
