@@ -67,13 +67,9 @@ This section provides an overview of how to use the PLMFit package for various t
 ### Transfer learning
 
 Fine-tuning allows you to train a PLM  for a specific task. Here's an example:
-(for demonstration purposes the model will be fully_retrained ("full_retrain") on the 'aav' dataset with the correspoding labels)
-
 ```
-python3 plmfit.py --function fine-tuning --layer last --reduction mean --data_type gb1 --plm progen2-medium --emb_dir $SCRATCH --head linear
-
+python3 plmfit.py --function fine-tuning --methods feature-extraction --layer last --reduction mean --data_type gb1 --plm progen2-medium --head linear --emb_dir $SCRATCH 
 ```
-
 
 ### Feature / Embeddings extraction
 
@@ -84,15 +80,12 @@ To extract embeddings or features from the model, you can use the following code
 python3 plmfit.py --function extract_embeddings --layer last --reduction mean --data_type gb1 --plm progen2-medium --output_dir $SCRATCH
 
 ```
-Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for your specific use case. (See supported data_types)
 **Currently supports**
 | **Transfer learning method**          | **Methods name**   | **Arguments** | **Relevant publication** | 
 | ------------ | --------------------- | -------------- | ----------------- | 
 | Full retraining | full-retrain           |   | data_type,plm   | NA    | 
 | Feature extraction | feature-extraction       |   data_type,layer,reduction,plm,head,emb_dir |       | NA   | 
 
-
-Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for your specific use case. (See supported data_types and fine_tuning_mode)
 ## Explainability analysis
 
 | **Explainability analysis function**     | **Decription** | **Relevant publication** | **Publication date** |
