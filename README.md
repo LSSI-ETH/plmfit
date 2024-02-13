@@ -67,10 +67,10 @@ from models.pretrained_models import ProGenPLM
 model = ProGenFamily()
 ```
 **Currently supports**
-| PLM          | PLM Family class Name | Versions       | Publication Date | Source Link               | Owner        |
-| ------------ | --------------------- | -------------- | ----------------- | ------------------------- | ------------ |
-| ProGen  | ProGenFamily()          |    | 2022-01-01        |  | Salesforce     |
-| ESM | ESMFamily()          | v2.0, v2.1     | 2022-02-15        | [Source Link 2](link2)    | Meta   |
+| PLM         | Versions       | Publication Date | Source Link               | Owner        |
+| ------------  | -------------- | ----------------- | ------------------------- | ------------ |
+| ProGen         |    | 2022-01-01        |  | Salesforce     |
+| ESM         | v2.0, v2.1     | 2022-02-15        | [Source Link 2](link2)    | Meta   |
 
 ### Task-Specific Head Concatenation
 
@@ -98,11 +98,9 @@ model.fine_tune('aav' ,  fine_tuner, 'two_vs_many_split', 'adam' , 'mse')
 To extract embeddings or features from the model, you can use the following code:
 (for demonstration purposes the ProGen embeddings (features) will be extracted from the 'aav' dataset from layer 11)
 
-```python
-model.extract_embeddings(
-    dataset_name='aav',
-    layer=11
-)
+```
+python3 plmfit.py --function extract_embeddings --layer last --reduction mean --data_type gb1 --plm progen2-medium --output_dir $SCRATCH
+
 ```
 Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for your specific use case. (See supported data_types)
 **Currently supports**
