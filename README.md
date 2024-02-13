@@ -101,3 +101,8 @@ Adjust the `dataset_name`, `batch_size`, and `layer` parameters as needed for yo
 
 ## Running on Euler
 
+| PLM  version     | GPU size  (gres=gpumem: )  | RAM (mem-per-cpu) | 
+| ------------  | -------------- | ----------------- |
+| progen2-small    |   24g | 8000     | 
+| progen2-medium       | 24g    | 12000       | 
+| progen2-xlarge       | 80g    | 100000      | 
