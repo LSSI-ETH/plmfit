@@ -84,6 +84,8 @@ if __name__ == '__main__':
         assert args.plm in supported_Ankh, 'Ankh version is not supported'
         model = AnkhFamily(args.plm)
         
+    elif 'antiberty' in args.plm:
+        model = Antiberty()
     else: 
         raise 'PLM not supported'
 
