@@ -76,6 +76,8 @@ class IPretrainedProteinLanguageModel(nn.Module):
   # Implement class for every supported Portein Language Model family
 
 
+class 
+
 class ProGenFamily(IPretrainedProteinLanguageModel):
 
     tokenizer: Tokenizer
