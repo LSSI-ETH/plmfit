@@ -47,13 +47,36 @@ def one_hot_encode(seqs):
     return torch.tensor([0])
 
 
-def categorical_encode(seqs, tokenizer, max_len, logger = None):
+def categorical_encode(seqs, tokenizer, max_len, add_bos=False, add_eos=False, logger = None):
     if logger != None:
         logger.log(f'Initiating categorical encoding')
         logger.log(f'Memory needed for encoding: {len(seqs) * max_len * 4}B')
-    seq_tokens = tokenizer.get_vocab()['<|pad|>'] * torch.ones((len(seqs), max_len), dtype=int)
+
+    # Adjust max_len if BOS or EOS tokens are to be added
+    internal_max_len = max_len + int(add_bos) + int(add_eos)
+
+    seq_tokens = tokenizer.get_vocab()['<|pad|>'] * torch.ones((len(seqs), internal_max_len), dtype=int)
     for itr, seq in enumerate(seqs):
-        seq_tokens[itr][:len(seq)] = torch.tensor(tokenizer.encode(seq).ids)
+         # Encode the sequence without adding special tokens by the tokenizer itself
+        encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
+
+        # Prepare sequence with space for BOS and/or EOS if needed
+        sequence = []
+        if add_bos:
+            sequence.append(tokenizer.get_vocab()['<|bos|>'])
+        sequence.extend(encoded_seq_ids[:max_len])  # Ensure the core sequence does not exceed user-specified max_len
+        if add_eos:
+            sequence.append(tokenizer.get_vocab()['<|eos|>'])
+
+        # Truncate the sequence if it exceeds internal_max_len
+        truncated_sequence = sequence[:internal_max_len]
+
+        # Update the seq_tokens tensor
+        seq_len = len(truncated_sequence)
+        seq_tokens[itr, :seq_len] = torch.tensor(truncated_sequence, dtype=torch.long)
+
+        if itr == 0 and logger is not None:
+            logger.log(f'First sequence tokens: {seq_tokens[0].tolist()}')
     if logger != None:
         logger.log(f'Categorical encoding finished')
     return seq_tokens
@@ -127,3 +150,15 @@ def log_model_info(log_file_path, data_params, model_params, training_params, ev
             log_file.write(f"{metric}: {value}\n")
     
     print(f"Model information logged to {log_file_path}")
+
+def convert_to_number(s):
+    try:
+        # First, try to convert the string to an integer
+        return int(s)
+    except ValueError:
+        # If converting to an integer fails, try to convert it to a float
+        try:
+            return float(s)
+        except ValueError:
+            # If both conversions fail, return the original string or an indication that it's not a number
+            return None  # or return s to return the original string

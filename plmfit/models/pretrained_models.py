@@ -209,7 +209,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         start_enc_time = time.time()
         logger.log(f'Encoding {data.shape[0]} sequences....')
         encs = utils.categorical_encode(
-            data['aa_seq'].values, self.tokenizer, max(data['len'].values), logger=logger)
+            data['aa_seq'].values, self.tokenizer, max(data['len'].values), add_bos=True, add_eos=True, logger=logger)
         logger.log(
             f'Encoding completed! {time.time() -  start_enc_time:.4f}s')
         encs = encs.to(device)
@@ -271,6 +271,9 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                     elif reduction == 'eos':
                         # Select the embeddings for the last token of each sequence in the batch
                         embs[i: i + batch_size, :] = out[:, -1, :]
+                    elif utils.convert_to_number(reduction) is not None:
+                        # Select the embeddings for the i token of each sequence in the batch
+                        embs[i: i + batch_size, :] = out[:, utils.convert_to_number(reduction), :]
                     else:
                         raise ValueError('Unsupported reduction option')
                     del out
