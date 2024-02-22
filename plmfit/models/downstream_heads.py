@@ -5,19 +5,15 @@ import torch.nn.functional as F
 
   
 class LinearRegression(nn.Module):
-    def __init__(self, in_features ,num_classes):
-        super().__init__()
-        self.in_ = nn.Linear(in_features,  num_classes)
-        self.dropout = nn.Dropout(0.25)
-        self.init_weights(nn.Module)
+    def __init__(self, config):
+        super(LinearRegression, self).__init__()
+        self.linear = nn.Linear(config['input_len'], config['output_len'])
+        self.dropout = nn.Dropout(config.get('dropout_rate', 0))  # Apply dropout if specified, else default to 0 (no dropout)
 
-    def init_weights(self, module) -> None:
-        self.in_.weight.data.fill_(0.01)
-        self.in_.bias.data.fill_(0.01)
-        
-    def forward(self, src):
-        out = self.in_(src)
-        return out
+    def forward(self, x):
+        x = self.linear(x)
+        x = self.dropout(x)
+        return x
 
 class CnnReg(nn.Module):
     def __init__(self, in_features ,num_classes):
@@ -77,8 +73,19 @@ class MLP(nn.Module):
         return self.out(src)
     
 class LogisticRegression(nn.Module):
-    def __init__(self, n_inputs, n_outputs):
+    def __init__(self, config):
         super(LogisticRegression, self).__init__()
+        # Validate the config to ensure it has the necessary keys
+        required_keys = ['input_len', 'output_len']
+        for key in required_keys:
+            if key not in config:
+                raise ValueError(f"Missing '{key}' in configuration")
+
+        # Extract parameters from the config
+        n_inputs = config['input_len']
+        n_outputs = config['output_len']
+
+        # Initialize the linear layer with parameters from the config
         self.linear = torch.nn.Linear(n_inputs, n_outputs)
 
     def forward(self, x):
