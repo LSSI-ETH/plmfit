@@ -73,7 +73,6 @@ def init_plm(model_name):
 
     return model
 
-
 if __name__ == '__main__':
 
     if args.function == 'extract_embeddings':
