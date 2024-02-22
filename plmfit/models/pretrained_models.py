@@ -1,3 +1,4 @@
+import os
 from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForCausalLM
 from plmfit.language_models.proteinbert import load_pretrained_model
 
