@@ -45,32 +45,59 @@ class CnnReg(nn.Module):
 
     
 class MLP(nn.Module):
-    def __init__(self, in_features, hidden_layers ,num_classes,activation_function ,dropout = 0.25):
-        super().__init__()
-        self.in_ = nn.Linear(in_features, hidden_layers)
-        self.out =nn.Linear(hidden_layers, num_classes)
-        self.dropout = nn.Dropout(dropout)
-        self.activation_function = None
-        if activation_function == 'softmax':
-            self.activation_function = nn.Softmax(dim = 1)
-        elif activation_function == 'sigmoid':
-            self.activation_function = nn.Sigmoid()
-        self.init_weights(nn.Module)
+    def __init__(self, config):
+        super(MLP, self).__init__()
+        self.layers = nn.ModuleList()
         
+        # Dynamically create layers based on the configuration
+        for layer_config in config['layers']:
+            layer_type = layer_config['type']
+            
+            if layer_type == 'linear':
+                layer = nn.Linear(layer_config['input_len'], layer_config['output_len'])
+                self.layers.append(layer)
+                
+                # Check if there's an activation function specified for the layer
+                if 'activation_function' in layer_config:
+                    activation_function = self.get_activation_function(layer_config['activation_function'])
+                    if activation_function:
+                        self.layers.append(activation_function)
+            
+            elif layer_type == 'dropout':
+                layer = nn.Dropout(layer_config['rate'])
+                self.layers.append(layer)
+                
+            else:
+                print(f"Unsupported layer type: {layer_type}")
+                continue
         
-    def init_weights(self, module) -> None:
-        init.kaiming_normal_(self.in_.weight)
-        self.in_.bias.data.zero_()
-        init.kaiming_normal_(self.out.weight)
-        self.out.bias.data.zero_()
+        self.init_weights()
+
+    def forward(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        return x
+    
+    def get_activation_function(self, name):
+        """Returns the activation function based on its name."""
+        if name == 'relu':
+            return nn.ReLU()
+        elif name == 'sigmoid':
+            return nn.Sigmoid()
+        elif name == 'tanh':
+            return nn.Tanh()
+        # Add more activation functions as needed
+        else:
+            print(f"Unsupported activation function: {name}")
+            return None
         
-    def forward(self, src ):
-        src = src[0]
-        src = torch.mean(src , dim = 1)
-        src = src/ torch.max(src)
-        src = self.in_(src)
-        src = F.relu(self.dropout(src))
-        return self.out(src)
+    def init_weights(self):
+        """Initialize weights using Xavier initialization."""
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                nn.init.xavier_uniform_(layer.weight)
+                if layer.bias is not None:
+                    nn.init.constant_(layer.bias, 0)
     
 class LogisticRegression(nn.Module):
     def __init__(self, config):
