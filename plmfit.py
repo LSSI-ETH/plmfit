@@ -13,8 +13,7 @@ parser.add_argument('--ft_method', type=str, default='feature_extraction')
 parser.add_argument('--data_type', type=str, default='aav')
 # here you specifcy the different splits
 parser.add_argument('--data_file_name', type=str, default='data_train')
-parser.add_argument('--embs', type=str,
-                    default='aav_progen2-small_embs_layer12_mean')
+parser.add_argument('--embs', default=None)
 
 # option ['mlp' , 'cnn' , 'inception', '{a custome head}' , 'attention']
 parser.add_argument('--head', type=str, default='linear')
@@ -37,10 +36,13 @@ parser.add_argument('--scaler', type=str, default=None)
 parser.add_argument('--optimizer', type=str, default='adam')
 parser.add_argument('--loss_f', type=str, default='mse')
 parser.add_argument('--function', type=str, default='extract_embeddings')
-parser.add_argument('--reduction', type=str, default='mean', help='Reduction technique')
-parser.add_argument('--layer', type=str, default=0, help='PLM layer to be used')
+parser.add_argument('--reduction', type=str, default='mean',
+                    help='Reduction technique')
+parser.add_argument('--layer', type=str, default=0,
+                    help='PLM layer to be used')
 
-parser.add_argument('--output_dir', type=str, default='default', help='Output directory for created files')
+parser.add_argument('--output_dir', type=str, default='default',
+                    help='Output directory for created files')
 
 args = parser.parse_args()
 
@@ -92,8 +94,8 @@ if __name__ == '__main__':
             data = utils.load_dataset(args.data_type)
 
             # Load embeddings and scores
-            embeddings = utils.load_embeddings(
-                data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
+            embeddings = utils.load_embeddings(emb_path=args.embs,
+                                               data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
 
             if args.head == 'logistic_regression':
                 binary_scores = data['binary_score'].values
@@ -121,7 +123,7 @@ if __name__ == '__main__':
 
                 data_loaders = utils.create_data_loaders(
                     embeddings, scores, scaler=args.scaler, batch_size=args.batch_size)
-                
+
                 pred_model = heads.LinearRegression(config)
                 output_path = f'./plmfit/data/{args.data_type}/models/regression/linear_regression/{args.plm}_{args.layer}_{args.reduction}'
                 logger = l.Logger('regression', output_path)
