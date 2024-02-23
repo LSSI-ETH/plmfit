@@ -279,6 +279,23 @@ def plot_actual_vs_predicted(y_test_list, y_pred_list, axis_range=[0, 1], eval_m
     plt.tight_layout()
     return fig
 
+def plot_confusion_matrix_heatmap(cm):
+    """
+    Plots a confusion matrix heatmap.
+    """
+    
+    # Convert to percentage
+    cm_percentage = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    class_names = [0, 1]
+    fig, ax = plt.subplots(figsize=(6, 6))
+    sns.heatmap(cm_percentage, annot=True, fmt=".2%", cmap='Blues', cbar=False, 
+                xticklabels=class_names, yticklabels=class_names, ax=ax)
+    plt.ylabel('Actual')
+    plt.xlabel('Predicted')
+    plt.title('Confusion Matrix Heatmap')
+    plt.tight_layout()
+    return fig
+
 
 
 def binary_accuracy(y_true, y_pred):
@@ -304,7 +321,12 @@ def evaluate_classification(model, dataloaders_dict, device):
     acc = binary_accuracy(torch.tensor(y_test_list), torch.tensor(y_pred_list))
     roc_auc = roc_auc_score(y_test_list, y_pred_list)
     mcc = matthews_corrcoef(y_test_list, np.round(y_pred_list))
-    cm = confusion_matrix(y_test_list, np.round(y_pred_list)).tolist()
+    cm = confusion_matrix(y_test_list, np.round(y_pred_list))
+
+    fig = plot_roc_curve(y_test_list, y_pred_list)
+    cm_fig = plot_confusion_matrix_heatmap(cm)
+
+    cm = cm.tolist()
 
     # Assuming cm is your confusion matrix as a numpy array
     cm_dict = {
@@ -322,9 +344,7 @@ def evaluate_classification(model, dataloaders_dict, device):
         "Confusion Matrix": cm_dict
     }
 
-    fig = plot_roc_curve(y_test_list, y_pred_list)
-
-    return eval_metrics, fig
+    return eval_metrics, fig, cm_fig
 
 
 def evaluate_regression(model, dataloaders_dict, device):

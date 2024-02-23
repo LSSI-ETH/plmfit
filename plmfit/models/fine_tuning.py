@@ -166,9 +166,10 @@ class FullRetrainFineTuner(FineTuner):
         logger.save_plot(loss_plot, "training_validation_loss")
         logger.save_model(model, self.task_type)
         if self.task_type == 'classification':
-            metrics, roc_auc_fig = data_explore.evaluate_classification(model, dataloaders_dict, device)
+            metrics, roc_auc_fig, cm_fig = data_explore.evaluate_classification(model, dataloaders_dict, device)
             logger.save_data(metrics, 'Metrics')
             logger.save_plot(roc_auc_fig, 'ROC_curve')
+            logger.save_plot(cm_fig, 'confusion_matrix')
         elif self.task_type == 'regression':
             metrics, actual_vs_pred_fig = data_explore.evaluate_regression(model, dataloaders_dict, device)
             logger.save_data(metrics, 'Metrics')
