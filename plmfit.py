@@ -120,7 +120,7 @@ if __name__ == '__main__':
                     embeddings, scores, scaler=args.scaler, batch_size=args.batch_size)
                 
                 pred_model = heads.LinearRegression(config)
-                output_path = f'./plmfit/data/{args.data_type}/models/regression/{args.plm}_{args.layer}_{args.reduction}'
+                output_path = f'./plmfit/data/{args.data_type}/models/regression/linear_regression/{args.plm}_{args.layer}_{args.reduction}'
                 logger = l.Logger('regression', output_path)
                 logger.save_data(vars(args), 'Arguments')
                 logger.save_data(config, 'Head config')
