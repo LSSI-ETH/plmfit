@@ -131,7 +131,22 @@ if __name__ == '__main__':
                     epochs=args.epochs, lr=args.lr, weight_decay=args.weight_decay, batch_size=args.batch_size, val_split=0.2, optimizer=args.optimizer, loss_function=args.loss_f, log_interval=-1, task_type='regression')
                 fine_tuner.train(
                     pred_model, dataloaders_dict=data_loaders, logger=logger)
+            elif args.head == 'mlp':
+                scores = data['score'].values
+                scores = torch.tensor(
+                    scores, dtype=torch.float32)
 
+                data_loaders = utils.create_data_loaders(
+                    embeddings, scores, scaler=args.scaler, batch_size=args.batch_size)
+                pred_model = heads.MLP(config)
+                output_path = f'./plmfit/data/{args.data_type}/models/regression/mlp/{args.plm}_{args.layer}_{args.reduction}'
+                logger = l.Logger('regression', output_path)
+                logger.save_data(vars(args), 'Arguments')
+                logger.save_data(config, 'Head config')
+                fine_tuner = FullRetrainFineTuner(
+                    epochs=args.epochs, lr=args.lr, weight_decay=args.weight_decay, batch_size=args.batch_size, val_split=0.2, optimizer=args.optimizer, loss_function=args.loss_f, log_interval=-1, task_type='regression')
+                fine_tuner.train(
+                    pred_model, dataloaders_dict=data_loaders, logger=logger)
             else:
                 raise ValueError('Head type not supported')
         else:
