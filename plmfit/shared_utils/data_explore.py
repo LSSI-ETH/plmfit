@@ -9,6 +9,7 @@ from sklearn.metrics import roc_curve, auc, roc_auc_score, confusion_matrix, mat
 import torch
 from sklearn.metrics import matthews_corrcoef, confusion_matrix, roc_auc_score, mean_squared_error, mean_absolute_error, r2_score
 import numpy as np
+from scipy.stats import spearmanr
 
 
 def plot_label_distribution(data, label="binary_score", path=None, text="Keep"):
@@ -255,25 +256,27 @@ def plot_roc_curve(y_test_list, y_pred_list):
     return fig
 
 
-def plot_actual_vs_predicted(y_test_list, y_pred_list, axis_range=[0, 1]):
-    fig = plt.figure(figsize=(8, 8))
-    plt.scatter(y_test_list, y_pred_list, color='darkorange', edgecolors='k', label='Predicted vs Actual')
+def plot_actual_vs_predicted(y_test_list, y_pred_list, axis_range=[0, 1], eval_metrics=None):
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.scatter(y_test_list, y_pred_list, color='darkorange', edgecolors='k', label='Predicted vs Actual')
     
-    # Use the built-in min() and max() functions for lists if you want dynamic range based on data
-    # Otherwise, use axis_range for static range
     min_val = min(min(y_test_list), min(y_pred_list), axis_range[0])
     max_val = max(max(y_test_list), max(y_pred_list), axis_range[1])
     
-    plt.plot([min_val, max_val], [min_val, max_val], 'k--', lw=2, label='Ideal')
+    ax.plot([min_val, max_val], [min_val, max_val], 'k--', lw=2, label='Ideal')
+    ax.set_xlim(axis_range)
+    ax.set_ylim(axis_range)
     
-    # Set the range of x and y axis
-    plt.xlim(axis_range)
-    plt.ylim(axis_range)
-    
-    plt.xlabel('Actual')
-    plt.ylabel('Predicted')
-    plt.title('Actual vs. Predicted')
-    plt.legend()
+    ax.set_xlabel('Actual')
+    ax.set_ylabel('Predicted')
+    ax.set_title('Actual vs. Predicted')
+    ax.legend(loc='upper left')
+
+    # Display selected metrics in the top right of the graph
+    metrics_text = f"R²: {eval_metrics['R^2']:.3f}\nRMSE: {eval_metrics['RMSE']:.3f}\nSpearman: {eval_metrics['Spearman']:.3f}"
+    ax.text(0.95, 0.05, metrics_text, horizontalalignment='right', verticalalignment='bottom', transform=ax.transAxes, fontsize=10, bbox=dict(boxstyle="round", alpha=0.5, facecolor='white'))
+
+    plt.tight_layout()
     return fig
 
 
@@ -340,14 +343,16 @@ def evaluate_regression(model, dataloaders_dict, device):
     rmse = np.sqrt(mse)
     mae = mean_absolute_error(y_test_list, y_pred_list)
     r2 = r2_score(y_test_list, y_pred_list)
+    spearman = spearmanr(y_test_list, y_pred_list)
 
     eval_metrics = {
-        "MSE": float(mse),  # Convert to Python float
-        "RMSE": float(rmse),  # Convert to Python float
-        "MAE": float(mae),  # Convert to Python float
-        "R^2": float(r2)  # Convert to Python float
+        "MSE": float(mse),
+        "RMSE": float(rmse),
+        "MAE": float(mae),
+        "R^2": float(r2),
+        "Spearman": float(spearman.correlation)  # Spearman's rank correlation
     }
 
-    fig = plot_actual_vs_predicted(y_test_list, y_pred_list)
+    fig = plot_actual_vs_predicted(y_test_list, y_pred_list, eval_metrics=eval_metrics)
 
     return eval_metrics, fig
