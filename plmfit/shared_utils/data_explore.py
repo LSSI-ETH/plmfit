@@ -255,15 +255,27 @@ def plot_roc_curve(y_test_list, y_pred_list):
     return fig
 
 
-def plot_actual_vs_predicted(y_test_list, y_pred_list):
-    fig = plt.figure(figsize=(10, 5))
+def plot_actual_vs_predicted(y_test_list, y_pred_list, axis_range=[0, 1]):
+    fig = plt.figure(figsize=(8, 8))
     plt.scatter(y_test_list, y_pred_list, color='darkorange', edgecolors='k', label='Predicted vs Actual')
-    plt.plot([y_test_list.min(), y_test_list.max()], [y_test_list.min(), y_test_list.max()], 'k--', lw=2, label='Ideal')
+    
+    # Use the built-in min() and max() functions for lists if you want dynamic range based on data
+    # Otherwise, use axis_range for static range
+    min_val = min(min(y_test_list), min(y_pred_list), axis_range[0])
+    max_val = max(max(y_test_list), max(y_pred_list), axis_range[1])
+    
+    plt.plot([min_val, max_val], [min_val, max_val], 'k--', lw=2, label='Ideal')
+    
+    # Set the range of x and y axis
+    plt.xlim(axis_range)
+    plt.ylim(axis_range)
+    
     plt.xlabel('Actual')
     plt.ylabel('Predicted')
     plt.title('Actual vs. Predicted')
     plt.legend()
     return fig
+
 
 
 def binary_accuracy(y_true, y_pred):
