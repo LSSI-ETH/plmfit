@@ -64,37 +64,65 @@ Before installing PLMFit, ensure you have Python installed on your system. It's 
 This section provides an overview of how to use the PLMFit package for various tasks.
 
 **Currently supports**
-| PLM          | Versions       | Publication Date | Source Link               | Owner        |
-| ------------ | -------------- | ----------------- | ------------------------- | ------------ |
-| ESM | esm2_t6_8M_UR50D, esm2_t12_35M_UR50D, esm2_t30_150M_UR50D, esm2_t33_650M_UR50D, esm2_t36_3B_UR50D     | 2021-11-17, 2023-03-16        | [Source Link 1](https://www.biorxiv.org/content/10.1101/2021.07.09.450648v2.full), [Source Link 2](https://www.science.org/doi/10.1126/science.ade2574)   | Meta   |
-| Ankh| ankh-base, ankh-large, ankh2-large     | 2023-01-16        | [Source Link 1](https://arxiv.org/abs/2301.06568)    | Proteinea   |
-| ProGen  | progen2-small, progen2-medium, progen2-xlarge   | 2022-01-01        | [Source Link 1](https://github.com/salesforce/progen) | Salesforce     |
+| PLM          | Versions                                  | Publication Date | Source Link                                           | Owner      |
+| ------------ | ----------------------------------------- | ---------------- | ----------------------------------------------------- | ---------- |
+| ProGen       | progen2-small, progen2-medium, progen2-xlarge | 2022-01-01       | [Source Link 1](https://github.com/salesforce/progen) | Salesforce |
+| ESM          | v2.0, v2.1                                | 2022-02-15       | [Source Link 2](link2)                               | Meta       |
+| Ankh         | ankh-base, ankh-large                     | 2023-01-18       |                                                       | Proteinea  |
+| Antiberty    | antiberty         | 2021-12-14       | [Source Link 3](https://github.com/jeffreyruffolo/AntiBERTy)                               | Open-source |
 
-### Task-Specific Head Concatenation
 
-You can concatenate a task-specific head to the model as follows (for demonstration purposes a simple LinearRegression head is being created):
 
-```python
-from models.models import LinearRegression
-head = LinearRegression(input_dim=32, output_dim=1) 
-model.concat_task_specific_head(head)
-```
-### Transfer learning
+### Feature / Embeddings Extraction
 
-Fine-tuning allows you to train a PLM  for a specific task. Here's an example:
-```
-python3 plmfit.py --function fine-tuning --methods feature-extraction --layer last --reduction mean --data_type gb1 --plm progen2-medium --head linear --emb_dir $SCRATCH 
-```
+The process of leveraging pre-trained language models (PLMs) for specific tasks often involves two key steps: extracting features (or embeddings) from the PLM and then training a "head" (a new model layer or set of layers) on top of these features to perform a specific task like classification, regression, etc.
 
-### Feature / Embeddings extraction
-
-To extract embeddings or features from the model, you can use the following code:
-(for demonstration purposes the ProGen embeddings (features) will be extracted from the 'aav' dataset from layer 11)
+#### Extracting Embeddings
+The command provided demonstrates how to extract embeddings from the ProGen model using a dataset (for example, 'gb1'). The embeddings are extracted from the last layer of the model, and a mean reduction is applied to these embeddings:
 
 ```
-python3 plmfit.py --function extract_embeddings --layer last --reduction mean --data_type gb1 --plm progen2-medium --output_dir $SCRATCH
+python3 plmfit.py --function extract_embeddings \
+                  --layer last --reduction mean --data_type gb1 \
+                  --plm progen2-medium --output_dir $SCRATCH
 
 ```
+
+- --function extract_embeddings: Specifies that the script should extract embeddings.
+- --layer last: Indicates that embeddings should be extracted from the last layer of the model. You can specify other layers as needed.
+- --reduction mean: Applies a mean reduction to the embeddings. This is useful for reducing the dimensionality of the embeddings for each sequence to a single vector.
+- --data_type gb1: Specifies the dataset from which to extract embeddings.
+- --plm progen2-medium: Specifies the pre-trained model to use for embedding extraction.
+- --output_dir $SCRATCH: Specifies the directory where the extracted embeddings will be saved.
+
+
+#### Transfer learning
+After extracting embeddings, you can train a new model (or "head") on these embeddings to perform a specific task. The command provided demonstrates how to fine-tune a model with a new head for feature extraction:
+
+```
+python3 plmfit.py --function fine_tuning --ft_method feature_extraction \
+                  --head mlp --head_config config_mlp.json \
+                  --layer last --reduction mean --data_type gb1 --plm progen2-small \
+                  --scaler standard --batch_size 64 --epochs 200
+```
+
+- --function fine_tuning: Specifies that the script should perform fine-tuning.
+- --ft_method feature_extraction: Indicates that the fine-tuning method is based on feature extraction.
+- --head mlp: Specifies the type of head to train. In this case, a multi-layer perceptron (MLP).
+- --head_config config_mlp.json: Specifies the configuration file for the MLP head. This file contains details like the architecture of the MLP, including the number of layers and units in each layer.
+- --layer last and --reduction mean: Similar to the embedding extraction command, these specify which layer's embeddings to use and the type of reduction.
+- --data_type gb1 and --plm progen2-small: Specify the dataset and the pre-trained model to use.
+- --scaler standard (Optional): Specifies the type of scaling to apply to the features before training the head. Standard scaling (z-score normalization) is commonly used.
+- --batch_size 64 and --epochs 200: Specify the batch size and the number of epochs for training.
+
+#### Task-Specific Head Concatenation (DEMONSTRATION ONLY)
+
+You can concatenate a task-specific head to the model as follows:
+
+```
+python3 plmfit.py --function fine_tuning --ft_method feature_extraction \
+                  --head_dir $SCRATCH --plm progen2-small
+```
+
 **Currently supports**
 | **Transfer learning method**          | **Methods name**   | **Arguments** | **Relevant publication** | 
 | ------------ | --------------------- | -------------- | ----------------- | 
@@ -116,3 +144,4 @@ python3 plmfit.py --function extract_embeddings --layer last --reduction mean --
 | progen2-xlarge       | 80g    | 100000      | 
 | ankh-base       | 40g    | 16000     | 
 | esm2_t33_650M_UR50D | 40g    | 32000     | 
+| antiberty | 16g    | 8000     | 
