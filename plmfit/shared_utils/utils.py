@@ -33,6 +33,8 @@ def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2
     if emb_path is None:
         # Process data using the provided data path
         emb_path = f'./plmfit/data/{data_type}/embeddings/{data_type}_{model}_embs_layer{layer}_{reduction}.pt'
+    else:
+        emb_path = f'{emb_path}/{data_type}/embeddings/{data_type}_{model}_embs_layer{layer}_{reduction}.pt'
 
     embeddings = torch.load(emb_path, map_location=torch.device(device))
     embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
