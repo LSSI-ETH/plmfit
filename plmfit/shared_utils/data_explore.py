@@ -264,8 +264,8 @@ def plot_actual_vs_predicted(y_test_list, y_pred_list, axis_range=[0, 1], eval_m
     max_val = max(max(y_test_list), max(y_pred_list), axis_range[1])
     
     ax.plot([min_val, max_val], [min_val, max_val], 'k--', lw=2, label='Ideal')
-    ax.set_xlim(axis_range)
-    ax.set_ylim(axis_range)
+    ax.set_xlim([min_val, max_val])
+    ax.set_ylim([min_val, max_val])
     
     ax.set_xlabel('Actual')
     ax.set_ylabel('Predicted')
