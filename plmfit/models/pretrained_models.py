@@ -299,7 +299,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         logger.log(f' Encoding {data.shape[0]} sequences....')
         start_enc_time = time.time()
         encs = utils.categorical_encode(
-            data['aa_seq'].values, self.tokenizer, max(data['len'].values))
+            data['aa_seq'].values, self.tokenizer, max(data['len'].values), add_bos=True, add_eos=True, logger=logger)
         logger.log(
             f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
         data_train = data[data[train_split_name] == 'train']
