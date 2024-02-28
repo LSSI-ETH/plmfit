@@ -71,7 +71,7 @@ class FullRetrainFineTuner(FineTuner):
         utils.get_parameters(model.py_model, True)
         utils.get_parameters(model.head, True)
 
-    def train(self, model, dataloaders_dict, logger):
+    def train(self, model, dataloaders_dict, logger, patience=10):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         fp16 = False
         device_ids = list(range(torch.cuda.device_count()))
@@ -93,6 +93,7 @@ class FullRetrainFineTuner(FineTuner):
         epoch_val_loss = []
         best_val_loss = float('inf')
         best_epoch = 0
+        epochs_no_improve = 0  # Counter for epochs with no improvement
 
         for epoch in range(self.epochs):
 
@@ -130,8 +131,8 @@ class FullRetrainFineTuner(FineTuner):
                     elif self.task_type == 'regression':
                         preds = outputs.squeeze()
 
-                    all_preds.extend(preds.detach().numpy())
-                    all_labels.extend(labels.detach().numpy())
+                    all_preds.extend(preds.detach().cpu().numpy())
+                    all_labels.extend(labels.detach().cpu().numpy())
 
                     if self.log_interval != -1 and itr % self.log_interval == 0:
                         logger.log(
@@ -153,13 +154,18 @@ class FullRetrainFineTuner(FineTuner):
                     epoch_train_loss.append(epoch_loss)
                 else:
                     epoch_val_loss.append(epoch_loss)
+                    # Early stopping check
+                    if epoch_loss < best_val_loss:
+                        best_val_loss = epoch_loss
+                        best_epoch = epoch
+                        epochs_no_improve = 0
+                    else:
+                        epochs_no_improve += 1
 
-            # TODO: Implement early stopping
-            # if epoch_val_loss[-1] < best_val_loss:
-            #     best_val_loss = epoch_val_loss[-1]
-            #     torch.save(model.state_dict(
-            #     ), f'./models/saved_models/model_{model.name}_head:{model.head_name}_ft:{self.method}.pt')
-            #     best_epoch = epoch
+             # Check early stopping condition
+            if epochs_no_improve >= patience:
+                logger.log('Early stopping triggered after {} epochs with no improvement'.format(patience))
+                break  # Break the loop if model hasn't improved for 'patience' epochs
 
         # After training, generate and save a plot of the training and validation loss
         loss_plot = data_explore.create_loss_plot(epoch_train_loss, epoch_val_loss)
