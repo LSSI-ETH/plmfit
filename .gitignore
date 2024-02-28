@@ -152,8 +152,6 @@ src/data/*/*.json
 !requirements.txt
 *.fasta
 .fasta
-*.sh
-.sh
 **/euler_parameters
 
 # mypy
