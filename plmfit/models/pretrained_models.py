@@ -1,6 +1,8 @@
 import os
 from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForCausalLM
 from plmfit.language_models.proteinbert import load_pretrained_model
+from plmfit.language_models.proteinbert.conv_and_global_attention_model import get_model_with_hidden_layers_as_outputs
+
 
 import plmfit.shared_utils.utils as utils
 import torch.nn as nn
@@ -29,7 +31,6 @@ class IPretrainedProteinLanguageModel(nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.head = None
         self.head_name = 'none'
         pass
 
@@ -165,6 +166,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             f'{self.name}')
         self.py_model = ProGenForCausalLM.from_pretrained(
             f'./plmfit/language_models/progen2/checkpoints/{progen_model_name}')
+
         self.logger.log("Initialized model")
         self.logger.log(self.py_model)
         self.no_parameters = utils.get_parameters(self.py_model)
@@ -175,11 +177,11 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         
 
     def concat_task_specific_head(self, head):
-        assert head.in_.in_features == self.output_dim, f'Head\'s input dimension ({head.in_.in_features}) is not compatible with {self.name}\'s output dimension ({self.output_dim}). To concat modules these must be equal.'
+        # assert head.in_.in_features == self.output_dim, f'Head\'s input dimension ({head.in_.in_features}) is not compatible with {self.name}\'s output dimension ({self.output_dim}). To concat modules these must be equal.'
         # TODO: Add concat option with lm head or final transformer layer.
         self.head = head
         self.head_name = head.__class__.__name__  # parse name from variable
-        self.no_parameters += utils.get_parameters(self.head)
+        self.no_parameters += utils.get_parameters(head)
         return
 
     def extract_embeddings(self, data_type, batch_size = 2, layer=11, reduction='mean', output_dir = 'default'):
@@ -337,7 +339,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         return 0
 
     def forward(self, src):
-        src = self.py_model(src).logits
+        src = self.py_model(src).hidden_states[-1]
         src = torch.mean(src, dim=1)
         if self.head != None:
             src = self.head(src)
@@ -491,9 +493,9 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
         super().__init__()
         self.name = bert_model_name
         # Load the pre-trained BERT model. Replace with the appropriate method for BERT.
-        self.py_model = YourBERTModelClass.from_pretrained(
-            f'./language_models/proteinbert/checkpoints/{bert_model_name}')
-        # Rest of the initialization similar to ProGenFamily...
+        pretrained_model_generator, input_encoder = load_pretrained_model()
+        model = get_model_with_hidden_layers_as_outputs(pretrained_model_generator.create_model(1024))
+        print(model)
 
     # Implement the abstract methods for BERT
     def concat_task_specific_head(self, head):

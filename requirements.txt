@@ -14,5 +14,10 @@ h5py
 lxml
 urllib3==1.26.6
 pyfaidx
+<<<<<<< HEAD
 antiberty
 peft
+=======
+peft
+PyYAML
+>>>>>>> 1e661b8 (Added lora implementation)

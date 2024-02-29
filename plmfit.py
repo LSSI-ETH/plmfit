@@ -38,7 +38,7 @@ parser.add_argument('--loss_f', type=str, default='mse')
 parser.add_argument('--function', type=str, default='extract_embeddings')
 parser.add_argument('--reduction', type=str, default='mean',
                     help='Reduction technique')
-parser.add_argument('--layer', type=str, default=0,
+parser.add_argument('--layer', type=str, default='last',
                     help='PLM layer to be used')
 
 parser.add_argument('--output_dir', type=str, default='default',
@@ -53,22 +53,26 @@ def init_plm(model_name):
     supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
                      "esm2_t30_150M_UR50D", "esm2_t33_650M_UR50D"]
     supported_Ankh = ['ankh-base', 'ankh-large', 'ankh2-large']
-    
-    if 'progen' in args.plm:
-        assert args.plm in supported_progen2, 'Progen version is not supported'
-        model = ProGenFamily(args.plm)
+    supported_Proteinbert = ['proteinbert']
+    supported_Proteinbert = ['proteinbert']
 
-    elif 'esm' in args.plm:
-        assert args.plm in supported_ESM, 'ESM version is not supported'
-        model = ESMFamily(args.plm)
-        
-    elif 'ankh' in args.plm:
-        assert args.plm in supported_Ankh, 'Ankh version is not supported'
-        model = AnkhFamily(args.plm)
-        
+    if 'progen' in model_name:
+        assert model_name in supported_progen2, 'Progen version is not supported'
+        model = ProGenFamily(model_name)
+
+    elif 'esm' in model_name:
+        assert model_name in supported_ESM, 'ESM version is not supported'
+        model = ESMFamily(model_name)
+
+    elif 'ankh' in model_name:
+        assert model_name in supported_Ankh, 'Ankh version is not supported'
+        model = AnkhFamily(model_name)
     elif 'antiberty' in args.plm:
         model = Antiberty()
-    else: 
+    # elif 'proteinbert' in model_name:
+    #     assert model_name in supported_Proteinbert, 'ProteinBERT version is not supported'
+    #     model = ProteinBERTFamily(model_name)
+    else:
         raise 'PLM not supported'
 
     return model
@@ -115,7 +119,7 @@ if __name__ == '__main__':
                     epochs=args.epochs, lr=args.lr, weight_decay=args.weight_decay, batch_size=args.batch_size, val_split=0.2, optimizer=args.optimizer, loss_function=args.loss_f, log_interval=-1, task_type='classification')
                 fine_tuner.train(
                     pred_model, dataloaders_dict=data_loaders, logger=logger)
-            elif args.head == 'linear_regression':
+            elif args.head == 'linear_regression' or args.head == 'mlp':
                 scores = data['score'].values
                 scores = torch.tensor(
                     scores, dtype=torch.float32)
@@ -123,24 +127,8 @@ if __name__ == '__main__':
                 data_loaders = utils.create_data_loaders(
                     embeddings, scores, scaler=args.scaler, batch_size=args.batch_size)
 
-                pred_model = heads.LinearRegression(config)
-                output_path = f'./plmfit/data/{args.data_type}/models/regression/linear_regression/{args.plm}_{args.layer}_{args.reduction}'
-                logger = l.Logger('regression', output_path)
-                logger.save_data(vars(args), 'Arguments')
-                logger.save_data(config, 'Head config')
-                fine_tuner = FullRetrainFineTuner(
-                    epochs=args.epochs, lr=args.lr, weight_decay=args.weight_decay, batch_size=args.batch_size, val_split=0.2, optimizer=args.optimizer, loss_function=args.loss_f, log_interval=-1, task_type='regression')
-                fine_tuner.train(
-                    pred_model, dataloaders_dict=data_loaders, logger=logger)
-            elif args.head == 'mlp':
-                scores = data['score'].values
-                scores = torch.tensor(
-                    scores, dtype=torch.float32)
-
-                data_loaders = utils.create_data_loaders(
-                    embeddings, scores, scaler=args.scaler, batch_size=args.batch_size)
-                pred_model = heads.MLP(config)
-                output_path = f'./plmfit/data/{args.data_type}/models/regression/mlp/{args.plm}_{args.layer}_{args.reduction}'
+                pred_model = heads.LinearRegression(config) if args.head == 'linear_regression' else heads.MLP(config)
+                output_path = f'./plmfit/data/{args.data_type}/models/regression/{args.head}/{args.plm}_{args.layer}_{args.reduction}'
                 logger = l.Logger('regression', output_path)
                 logger.save_data(vars(args), 'Arguments')
                 logger.save_data(config, 'Head config')
@@ -150,6 +138,36 @@ if __name__ == '__main__':
                     pred_model, dataloaders_dict=data_loaders, logger=logger)
             else:
                 raise ValueError('Head type not supported')
+            
+        elif args.ft_method == 'lora':
+            config = utils.load_head_config(args.head_config)
+            if config['network_type'] != args.head:
+                raise f'Wrong configuration file for "{args.head}" head'
+            
+            model = init_plm(args.plm)
+            assert model != None, 'Model is not initialized'
+
+            data = utils.load_dataset(args.data_type)
+            if args.head == 'logistic_regression':
+                pred_model = heads.LogisticRegression(config)
+                scores = data['binary_score'].values
+            elif args.head == 'linear_regression' or args.head == 'mlp':
+                pred_model = heads.LinearRegression(config) if args.head == 'linear_regression' else heads.MLP(config)
+                scores = data['score'].values
+
+            model.concat_task_specific_head(pred_model)
+            fine_tuner = LowRankAdaptationFineTuner(
+                    epochs=args.epochs, lr=args.lr, weight_decay=args.weight_decay, batch_size=args.batch_size, val_split=0.2, optimizer=args.optimizer, loss_function=args.loss_f, log_interval=10, task_type='regression')
+            fine_tuner.set_trainable_parameters(model)
+            scores = torch.tensor(
+                scores, dtype=torch.float32)
+            encs = utils.categorical_encode(data['aa_seq'].values, model.tokenizer, max(data['len'].values), add_bos=True, add_eos=True)
+            data_loaders = utils.create_data_loaders(
+                encs, scores, scaler=args.scaler, batch_size=args.batch_size, dtype=int)
+            output_path = f'./plmfit/data/{args.data_type}/models/lora/{args.head}/{args.plm}'
+            logger = l.Logger(args.head, output_path)
+            fine_tuner.train(
+                    model, dataloaders_dict=data_loaders, logger=logger)
         else:
             raise ValueError('Fine Tuning method not supported')
     else:

@@ -41,7 +41,7 @@ def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2
     return torch.tensor(embeddings, dtype=torch.float32)
 
 
-def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None):
+def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32):
     """
     Create DataLoader objects for training, validation, and testing.
 
@@ -88,9 +88,9 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
             raise "Unsupported scaler. Use 'standard' or None."
 
     # Convert splits to PyTorch tensors
-    X_train = torch.tensor(X_train, dtype=torch.float32)
-    X_val = torch.tensor(X_val, dtype=torch.float32)
-    X_test = torch.tensor(X_test, dtype=torch.float32)
+    X_train = torch.tensor(X_train, dtype=dtype)
+    X_val = torch.tensor(X_val, dtype=dtype)
+    X_test = torch.tensor(X_test, dtype=dtype)
     y_train = torch.tensor(y_train, dtype=torch.float32)
     y_val = torch.tensor(y_val, dtype=torch.float32)
     y_test = torch.tensor(y_test, dtype=torch.float32)
@@ -197,6 +197,15 @@ def get_parameters(model, print_w_mat=False):
 
     return s
 
+def trainable_parameters_summary(model, logger=None):
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    trainable_percentage = (trainable_params / total_params) * 100
+    output = f"trainable params: {trainable_params} || all params: {total_params} || trainable%: {trainable_percentage:.3f}"
+    if logger != None:
+        logger.log(output)
+    else:
+        print(f"trainable params: {trainable_params} || all params: {total_params} || trainable%: {trainable_percentage:.3f}")
 
 def set_trainable_parameters(model, ft='all'):
 
