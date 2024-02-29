@@ -49,7 +49,13 @@ Before installing PLMFit, ensure you have Python installed on your system. It's 
    source venv/bin/activate
    ```
 
-4. **Install PLMFit**
+   - On Scrum (Euler):
+   ```shell
+   source venv/bin/activate
+   module load gcc/8.2.0  python_gpu/3.11.2
+   ```
+
+5. **Install PLMFit**
    ```shell
    pip install .
 
