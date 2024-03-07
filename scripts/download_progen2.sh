@@ -9,6 +9,8 @@
 #SBATCH --partition=batch
 #SBATCH --qos=normal
 
+module load eth_proxy
+
 MODEL_NAME="progen2-xlarge"
 
 # Define the target directory for the download

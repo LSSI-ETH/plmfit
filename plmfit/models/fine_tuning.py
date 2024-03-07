@@ -8,14 +8,17 @@ import plmfit.shared_utils.data_explore as data_explore
 from sklearn.metrics import accuracy_score, mean_squared_error
 from peft import LoraConfig, get_peft_model, TaskType
 from transformers import TrainingArguments, Trainer
+import psutil
 
 class FineTuner(ABC):
 
-    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function, log_interval):
+    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function, log_interval, accumulation_steps = 1, epoch_size = 0):
         self.epochs = epochs
         self.lr = lr
         self.weight_decay = weight_decay
         self.batch_size = batch_size
+        self.accumulation_steps = accumulation_steps
+        self.epoch_size = epoch_size
         self.val_split = val_split
         self.log_interval = log_interval
         self.optimizer = optimizer
@@ -59,6 +62,8 @@ class FineTuner(ABC):
         """
         if self.loss_function == 'bce':
             return torch.nn.BCELoss()
+        elif self.loss_function == 'bce_logits':
+            return torch.nn.BCEWithLogitsLoss()
         else:
             return torch.nn.MSELoss()
 
@@ -96,13 +101,15 @@ class FullRetrainFineTuner(FineTuner):
         best_val_loss = float('inf')
         best_epoch = 0
         epochs_no_improve = 0  # Counter for epochs with no improvement
+        start_time = time.time()
 
         for epoch in range(self.epochs):
 
             epoch_start_time = time.time()
             logger.log('\nEpoch {}/{}'.format(epoch + 1, self.epochs))
             logger.log('-' * 10)
-
+            
+            # TODO torch_no_grad om val and autocast
             for phase in ['train', 'val']:
                 if phase == 'train':
                     # Set model to training mode
@@ -168,7 +175,9 @@ class FullRetrainFineTuner(FineTuner):
             if epochs_no_improve >= patience:
                 logger.log('Early stopping triggered after {} epochs with no improvement'.format(patience))
                 break  # Break the loop if model hasn't improved for 'patience' epochs
-
+        
+        logger.log(f'Mean time per epoch: {(time.time() - start_time)/itr:.4f}s')
+        logger.log(f'Total training time: {(time.time() - start_time):.4f}s')
         # After training, generate and save a plot of the training and validation loss
         loss_plot = data_explore.create_loss_plot(epoch_train_loss, epoch_val_loss)
         logger.save_plot(loss_plot, "training_validation_loss")
@@ -185,19 +194,20 @@ class FullRetrainFineTuner(FineTuner):
 
 
 class LowRankAdaptationFineTuner(FineTuner):
-    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, log_interval, optimizer, loss_function, task_type='classification', rank=10):
-        super().__init__(epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function, log_interval)
+    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, log_interval, optimizer, loss_function, task_type='classification', rank=8, accumulation_steps = 16, epoch_size = 16384):
+        super().__init__(epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function, log_interval, accumulation_steps, epoch_size)
         self.task_type = task_type  # New attribute to specify the task type
         self.rank = rank  # Rank for the low-rank adaptation
-        self.peft_config = LoraConfig(task_type=TaskType.SEQ_2_SEQ_LM, inference_mode=False, r=rank, lora_alpha=32, lora_dropout=0.1, target_modules = ["qkv_proj", "out_proj"])
+        self.peft_config = LoraConfig(task_type=TaskType.SEQ_CLS if task_type=='classification' else TaskType.FEATURE_EXTRACTION, inference_mode=False, r=rank, lora_alpha=32, lora_dropout=0.1, target_modules = ["qkv_proj"])
 
     def set_trainable_parameters(self, model):
-        peft_model = get_peft_model(model.py_model, self.peft_config)
+        peft_model = get_peft_model(model, self.peft_config)
         peft_model.print_trainable_parameters()
-        model.py_model = peft_model.base_model.model
-        utils.set_trainable_parameters(model.head)
+        # utils.unset_trainable_parameters_after_layer(model)
+        return peft_model
 
     def train(self, model, dataloaders_dict, logger, patience=10):
+        print(model)
         utils.trainable_parameters_summary(model, logger)
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         fp16 = False
@@ -222,12 +232,15 @@ class LowRankAdaptationFineTuner(FineTuner):
         best_epoch = 0
         epochs_no_improve = 0  # Counter for epochs with no improvement
 
+        memory_usage = psutil.virtual_memory()
+        start_time = time.time()
         for epoch in range(self.epochs):
 
             epoch_start_time = time.time()
             logger.log('\nEpoch {}/{}'.format(epoch + 1, self.epochs))
             logger.log('-' * 10)
 
+            # TODO torch_no_grad om val and autocast
             for phase in ['train', 'val']:
                 if phase == 'train':
                     # Set model to training mode
@@ -239,19 +252,21 @@ class LowRankAdaptationFineTuner(FineTuner):
                 batch_loss = 0
                 all_preds = []
                 all_labels = []
-
-                for itr, training_data in enumerate(dataloaders_dict[phase], 0):
+                epoch_dataloader_dict = utils.get_epoch_dataloaders(dataloaders_dict)
+                for itr, training_data in enumerate(epoch_dataloader_dict[phase], 0):
                     batch_start_time = time.time()
-                    optimizer.zero_grad()
                     input, labels = training_data
                     input = input.to(device)
                     labels = labels.to(device)
                     outputs = model(input).squeeze()
                     loss = loss_function(outputs, labels)
+                    batch_loss += loss.item()
+                    loss = loss / self.accumulation_steps
                     if phase == 'train':
                         loss.backward()
-                        optimizer.step()
-                    batch_loss += loss.item()
+                        if (itr + 1) % self.accumulation_steps == 0 or (itr + 1) == len(epoch_dataloader_dict[phase]):
+                            optimizer.step()
+                            optimizer.zero_grad()
 
                     if self.task_type == 'classification':
                         preds = torch.round(outputs)
@@ -263,9 +278,10 @@ class LowRankAdaptationFineTuner(FineTuner):
 
                     if self.log_interval != -1 and itr % self.log_interval == 0:
                         logger.log(
-                            f'({phase}) batch : {itr + 1}  / {len(dataloaders_dict[phase])} | running_loss : {batch_loss / (itr + 1)} (batch time : {time.time() - batch_start_time:.4f})')
+                            f'({phase}) batch : {itr + 1}  / {len(epoch_dataloader_dict[phase])} | running_loss : {batch_loss / (itr + 1)} (batch time : {time.time() - batch_start_time:.4f})')
+                        logger.log(f"GPU memory occupied: {utils.print_gpu_utilization(memory_usage)} MB.")
 
-                epoch_loss = batch_loss / itr
+                epoch_loss = batch_loss / (itr + 1)
 
                 logger.log('({}) Loss: {:.4f} {:.4f}s'.format(
                     phase, epoch_loss, time.time() - epoch_start_time))
@@ -293,7 +309,9 @@ class LowRankAdaptationFineTuner(FineTuner):
             if epochs_no_improve >= patience:
                 logger.log('Early stopping triggered after {} epochs with no improvement'.format(patience))
                 break  # Break the loop if model hasn't improved for 'patience' epochs
-
+        
+        logger.log(f'Mean time per epoch: {(time.time() - start_time)/itr:.4f}s')
+        logger.log(f'Total training time: {(time.time() - start_time):.4f}s')
         # After training, generate and save a plot of the training and validation loss
         loss_plot = data_explore.create_loss_plot(epoch_train_loss, epoch_val_loss)
         logger.save_plot(loss_plot, "training_validation_loss")
@@ -307,3 +325,10 @@ class LowRankAdaptationFineTuner(FineTuner):
             metrics, actual_vs_pred_fig = data_explore.evaluate_regression(model, dataloaders_dict, device)
             logger.save_data(metrics, 'Metrics')
             logger.save_plot(actual_vs_pred_fig, 'actual_vs_predicted')
+
+
+class PEFTLora(FineTuner):
+    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, log_interval, optimizer, loss_function, task_type='classification', rank=8, accumulation_steps = 16, epoch_size = 16384):
+        super().__init__(epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function, log_interval, accumulation_steps, epoch_size)
+        self.task_type = task_type  # New attribute to specify the task type
+        self.rank = rank  # Rank for the low-rank adaptation

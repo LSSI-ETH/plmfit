@@ -12,6 +12,7 @@
 #SBATCH --output=experiments/config_%j/out.out
 #SBATCH --error=experiments/config_%j/error.err
 
+module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
 
 python3 plmfit.py --function extract_embeddings --layer first --reduction mean --data_type aav --plm progen2-xlarge --output_dir $SCRATCH
