@@ -162,18 +162,15 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         # IPretrainedProteinLanguageModel.__init__(self)
         super().__init__()
         self.name = progen_model_name
-        self.logger = l.Logger(
-            f'{self.name}')
         self.py_model = ProGenForCausalLM.from_pretrained(
             f'./plmfit/language_models/progen2/checkpoints/{progen_model_name}')
-
-        self.logger.log("Initialized model")
-        self.logger.log(self.py_model)
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.transformer.h)
         self.output_dim = self.py_model.lm_head.out_features
         self.emb_layers_dim = self.py_model.transformer.h[0].attn.out_proj.out_features
         self.tokenizer = utils.load_tokenizer(progen_model_name)
+        self.layer_to_use = self.no_layers - 1
+        self.config = self.py_model.config
         
 
     def concat_task_specific_head(self, head):
@@ -239,7 +236,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                         hidden_states = model_output.hidden_states  # Get all hidden states
 
                         # Log the shape of each layer's embeddings for the first batch
-                        if i == 0:  # Assuming 'i' tracks the batch index; make sure it's reset appropriately
+                        if i == 0:
                             for layer_index, layer_output in enumerate(hidden_states):
                                 logger.log(f'Layer {layer_index} shape: {layer_output.shape}')
 
@@ -259,12 +256,9 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 
                         # Now select the specific layer's output
                         out = hidden_states[selected_layer_index]
-                    # Log the shape of each layer's embeddings for the first batch
-                    if i == 0:  # Assuming 'i' tracks the batch index; make sure it's reset appropriately
-                        logger.log(f'{out[:, 0, :].size()}')
                     if reduction == 'mean':
                         embs[i: i + batch_size, :] = torch.mean(out, dim=1)
-                        if i == 0:  # Assuming 'i' tracks the batch index; make sure it's reset appropriately
+                        if i == 0:
                             logger.log(f'{(torch.mean(out, dim=1)).size()}')
                     elif reduction == 'sum':
                         embs[i: i + batch_size, :] = torch.sum(out, dim=1)
@@ -272,8 +266,31 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                         # Select the embeddings for the first token of each sequence in the batch
                         embs[i: i + batch_size, :] = out[:, 0, :]
                     elif reduction == 'eos':
-                        # Select the embeddings for the last token of each sequence in the batch
-                        embs[i: i + batch_size, :] = out[:, -1, :]
+                        # Initialize a tensor to store the selected embeddings
+                        selected_embs = torch.zeros(batch_size, out.shape[2], device=out.device)
+                        
+                        # Iterate over each sequence in the batch
+                        for seq_idx in range(batch_size):
+                            # Find the positions of the token with ID equal to 2 in the current sequence
+                            token_positions = (batch[0][seq_idx] == 2).nonzero(as_tuple=True)[0]
+                            
+                            # Check if the token ID is present in the sequence
+                            if len(token_positions) > 0:
+                                # Select the position of the last occurrence of the token
+                                last_position = token_positions[-1].item()
+                                
+                                # Select the embeddings for the last occurrence of the token
+                                selected_embs[seq_idx, :] = out[seq_idx, last_position, :]
+                            else:
+                                # If the token ID is not found, you might want to handle this case.
+                                # For example, use the embeddings of the last token of the sequence
+                                # or set to zeros, depending on your application's requirements.
+                                # Here, we use the embeddings of the last token as a fallback.
+                                selected_embs[seq_idx, :] = out[seq_idx, -1, :]
+                                logger.log(f'EOS token not found for sequence {i}')
+                        
+                        # Update the embeddings tensor with the selected embeddings
+                        embs[i: i + batch_size, :] = selected_embs
                     elif utils.convert_to_number(reduction) is not None:
                         # Select the embeddings for the i token of each sequence in the batch
                         embs[i: i + batch_size, :] = out[:, utils.convert_to_number(reduction), :]
@@ -334,15 +351,42 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             fine_tuner.method, data_type, time.time() - training_start_time))
         self.fine_tuned = fine_tuner.method
         return
+    
+    def set_layer_to_use(self, layer):
+        if layer == 'last':
+            # The last hidden layer (not counting the logits layer)
+            self.layer_to_use = self.no_layers - 1
+        elif layer == 'middle':
+            # Adjusted to consider the first transformer block as the "first" layer
+            self.layer_to_use = 1 + (self.no_layers - 1) // 2
+        elif layer == 'first':
+            # The first transformer block after the input embeddings
+            self.layer_to_use = 1  # Adjusted to 1 to skip the input embeddings
+        else:
+            # Fallback for numeric layer specification or unexpected strings
+            self.layer_to_use = int(layer) if layer.isdigit() else self.no_layers - 1
 
     def evaluate(self):
         return 0
 
     def forward(self, src):
-        src = self.py_model(src).hidden_states[-1]
+        src = self.py_model(src).hidden_states[self.layer_to_use]
         src = torch.mean(src, dim=1)
         if self.head != None:
             src = self.head(src)
+        return src
+    
+class ProGenClassifier(ProGenFamily):
+    def __init__(self, progen_model_name: str, head):
+        # IPretrainedProteinLanguageModel.__init__(self)
+        super().__init__(progen_model_name)
+        self.classifier = head
+        self.no_parameters += utils.get_parameters(head)
+
+    def forward(self, src):
+        src = self.py_model(src).hidden_states[self.layer_to_use]
+        src = torch.mean(src, dim=1)
+        src = self.classifier(src)
         return src
 
 # TODO: Implement handler classes for different PLM families
