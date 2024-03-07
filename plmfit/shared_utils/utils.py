@@ -3,8 +3,10 @@ import torch
 import json
 import pandas as pd
 from tokenizers import Tokenizer
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset, DataLoader, Subset
 from sklearn.model_selection import train_test_split
+import numpy as np
+from pynvml import *
 
 # def load_model(model_name):
 #   return ProGenForCausalLM.from_pretrained(f'./plmfit/language_models/progen2/checkpoints/{model_name}')
@@ -108,6 +110,30 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
 
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
 
+def get_epoch_dataloaders(dataloader, epoch_size=0):
+    if epoch_size == 0:
+        return dataloader
+
+    # Access the original dataset from the DataLoader
+    train = dataloader['train'].dataset
+    val = dataloader['val'].dataset
+    
+    # Randomly sample indices from the dataset
+    train_inds = np.random.choice(len(train), epoch_size, replace=False)
+    val_inds = np.random.choice(len(val), int(len(val) * epoch_size / len(train)), replace=False)
+    
+    # Create a Subset for the sampled indices
+    train_set = Subset(train, train_inds)
+    val_set = Subset(val, val_inds)
+    
+    # Create a new DataLoader for the subset
+    # Preserve the original DataLoader's batch size, shuffle, and other parameters as needed
+    train_dataloader = DataLoader(train_set, batch_size=dataloader['train'].batch_size, shuffle=True, 
+                                   num_workers=dataloader['train'].num_workers, pin_memory=dataloader['train'].pin_memory)
+    val_dataloader = DataLoader(val_set, batch_size=dataloader['val'].batch_size, shuffle=False, 
+                                   num_workers=dataloader['val'].num_workers, pin_memory=dataloader['val'].pin_memory)
+    
+    return {'train': train_dataloader, 'val': val_dataloader, 'test': dataloader['test']}
 
 def load_head_config(config_file_name):
     """
@@ -185,7 +211,7 @@ def categorical_encode(seqs, tokenizer, max_len, add_bos=False, add_eos=False, l
     return seq_tokens
 
 
-def get_parameters(model, print_w_mat=False):
+def get_parameters(model, print_w_mat=False, logger=None):
     s = 0
     c = 0
     for name, p in model.named_parameters():
@@ -193,6 +219,8 @@ def get_parameters(model, print_w_mat=False):
         c += 1
         if print_w_mat:
             print(f' {name} size : {p.shape} trainable:{p.requires_grad}')
+        if logger is not None:
+            logger.log(f' {name} size : {p.shape} trainable:{p.requires_grad}')
         s += p.numel()
 
     return s
@@ -213,6 +241,13 @@ def set_trainable_parameters(model, ft='all'):
         p.requires_grad = True
 
     return
+
+def unset_trainable_parameters_after_layer(model):
+    # Set layers after self.layer_to_use to non-trainable
+    for i, layer in enumerate(model.py_model.transformer.h):
+        if i > model.layer_to_use:
+            for param in layer.parameters():
+                param.requires_grad = False
 
 
 def read_fasta(file_path):
@@ -274,3 +309,9 @@ def convert_to_number(s):
         except ValueError:
             # If both conversions fail, return the original string or an indication that it's not a number
             return None  # or return s to return the original string
+
+def print_gpu_utilization(memory_usage):
+    nvmlInit()
+    handle = nvmlDeviceGetHandleByIndex(0)
+    info = nvmlDeviceGetMemoryInfo(handle)
+    return info.used//1024**2
