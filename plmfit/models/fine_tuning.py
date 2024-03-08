@@ -9,10 +9,11 @@ from sklearn.metrics import accuracy_score, mean_squared_error
 from peft import LoraConfig, get_peft_model, TaskType
 from transformers import TrainingArguments, Trainer
 import psutil
+import plmfit.logger as l
 
 class FineTuner(ABC):
-
-    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function, log_interval, accumulation_steps = 1, epoch_size = 0):
+    logger: l.Logger
+    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function, log_interval, accumulation_steps = 1, epoch_size = 0, logger = None):
         self.epochs = epochs
         self.lr = lr
         self.weight_decay = weight_decay
@@ -23,7 +24,7 @@ class FineTuner(ABC):
         self.log_interval = log_interval
         self.optimizer = optimizer
         self.loss_function = loss_function
-
+        self.logger = logger
     @abstractmethod
     def set_trainable_parameters(self, model):
         """

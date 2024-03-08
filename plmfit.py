@@ -1,5 +1,6 @@
 import torch
 import plmfit.logger as l
+import os
 import argparse
 from plmfit.models.pretrained_models import *
 import plmfit.shared_utils.utils as utils
@@ -53,8 +54,11 @@ parser.add_argument('--logger', type=str, default='local')
 
 args = parser.parse_args()
 
+experiment_dir = f'{args.output_dir}/{args.function}'
+if not os.path.exists(experiment_dir):
+    os.makedirs(experiment_dir)
 
-def init_plm(model_name, task_type='', head=None):
+def init_plm(model_name, logger, task_type='', head=None,):
     model = None
     supported_progen2 = ['progen2-small', 'progen2-medium', 'progen2-xlarge']
     supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
@@ -66,7 +70,7 @@ def init_plm(model_name, task_type='', head=None):
     if 'progen' in model_name:
         assert model_name in supported_progen2, 'Progen version is not supported'
         if task_type == '':
-            model = ProGenFamily(model_name)
+            model = ProGenFamily(model_name, logger)
         elif task_type == 'classification':
             model = ProGenClassifier(model_name, head)
         else:
@@ -92,7 +96,8 @@ def init_plm(model_name, task_type='', head=None):
 if __name__ == '__main__':
 
     if args.function == 'extract_embeddings':
-        model = init_plm(args.plm)
+        logger = l.Logger(experiment_name = f'extract_embeddings_{args.data_type}_{args.plm}_layer-{args.layer}_{args.reduction}', base_dir=f'{experiment_dir}/{args.data_type}_{args.plm}_layer-{args.layer}_{args.reduction}')
+        model = init_plm(args.plm, logger)
         assert model != None, 'Model is not initialized'
 
         model.extract_embeddings(data_type=args.data_type, layer=args.layer,

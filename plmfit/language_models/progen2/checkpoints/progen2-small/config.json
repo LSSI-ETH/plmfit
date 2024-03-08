@@ -1,7 +1,7 @@
 {
   "activation_function": "gelu_new",
   "architectures": [
-    "ProGenForSequenceClassification"
+    "ProGenForCausalLM"
   ],
   "attn_pdrop": 0.0,
   "bos_token_id": 1,
@@ -32,6 +32,5 @@
   },
   "torch_dtype": "float32",
   "use_cache": true,
-  "vocab_size": 32,
-  "num_labels": 1
+  "vocab_size": 32
 }

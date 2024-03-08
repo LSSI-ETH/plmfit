@@ -6,11 +6,9 @@
 #SBATCH --tasks-per-node=1
 #SBATCH --gpus-per-node=1
 #SBATCH --time=16:00:00
-#SBATCH --output=experiments/extract_embeddings/config_%j/out.out
-#SBATCH --error=experiments/extract_embeddings/config_%j/error.err
 
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
 
 python3 plmfit.py --function $1 --layer $5 --reduction $4 \
-         --data_type $2 --plm $3 --output_dir $SCRATCH
+         --data_type $2 --plm $3 --output_dir $6
