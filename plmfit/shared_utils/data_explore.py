@@ -168,7 +168,7 @@ def plot_mutations_heatmap(mutation_counts, zoom_region=None, path=None):
         plt.show()
 
 
-def PCA_2d(data_type, model, layers, reduction, output_path='default', labels_col='score', labeling='continuous', custom_data=None):
+def PCA_2d(data_type, model, layers, reduction, output_path='default', labels_col='score', labeling='continuous', custom_data=None, scaled=True):
     if output_path == 'default':
         output_path = f'./plmfit/data/{data_type}/embeddings/plots'
     else:
@@ -189,9 +189,10 @@ def PCA_2d(data_type, model, layers, reduction, output_path='default', labels_co
         cmap = plt.get_cmap('tab20', num_labels)  # Using 'tab20' colormap
     else:
         scores = data[labels_col].values
-        scaler = MinMaxScaler()
-        scores_scaled = scaler.fit_transform(scores.reshape(-1, 1)).flatten()
-        c = scores_scaled
+        if scaled:
+            scaler = MinMaxScaler()
+            scores = scaler.fit_transform(scores.reshape(-1, 1)).flatten()
+        c = scores
         cmap = 'viridis'
 
     for layer in layers:
