@@ -7,15 +7,10 @@ from torch.utils.data import TensorDataset, DataLoader, Subset
 from sklearn.model_selection import train_test_split
 import numpy as np
 from pynvml import *
+import os
 
 # def load_model(model_name):
 #   return ProGenForCausalLM.from_pretrained(f'./plmfit/language_models/progen2/checkpoints/{model_name}')
-
-
-def load_embeddings(data_type, embs):
-    embs_file = f'./plmfit/data/{data_type}/embeddings/{embs}'
-    return torch.load(f'{embs_file}.pt', map_location=torch.device('cpu'))
-
 
 def load_dataset(data_type):
     return pd.read_csv(f'./plmfit/data/{data_type}/{data_type}_data_full.csv')
@@ -33,14 +28,16 @@ def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2
         reduction (str): Reduction method (default is 'mean').
     """
     if emb_path is None:
-        # Process data using the provided data path
         emb_path = f'./plmfit/data/{data_type}/embeddings/{data_type}_{model}_embs_layer{layer}_{reduction}.pt'
-    else:
-        emb_path = f'{emb_path}/{data_type}/embeddings/{data_type}_{model}_embs_layer{layer}_{reduction}.pt'
-
-    embeddings = torch.load(emb_path, map_location=torch.device(device))
-    embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
-    return torch.tensor(embeddings, dtype=torch.float32)
+    
+    try:
+        embeddings = torch.load(f"{emb_path}/{data_type}_{model}_layer-{layer}_{reduction}/{data_type}_{model}_embs_layer{layer}_{reduction}.pt")
+        print(embeddings.is_cuda)
+        #embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
+        print(embeddings.shape)
+        return torch.tensor(embeddings, dtype=torch.float32)
+    except:
+        return None
 
 
 def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32):

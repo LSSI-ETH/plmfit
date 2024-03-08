@@ -310,14 +310,13 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
     def fine_tune(self, data_type, fine_tuner, train_split_name, optimizer, loss_f):
 
         assert self.head != None, 'Task specific head haven\'t specified.'
-        logger = l.Logger(
-            f'logger_fine_tune_{self.name}_{self.head_name}_{fine_tuner.method}_{data_type}.txt')
+        
         data = utils.load_dataset(data_type)
-        logger.log(f' Encoding {data.shape[0]} sequences....')
+        self.logger.log(f' Encoding {data.shape[0]} sequences....')
         start_enc_time = time.time()
         encs = utils.categorical_encode(
-            data['aa_seq'].values, self.tokenizer, max(data['len'].values), add_bos=True, add_eos=True, logger=logger)
-        logger.log(
+            data['aa_seq'].values, self.tokenizer, max(data['len'].values), add_bos=True, add_eos=True, logger=self.logger)
+        self.logger.log(
             f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
         data_train = data[data[train_split_name] == 'train']
         data_test = data[data[train_split_name] == 'test']
@@ -344,8 +343,8 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         # Check if parameters of self model are affected just by calling them as argument
         # TODO: move the whole training loop in tuner method train
         training_start_time = time.time()
-        fine_tuner.train(self, dataloader_dict, optimizer, loss_f, logger)
-        logger.log(' Finetuning  ({}) on {} data completed after {:.4f}s '.format(
+        fine_tuner.train(self, dataloader_dict, optimizer, loss_f, self.logger)
+        self.logger.log(' Finetuning  ({}) on {} data completed after {:.4f}s '.format(
             fine_tuner.method, data_type, time.time() - training_start_time))
         self.fine_tuned = fine_tuner.method
         return
