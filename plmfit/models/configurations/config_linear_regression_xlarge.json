@@ -1,0 +1,6 @@
+{
+  "network_type": "linear_regression",
+  "input_len": 4096,
+  "output_len": 1,
+  "dropout_rate": 0.25
+}
