@@ -272,7 +272,10 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                         # Iterate over each sequence in the batch
                         for seq_idx in range(batch_size):
                             # Find the positions of the token with ID equal to 2 in the current sequence
-                            token_positions = (batch[0][seq_idx] == 2).nonzero(as_tuple=True)[0]
+                            try: 
+                                token_positions = (batch[0][seq_idx] == 2).nonzero(as_tuple=True)[0]
+                            except:
+                                continue
                             
                             # Check if the token ID is present in the sequence
                             if len(token_positions) > 0:
