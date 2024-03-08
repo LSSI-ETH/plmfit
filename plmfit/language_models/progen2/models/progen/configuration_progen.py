@@ -45,6 +45,7 @@ class ProGenConfig(PretrainedConfig):
         use_cache=True,
         bos_token_id=50256,
         eos_token_id=50256,
+        num_labels=1,
         **kwargs
     ):
         super().__init__(bos_token_id=bos_token_id, eos_token_id=eos_token_id, **kwargs)
@@ -66,7 +67,7 @@ class ProGenConfig(PretrainedConfig):
         self.gradient_checkpointing = gradient_checkpointing
         self.scale_attn_weights = scale_attn_weights
         self.use_cache = use_cache
-
+        self.num_labels=num_labels
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id
 
