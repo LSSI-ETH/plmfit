@@ -137,7 +137,8 @@ if __name__ == '__main__':
                     epochs=args.epochs, lr=args.lr, weight_decay=args.weight_decay, batch_size=args.batch_size, val_split=0.2, optimizer=args.optimizer, loss_function=args.loss_f, log_interval=-1, task_type='classification')
                 fine_tuner.train(
                     pred_model, dataloaders_dict=data_loaders, logger=logger)
-                logger.save_log_to_server()
+                if (args.logger == 'remote'):
+                    logger.save_log_to_server()
             elif args.head == 'linear_regression' or args.head == 'mlp':
                 scores = data['score'].values
                 scores = torch.tensor(
@@ -162,7 +163,8 @@ if __name__ == '__main__':
                     epochs=args.epochs, lr=args.lr, weight_decay=args.weight_decay, batch_size=args.batch_size, val_split=0.2, optimizer=args.optimizer, loss_function=args.loss_f, log_interval=-1, task_type='regression')
                 fine_tuner.train(
                     pred_model, dataloaders_dict=data_loaders, logger=logger)
-                logger.save_log_to_server()
+                if (args.logger == 'remote'):
+                    logger.save_log_to_server()
             else:
                 raise ValueError('Head type not supported')
             
@@ -212,7 +214,8 @@ if __name__ == '__main__':
                 # Get the entire stack trace as a string
                 stack_trace = traceback.format_exc()
                 logger.log(stack_trace, force_send=True) if args.logger == 'remote' else logger.log(stack_trace)
-            logger.save_log_to_server()
+            if (args.logger == 'remote'):
+                    logger.save_log_to_server()
         else:
             raise ValueError('Fine Tuning method not supported')
     else:
