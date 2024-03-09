@@ -65,7 +65,6 @@ def init_plm(model_name, logger, task_type='', head=None,):
                      "esm2_t30_150M_UR50D", "esm2_t33_650M_UR50D"]
     supported_Ankh = ['ankh-base', 'ankh-large', 'ankh2-large']
     supported_Proteinbert = ['proteinbert']
-    supported_Proteinbert = ['proteinbert']
 
     if 'progen' in model_name:
         assert model_name in supported_progen2, 'Progen version is not supported'
@@ -96,7 +95,7 @@ def init_plm(model_name, logger, task_type='', head=None,):
 if __name__ == '__main__':
 
     if args.function == 'extract_embeddings':
-        logger = l.Logger(experiment_name = f'extract_embeddings_{args.data_type}_{args.plm}_layer-{args.layer}_{args.reduction}', base_dir=f'{experiment_dir}/{args.data_type}_{args.plm}_layer-{args.layer}_{args.reduction}')
+        logger = l.Logger(experiment_name = f'extract_embeddings_{args.data_type}_{args.plm}_layer-{args.layer}_{args.reduction}', base_dir=f'{experiment_dir}/{args.data_type}_{args.plm}_layer-{args.layer}_{args.reduction}', log_to_server=True, server_path=f'{args.function}/{args.data_type}_{args.plm}_layer-{args.layer}_{args.reduction}')
         model = init_plm(args.plm, logger)
         assert model != None, 'Model is not initialized'
 
