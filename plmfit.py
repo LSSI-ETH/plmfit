@@ -118,10 +118,9 @@ if __name__ == '__main__':
             data = utils.load_dataset(args.data_type)
             # Load embeddings and scores
             ### TODO : Load embeddings if do not exist
-            logger.log(f"{args.output_dir}/extract_embeddings/{args.data_type}_{args.plm}_embs_layer{args.layer}_{args.reduction}.pt")
+            #logger.log(f"{args.output_dir}/extract_embeddings/{args.data_type}_{args.plm}_embs_layer{args.layer}_{args.reduction}.pt")
             embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings/',data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
             assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
-            logger.log("OK")
 
             if args.head == 'logistic_regression':
                 binary_scores = data['binary_score'].values
