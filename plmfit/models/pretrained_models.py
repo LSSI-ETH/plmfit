@@ -182,9 +182,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.no_parameters += utils.get_parameters(head)
         return
 
-    def extract_embeddings(self, data_type, batch_size = 2, layer=11, reduction='mean', output_dir = 'default'):
- 
-        output_path = self.logger.base_dir
+    def extract_embeddings(self, data_type, batch_size = 2, layer=11, reduction='mean'):
         device = 'cpu'
         fp16 = False
         device_ids = []
@@ -300,11 +298,9 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                         f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ')
 
         torch.save(
-            embs, os.path.join(output_path, f'{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt'))
-        t = torch.load(
-            os.path.join(output_path, f'{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt'))
-        self.logger.log(
-            f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt" ({time.time() - start_enc_time:.2f}s)')
+            embs, f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
+        t = torch.load(f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
+        self.logger.log(f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt" ({time.time() - start_enc_time:.2f}s)')
         return
 
     def fine_tune(self, data_type, fine_tuner, train_split_name, optimizer, loss_f):

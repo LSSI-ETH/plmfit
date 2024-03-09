@@ -49,14 +49,20 @@ parser.add_argument('--layer', type=str, default='last',
 
 parser.add_argument('--output_dir', type=str, default='default',
                     help='Output directory for created files')
+parser.add_argument('--experiment_name', type=str, default='default',
+                    help='Output directory for created files')
+parser.add_argument('--experiment_dir', type=str, default='default',
+                    help='Output directory for created files')
 
 parser.add_argument('--logger', type=str, default='local')
 
 args = parser.parse_args()
 
-experiment_dir = f'{args.output_dir}/{args.function}'
+experiment_dir = args.experiment_dir
 if not os.path.exists(experiment_dir):
     os.makedirs(experiment_dir)
+
+logger = l.Logger(experiment_name = args.experiment_name, base_dir= args.experiment_dir)
 
 def init_plm(model_name, logger, task_type='', head=None,):
     model = None
@@ -96,16 +102,15 @@ def init_plm(model_name, logger, task_type='', head=None,):
 if __name__ == '__main__':
 
     if args.function == 'extract_embeddings':
-        logger = l.Logger(experiment_name = f'extract_embeddings_{args.data_type}_{args.plm}_layer-{args.layer}_{args.reduction}', base_dir=f'{experiment_dir}/{args.data_type}_{args.plm}_layer-{args.layer}_{args.reduction}')
+        
         model = init_plm(args.plm, logger)
         assert model != None, 'Model is not initialized'
 
         model.extract_embeddings(data_type=args.data_type, layer=args.layer,
-                                 reduction=args.reduction, output_dir=args.output_dir)
+                                 reduction=args.reduction)
 
     elif args.function == 'fine_tuning':
         if args.ft_method == 'feature_extraction':
-            logger = l.Logger(experiment_name = f'{args.function}_{args.data_type}_{args.plm}_{args.ft_method}_{args.layer}_{args.reduction}_{args.head}', base_dir=f'{experiment_dir}/{args.data_type}_{args.plm}_{args.ft_method}_{args.layer}_{args.reduction}_{args.head}')            
             config = utils.load_head_config(args.head_config)
             #if config['network_type'] != args.head:
             #    raise f'Wrong configuration file for "{args.head}" head'
@@ -113,13 +118,12 @@ if __name__ == '__main__':
             data = utils.load_dataset(args.data_type)
             # Load embeddings and scores
             ### TODO : Load embeddings if do not exist
-            logger.log(f"{args.embs}/extract_embeddings/{args.data_type}_{args.plm}_embs_layer{args.layer}_{args.reduction}.pt")
-            embeddings = utils.load_embeddings(emb_path=f'{args.embs}/extract_embeddings',data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
+            logger.log(f"{args.output_dir}/extract_embeddings/{args.data_type}_{args.plm}_embs_layer{args.layer}_{args.reduction}.pt")
+            embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings/',data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
             assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
             logger.log("OK")
 
             if args.head == 'logistic_regression':
-                data = data.sample(1001)
                 binary_scores = data['binary_score'].values
                 binary_scores = torch.tensor(
                     binary_scores, dtype=torch.float32)

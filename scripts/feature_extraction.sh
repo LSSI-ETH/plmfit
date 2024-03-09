@@ -19,4 +19,4 @@ python3 plmfit.py --function fine_tuning --ft_method feature_extraction \
         --head mlp --head_config config_mlp.json \
         --layer last --reduction mean --data_type aav --plm progen2-xlarge \
         --batch_size 128 --epochs 200 --lr 1e-6 --weight_decay 1e-6 \
-        --optimizer adam --loss_f mse --embs $SCRATCH
+        --optimizer adam --loss_f mse --embs ${SCRATCH}

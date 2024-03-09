@@ -13,4 +13,4 @@ python3 plmfit.py --function $1 --ft_method $2 \
         --head $5 --head_config $6 \
         --layer $7 --reduction $8 --data_type $3 --plm $4 \
         --batch_size $9 --epochs ${10} --lr ${11} --weight_decay ${12} \
-        --optimizer ${13} --loss_f ${14} --embs ${15} --output_dir ${15}
+        --optimizer ${13} --loss_f ${14} --output_dir ${15} --experiment_dir ${16} --experiment_name ${17}
