@@ -198,7 +198,6 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         else:
             self.logger.log(f'No gpu found rolling device back to {device}')
         data = utils.load_dataset(data_type)
-        data = data.sample(1001)
         start_enc_time = time.time()
         self.logger.log(f'Encoding {data.shape[0]} sequences....')
         encs = utils.categorical_encode(
