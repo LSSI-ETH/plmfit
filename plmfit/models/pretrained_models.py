@@ -522,8 +522,6 @@ class ESMFamily(IPretrainedProteinLanguageModel):
             seq_tokens[itr][:tok_seq.shape[0]] = tok_seq
         return seq_tokens
 
-
-
 class ProteinBERTFamily(IPretrainedProteinLanguageModel):
     def __init__(self, bert_model_name: str):
         super().__init__()
