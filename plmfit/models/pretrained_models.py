@@ -184,11 +184,10 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.no_parameters += utils.get_parameters(head)
         return
 
-    def extract_embeddings(self, data_type, batch_size = 1, layer=11, reduction='mean', output_dir = 'default'):
+    def extract_embeddings(self, data_type, batch_size = 1, layer=11, reduction='mean'):
         try:
             memory_usage = psutil.virtual_memory()
             max_mem_usage = utils.print_gpu_utilization(memory_usage)
-            output_path = self.logger.base_dir
             device = 'cpu'
             fp16 = False
             device_ids = []
@@ -312,9 +311,8 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                         self.logger.log(
                             f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ')
             extraction_time = time.time() - start_extraction_time
-            torch.save(
-                embs, os.path.join(output_path, f'{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt'))
-            file_size_bytes = os.path.getsize(os.path.join(output_path, f'{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt'))
+            torch.save(embs, f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
+            file_size_bytes = os.path.getsize(f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
             file_size_mb = file_size_bytes / (1024 * 1024) # Convert bytes to megabytes
             report = {
                 "encoding_time_needed": f'{enc_time:.4f}',
@@ -330,16 +328,15 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                 "max_vram_usage_mb": max_mem_usage
             }
             self.logger.save_data(report, 'report')
-            t = torch.load(
-                os.path.join(output_path, f'{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt'))
+            t = torch.load(f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
             self.logger.log(
-                f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt" ({time.time() - start_enc_time:.2f}s)')
+                f'Saved embeddings ({t.shape[1]}-d) as "{self.logger.experiment_name}.pt" ({time.time() - start_enc_time:.2f}s)')
             
-            torch.cuda.memory._dump_snapshot(os.path.join(output_path, f'memory_profiler.pickle'))
+            torch.cuda.memory._dump_snapshot(f'{self.logger.base_dir}/memory_profiler.pickle')
             torch.cuda.memory._record_memory_history(enabled=None)
             return
         except:
-            torch.cuda.memory._dump_snapshot(os.path.join(output_path, f'memory_profiler.pickle'))
+            torch.cuda.memory._dump_snapshot(f'{self.logger.base_dir}/memory_profiler.pickle')
             torch.cuda.memory._record_memory_history(enabled=None)
             stack_trace = traceback.format_exc()
             self.logger.log(stack_trace)
@@ -347,14 +344,13 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
     def fine_tune(self, data_type, fine_tuner, train_split_name, optimizer, loss_f):
 
         assert self.head != None, 'Task specific head haven\'t specified.'
-        logger = l.Logger(
-            f'logger_fine_tune_{self.name}_{self.head_name}_{fine_tuner.method}_{data_type}.txt')
+        
         data = utils.load_dataset(data_type)
-        logger.log(f' Encoding {data.shape[0]} sequences....')
+        self.logger.log(f' Encoding {data.shape[0]} sequences....')
         start_enc_time = time.time()
         encs = utils.categorical_encode(
-            data['aa_seq'].values, self.tokenizer, max(data['len'].values), add_bos=True, add_eos=True, logger=logger)
-        logger.log(
+            data['aa_seq'].values, self.tokenizer, max(data['len'].values), add_bos=True, add_eos=True, logger=self.logger)
+        self.logger.log(
             f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
         data_train = data[data[train_split_name] == 'train']
         data_test = data[data[train_split_name] == 'test']
@@ -381,8 +377,8 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         # Check if parameters of self model are affected just by calling them as argument
         # TODO: move the whole training loop in tuner method train
         training_start_time = time.time()
-        fine_tuner.train(self, dataloader_dict, optimizer, loss_f, logger)
-        logger.log(' Finetuning  ({}) on {} data completed after {:.4f}s '.format(
+        fine_tuner.train(self, dataloader_dict, optimizer, loss_f, self.logger)
+        self.logger.log(' Finetuning  ({}) on {} data completed after {:.4f}s '.format(
             fine_tuner.method, data_type, time.time() - training_start_time))
         self.fine_tuned = fine_tuner.method
         return
@@ -564,8 +560,6 @@ class ESMFamily(IPretrainedProteinLanguageModel):
             tok_seq = torch.tensor(tokenizer.encode(seq))
             seq_tokens[itr][:tok_seq.shape[0]] = tok_seq
         return seq_tokens
-
-
 
 class ProteinBERTFamily(IPretrainedProteinLanguageModel):
     def __init__(self, bert_model_name: str):
