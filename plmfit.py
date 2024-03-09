@@ -1,5 +1,6 @@
 import torch
 import plmfit.logger as l
+import os
 import argparse
 from plmfit.models.pretrained_models import *
 import plmfit.shared_utils.utils as utils
@@ -48,25 +49,33 @@ parser.add_argument('--layer', type=str, default='last',
 
 parser.add_argument('--output_dir', type=str, default='default',
                     help='Output directory for created files')
+parser.add_argument('--experiment_name', type=str, default='default',
+                    help='Output directory for created files')
+parser.add_argument('--experiment_dir', type=str, default='default',
+                    help='Output directory for created files')
 
 parser.add_argument('--logger', type=str, default='local')
 
 args = parser.parse_args()
 
+experiment_dir = args.experiment_dir
+if not os.path.exists(experiment_dir):
+    os.makedirs(experiment_dir)
 
-def init_plm(model_name, task_type='', head=None):
+logger = l.Logger(experiment_name = args.experiment_name, base_dir= args.experiment_dir, log_to_server=True, server_path=f'{args.function}/{args.experiment_name}')
+
+def init_plm(model_name, logger, task_type='', head=None,):
     model = None
     supported_progen2 = ['progen2-small', 'progen2-medium', 'progen2-xlarge']
     supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
                      "esm2_t30_150M_UR50D", "esm2_t33_650M_UR50D"]
     supported_Ankh = ['ankh-base', 'ankh-large', 'ankh2-large']
     supported_Proteinbert = ['proteinbert']
-    supported_Proteinbert = ['proteinbert']
 
     if 'progen' in model_name:
         assert model_name in supported_progen2, 'Progen version is not supported'
         if task_type == '':
-            model = ProGenFamily(model_name)
+            model = ProGenFamily(model_name, logger)
         elif task_type == 'classification':
             model = ProGenClassifier(model_name, head)
         else:
@@ -92,26 +101,28 @@ def init_plm(model_name, task_type='', head=None):
 if __name__ == '__main__':
 
     if args.function == 'extract_embeddings':
-        model = init_plm(args.plm)
+        
+        model = init_plm(args.plm, logger)
         assert model != None, 'Model is not initialized'
 
         model.extract_embeddings(data_type=args.data_type, layer=args.layer,
-                                 reduction=args.reduction, output_dir=args.output_dir)
+                                 reduction=args.reduction)
 
     elif args.function == 'fine_tuning':
         if args.ft_method == 'feature_extraction':
-
-            config = utils.load_head_config(args.head_config)
-            if config['network_type'] != args.head:
-                raise f'Wrong configuration file for "{args.head}" head'
-
+            
+            #if config['network_type'] != args.head:
+            #    raise f'Wrong configuration file for "{args.head}" head'
             # Load dataset
             data = utils.load_dataset(args.data_type)
-
             # Load embeddings and scores
-            embeddings = utils.load_embeddings(emb_path=args.embs,
-                                               data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
+            ### TODO : Load embeddings if do not exist
+            #logger.log(f"{args.output_dir}/extract_embeddings/{args.data_type}_{args.plm}_embs_layer{args.layer}_{args.reduction}.pt")
+            embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings/',data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
+            assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
 
+            head_config = utils.load_head_config(args.head_config)
+            logger.log(head_config)
             if args.head == 'logistic_regression':
                 binary_scores = data['binary_score'].values
                 binary_scores = torch.tensor(
@@ -134,10 +145,12 @@ if __name__ == '__main__':
                 logger.save_data(config, 'Head config')
 
                 fine_tuner = FullRetrainFineTuner(
-                    epochs=args.epochs, lr=args.lr, weight_decay=args.weight_decay, batch_size=args.batch_size, val_split=0.2, optimizer=args.optimizer, loss_function=args.loss_f, log_interval=-1, task_type='classification')
+                    epochs=args.epochs, lr=args.lr, weight_decay=args.weight_decay, batch_size=args.batch_size, val_split=0.2, optimizer=args.optimizer, loss_function=args.loss_f, log_interval=-1,logger = logger, task_type='classification')
                 fine_tuner.train(
-                    pred_model, dataloaders_dict=data_loaders, logger=logger)
-                logger.save_log_to_server()
+                    pred_model, dataloaders_dict=data_loaders)
+                if (args.logger == 'remote'):
+                    logger.save_log_to_server()
+
             elif args.head == 'linear_regression' or args.head == 'mlp':
                 scores = data['score'].values
                 scores = torch.tensor(
@@ -162,7 +175,8 @@ if __name__ == '__main__':
                     epochs=args.epochs, lr=args.lr, weight_decay=args.weight_decay, batch_size=args.batch_size, val_split=0.2, optimizer=args.optimizer, loss_function=args.loss_f, log_interval=-1, task_type='regression')
                 fine_tuner.train(
                     pred_model, dataloaders_dict=data_loaders, logger=logger)
-                logger.save_log_to_server()
+                if (args.logger == 'remote'):
+                    logger.save_log_to_server()
             else:
                 raise ValueError('Head type not supported')
             
@@ -212,7 +226,8 @@ if __name__ == '__main__':
                 # Get the entire stack trace as a string
                 stack_trace = traceback.format_exc()
                 logger.log(stack_trace, force_send=True) if args.logger == 'remote' else logger.log(stack_trace)
-            logger.save_log_to_server()
+            if (args.logger == 'remote'):
+                    logger.save_log_to_server()
         else:
             raise ValueError('Fine Tuning method not supported')
     else:

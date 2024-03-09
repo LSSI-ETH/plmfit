@@ -11,7 +11,7 @@
 
 module load eth_proxy
 
-MODEL_NAME="progen2-xlarge"
+MODEL_NAME="progen2-small"
 
 # Define the target directory for the download
 TARGET_DIR="./plmfit/language_models/progen2/checkpoints"

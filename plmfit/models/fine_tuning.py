@@ -9,10 +9,11 @@ from sklearn.metrics import accuracy_score, mean_squared_error
 from peft import LoraConfig, get_peft_model, TaskType
 from transformers import TrainingArguments, Trainer
 import psutil
+import plmfit.logger as l
 
 class FineTuner(ABC):
-
-    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function, log_interval, accumulation_steps = 1, epoch_size = 0):
+    logger: l.Logger
+    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function, log_interval, accumulation_steps = 1, epoch_size = 0, logger = None):
         self.epochs = epochs
         self.lr = lr
         self.weight_decay = weight_decay
@@ -23,7 +24,7 @@ class FineTuner(ABC):
         self.log_interval = log_interval
         self.optimizer = optimizer
         self.loss_function = loss_function
-
+        self.logger = logger
     @abstractmethod
     def set_trainable_parameters(self, model):
         """
@@ -69,8 +70,8 @@ class FineTuner(ABC):
 
 
 class FullRetrainFineTuner(FineTuner):
-    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, log_interval, optimizer, loss_function, task_type='classification'):
-        super().__init__(epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function, log_interval)
+    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, log_interval, optimizer, loss_function, logger, task_type='classification'):
+        super().__init__(epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function,  log_interval, logger = logger)
         self.task_type = task_type  # New attribute to specify the task type
 
     def set_trainable_parameters(self, model):
@@ -78,18 +79,18 @@ class FullRetrainFineTuner(FineTuner):
         utils.get_parameters(model.py_model, True)
         utils.get_parameters(model.head, True)
 
-    def train(self, model, dataloaders_dict, logger, patience=10):
+    def train(self, model, dataloaders_dict, patience=10):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         fp16 = False
         device_ids = list(range(torch.cuda.device_count()))
 
         if torch.cuda.is_available():
-            logger.log(f'Available GPUs : {torch.cuda.device_count()}')
+            self.logger.log(f'Available GPUs : {torch.cuda.device_count()}')
             for i in range(torch.cuda.device_count()):
-                logger.log(
+                self.logger.log(
                     f'Running on {torch.cuda.get_device_properties(i).name}')
         else:
-            logger.log(f'No GPU found, rolling device back to {device}')
+            self.logger.log(f'No GPU found, rolling device back to {device}')
 
         model = model.to(device)
 
@@ -106,8 +107,8 @@ class FullRetrainFineTuner(FineTuner):
         for epoch in range(self.epochs):
 
             epoch_start_time = time.time()
-            logger.log('\nEpoch {}/{}'.format(epoch + 1, self.epochs))
-            logger.log('-' * 10)
+            self.logger.log('\nEpoch {}/{}'.format(epoch + 1, self.epochs))
+            self.logger.log('-' * 10)
             
             # TODO torch_no_grad om val and autocast
             for phase in ['train', 'val']:
@@ -144,20 +145,20 @@ class FullRetrainFineTuner(FineTuner):
                     all_labels.extend(labels.detach().cpu().numpy())
 
                     if self.log_interval != -1 and itr % self.log_interval == 0:
-                        logger.log(
+                        self.logger.log(
                             f'({phase}) batch : {itr + 1}  / {len(dataloaders_dict[phase])} | running_loss : {batch_loss / (itr + 1)} (batch time : {time.time() - batch_start_time:.4f})')
 
                 epoch_loss = batch_loss / itr
 
-                logger.log('({}) Loss: {:.4f} {:.4f}s'.format(
+                self.logger.log('({}) Loss: {:.4f} {:.4f}s'.format(
                     phase, epoch_loss, time.time() - epoch_start_time))
                 if self.task_type == 'classification':
                     epoch_acc = accuracy_score(all_labels, all_preds)
-                    logger.log(f'{phase} Accuracy: {epoch_acc:.4f}')
+                    self.logger.log(f'{phase} Accuracy: {epoch_acc:.4f}')
                 elif self.task_type == 'regression':
                     epoch_rmse = np.sqrt(
                         mean_squared_error(all_labels, all_preds))
-                    logger.log(f'{phase} RMSE: {epoch_rmse:.4f}')
+                    self.logger.log(f'{phase} RMSE: {epoch_rmse:.4f}')
 
                 if phase == 'train':
                     epoch_train_loss.append(epoch_loss)
@@ -173,24 +174,24 @@ class FullRetrainFineTuner(FineTuner):
 
              # Check early stopping condition
             if epochs_no_improve >= patience:
-                logger.log('Early stopping triggered after {} epochs with no improvement'.format(patience))
+                self.logger.log('Early stopping triggered after {} epochs with no improvement'.format(patience))
                 break  # Break the loop if model hasn't improved for 'patience' epochs
         
-        logger.log(f'Mean time per epoch: {(time.time() - start_time)/itr:.4f}s')
-        logger.log(f'Total training time: {(time.time() - start_time):.4f}s')
+        self.logger.log(f'Mean time per epoch: {(time.time() - start_time)/itr:.4f}s')
+        self.logger.log(f'Total training time: {(time.time() - start_time):.4f}s')
         # After training, generate and save a plot of the training and validation loss
         loss_plot = data_explore.create_loss_plot(epoch_train_loss, epoch_val_loss)
-        logger.save_plot(loss_plot, "training_validation_loss")
-        logger.save_model(model, self.task_type)
+        self.logger.save_plot(loss_plot, "training_validation_loss")
+        self.logger.save_model(model, self.task_type)
         if self.task_type == 'classification':
             metrics, roc_auc_fig, cm_fig = data_explore.evaluate_classification(model, dataloaders_dict, device)
-            logger.save_data(metrics, 'Metrics')
-            logger.save_plot(roc_auc_fig, 'ROC_curve')
-            logger.save_plot(cm_fig, 'confusion_matrix')
+            self.logger.save_data(metrics, 'Metrics')
+            self.logger.save_plot(roc_auc_fig, 'ROC_curve')
+            self.logger.save_plot(cm_fig, 'confusion_matrix')
         elif self.task_type == 'regression':
             metrics, actual_vs_pred_fig = data_explore.evaluate_regression(model, dataloaders_dict, device)
-            logger.save_data(metrics, 'Metrics')
-            logger.save_plot(actual_vs_pred_fig, 'actual_vs_predicted')
+            self.logger.save_data(metrics, 'Metrics')
+            self.logger.save_plot(actual_vs_pred_fig, 'actual_vs_predicted')
 
 
 class LowRankAdaptationFineTuner(FineTuner):
