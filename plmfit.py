@@ -111,7 +111,7 @@ if __name__ == '__main__':
 
     elif args.function == 'fine_tuning':
         if args.ft_method == 'feature_extraction':
-            config = utils.load_head_config(args.head_config)
+            
             #if config['network_type'] != args.head:
             #    raise f'Wrong configuration file for "{args.head}" head'
             # Load dataset
@@ -122,6 +122,8 @@ if __name__ == '__main__':
             embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings/',data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
             assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
 
+            head_config = utils.load_head_config(args.head_config)
+            logger.log(head_config)
             if args.head == 'logistic_regression':
                 binary_scores = data['binary_score'].values
                 binary_scores = torch.tensor(
