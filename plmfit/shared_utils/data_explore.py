@@ -256,8 +256,8 @@ def plot_roc_curve(y_test_list, y_pred_list):
     plt.legend(loc="lower right")
 
     roc_auc_data = {
-        "fpr": fpr,
-        "tpr": tpr,
+        "fpr": fpr.tolist(),
+        "tpr": tpr.tolist(),
         "roc_auc_val": roc_auc_val
     }
     return fig, roc_auc_data
