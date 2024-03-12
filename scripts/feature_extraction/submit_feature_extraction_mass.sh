@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Path to the CSV file
-csv_file="./scripts/experiments_setup.csv"
+csv_file="./scripts/feature_extraction/experiments_setup.csv"
 
 # Skip the header line
 tail -n +2 "$csv_file" | while IFS=$'\t' read -r function ft_method data_type plm head task head_config layer reduction output_dir gpus gres mem_per_cpu
