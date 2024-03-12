@@ -184,7 +184,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.no_parameters += utils.get_parameters(head)
         return
 
-    def extract_embeddings(self, data_type, batch_size = 1, layer=11, reduction='mean'):
+    def extract_embeddings(self, data_type, batch_size = 1, layer=11, reduction='mean', log_interval=1000):
         try:
             memory_usage = psutil.virtual_memory()
             max_mem_usage = utils.print_gpu_utilization(memory_usage)
@@ -193,7 +193,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             device_ids = []
             if torch.cuda.is_available():
                 torch.cuda.set_per_process_memory_fraction(1/1)
-                torch.cuda.memory._record_memory_history(enabled='all')
+                torch.cuda.memory._record_memory_history(enabled='all', max_entries=100000)
                 device = "cuda:0"
                 fp16 = True
                 self.logger.log(f'Available GPUs : {torch.cuda.device_count()}')
@@ -206,7 +206,6 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                 self.logger.log(f'No gpu found rolling device back to {device}')
                 
             data = utils.load_dataset(data_type)
-            data = data.sample(1001) # Use to test procedure on smaller scale
 
             start_enc_time = time.time()
             self.logger.log(f'Encoding {data.shape[0]} sequences....')
@@ -308,8 +307,9 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                             raise ValueError('Unsupported reduction option')
                         del out
                         i = i + current_batch_size
-                        self.logger.log(
-                            f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ')
+                        if log_interval != -1 and i % log_interval == 0:
+                            self.logger.log(
+                                f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ')
             extraction_time = time.time() - start_extraction_time
             torch.save(embs, f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
             file_size_bytes = os.path.getsize(f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
