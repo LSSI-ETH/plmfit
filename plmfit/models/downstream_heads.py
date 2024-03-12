@@ -2,18 +2,24 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 import torch.nn.functional as F
-
-  
-class LinearRegression(nn.Module):
+from plmfit.shared_utils.utils import get_activation_function
+    
+class LinearHead(nn.Module):
     def __init__(self, config):
-        super(LinearRegression, self).__init__()
-        self.linear = nn.Linear(config['input_len'], config['output_len'])
-        self.dropout = nn.Dropout(config.get('dropout_rate', 0))  # Apply dropout if specified, else default to 0 (no dropout)
-
+        super(LinearHead, self).__init__()
+        self.linear = nn.Linear(config['input_dim'], config['output_dim'])
+        # self.dropout = nn.Dropout(config['dropout'])
+        self.task = config['task']
+        if self.task == 'classification':
+            self.activation = get_activation_function(config['activation'])
+    
     def forward(self, x):
         x = self.linear(x)
-        x = self.dropout(x)
+        # x = self.dropout(x)
+        if self.task == 'classification':
+            x= self.activation(x)
         return x
+
 
 class CnnReg(nn.Module):
     def __init__(self, in_features ,num_classes):
@@ -47,29 +53,23 @@ class CnnReg(nn.Module):
 class MLP(nn.Module):
     def __init__(self, config):
         super(MLP, self).__init__()
+        self.task = config['task']
+
         self.layers = nn.ModuleList()
+
+        # Hidden Layer
+        self.layers.append(nn.Linear(config['input_dim'], config['hidden_dim']))
+        self.layers.append(nn.Dropout(config['hidden_dropout']))
+        # Check if there's an activation function specified for the layer
+        if 'hidden_activation' in config:
+            self.layers.append(get_activation_function(config['hidden_activation']))
+
+        # Output Layer
+        self.layers.append(nn.Linear(config['hidden_dim'], config['output_dim']))
         
-        # Dynamically create layers based on the configuration
-        for layer_config in config['layers']:
-            layer_type = layer_config['type']
-            
-            if layer_type == 'linear':
-                layer = nn.Linear(layer_config['input_len'], layer_config['output_len'])
-                self.layers.append(layer)
-                
-                # Check if there's an activation function specified for the layer
-                if 'activation_function' in layer_config:
-                    activation_function = self.get_activation_function(layer_config['activation_function'])
-                    if activation_function:
-                        self.layers.append(activation_function)
-            
-            elif layer_type == 'dropout':
-                layer = nn.Dropout(layer_config['rate'])
-                self.layers.append(layer)
-                
-            else:
-                print(f"Unsupported layer type: {layer_type}")
-                continue
+        # Check if there's an activation function specified for the layer
+        if self.task == 'classification':
+            self.layers.append(get_activation_function(config['output_activation']))
         
         self.init_weights()
 
@@ -77,19 +77,6 @@ class MLP(nn.Module):
         for layer in self.layers:
             x = layer(x)
         return x
-    
-    def get_activation_function(self, name):
-        """Returns the activation function based on its name."""
-        if name == 'relu':
-            return nn.ReLU()
-        elif name == 'sigmoid':
-            return nn.Sigmoid()
-        elif name == 'tanh':
-            return nn.Tanh()
-        # Add more activation functions as needed
-        else:
-            print(f"Unsupported activation function: {name}")
-            return None
         
     def init_weights(self):
         """Initialize weights using Xavier initialization."""
@@ -98,26 +85,6 @@ class MLP(nn.Module):
                 nn.init.xavier_uniform_(layer.weight)
                 if layer.bias is not None:
                     nn.init.constant_(layer.bias, 0)
-    
-class LogisticRegression(nn.Module):
-    def __init__(self, config):
-        super(LogisticRegression, self).__init__()
-        # Validate the config to ensure it has the necessary keys
-        required_keys = ['input_len', 'output_len']
-        for key in required_keys:
-            if key not in config:
-                raise ValueError(f"Missing '{key}' in configuration")
-
-        # Extract parameters from the config
-        n_inputs = config['input_len']
-        n_outputs = config['output_len']
-
-        # Initialize the linear layer with parameters from the config
-        self.linear = torch.nn.Linear(n_inputs, n_outputs)
-
-    def forward(self, x):
-        y_pred = torch.sigmoid(self.linear(x))
-        return y_pred
     
 class AdapterLayer(nn.Module):
     def __init__(self, in_features, bottleneck_dim ,dropout= 0.25 , eps = 1e-5):

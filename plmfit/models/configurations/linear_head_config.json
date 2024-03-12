@@ -3,22 +3,23 @@
   {
     "network_type": "linear",
     "output_dim": 1,
-    "task": "regression"
+    "task": "regression",
+    "dropout": 0
   },
-
   "training_parameters":
   {
-    "dropout": 0.25,
     "learning_rate": 0.00001,
-    "epochs": 50,
+    "epochs": 200,
     "batch_size": 128,
-    "loss_f": "rmse",
+    "loss_f": "mse",
     "optimizer": "adam",
-    "weight_decay": false,
+    "val_split": 0.2,
+    "weight_decay": 0.01,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,
     "scaler": false,
-    "gradient_accumulation": false
+    "gradient_accumulation": false,
+    "early_stopping": true
   }
 }
