@@ -1,2 +1,0 @@
-function	ft_method	data_type	plm	head	head_config	layer	reduction	batch_size	epochs	lr	weight_decay	optimizer	loss_f	output_dir	gpus	gres	mem-per-cpu
-fine_tuning	feature_extraction	aav	progen2-small	logistic_regression	linear_head_config.json	first	eos	128	200	0.000001	0.000001	adam	mse	/cluster/scratch/tbikias	1	16g	16g
