@@ -10,5 +10,5 @@ do
   output_dir="$output_dir"
   experiment_name="${data_type}_${plm}_embs_${layer}_${reduction}"
   experiment_dir="$output_dir/$function/$experiment_name"
-  sbatch --output="$experiment_dir/euler_output.out" --error="$experiment_dir/euler_error.err" --mem-per-cpu="$mem_per_cpu" --gpus="$gpus" --gpus-per-node="$gpus" --gres="gpumem:$gres" scripts/extract_embeddings_mass.sh "$function" "$data_type" "$plm" "$reduction" "$layer" "$output_dir" "$experiment_dir" "$experiment_name"
+  sbatch --output="$experiment_dir/euler_output.out" --error="$experiment_dir/euler_error.err" --mem-per-cpu="$mem_per_cpu" --gpus="$gpus" --gpus-per-node="$gpus" --gres="gpumem:$gres" scripts/extract_embeddings/extract_embeddings_mass.sh "$function" "$data_type" "$plm" "$reduction" "$layer" "$output_dir" "$experiment_dir" "$experiment_name"
 done
