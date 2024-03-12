@@ -10,21 +10,35 @@ from peft import LoraConfig, get_peft_model, TaskType
 from transformers import TrainingArguments, Trainer
 import psutil
 import plmfit.logger as l
+import os
+import json
 
 class FineTuner(ABC):
     logger: l.Logger
-    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function, log_interval, accumulation_steps = 1, epoch_size = 0, logger = None):
-        self.epochs = epochs
-        self.lr = lr
-        self.weight_decay = weight_decay
-        self.batch_size = batch_size
-        self.accumulation_steps = accumulation_steps
-        self.epoch_size = epoch_size
-        self.val_split = val_split
-        self.log_interval = log_interval
-        self.optimizer = optimizer
-        self.loss_function = loss_function
+    def __init__(self, training_config, logger = None):
+        self.epochs = training_config['epochs']
+        self.lr = training_config['learning_rate']
+        self.weight_decay = self.handle_bool_float_config_param(training_config['weight_decay'], false_value=1, true_value=0.1)
+        self.batch_size = training_config['batch_size']
+        self.warmup_steps = training_config['warmup_steps']
+        self.accumulation_steps = self.handle_bool_float_config_param(training_config['gradient_accumulation'], false_value=1, true_value=8)
+        self.optimizer = training_config['optimizer']
+        self.loss_function = training_config['loss_f']
+        self.early_stopping = self.handle_bool_float_config_param(training_config['early_stopping'], false_value=-1, true_value=10)
         self.logger = logger
+
+    def handle_bool_float_config_param(self, config_param, false_value=0, true_value=1):
+        if isinstance(config_param, bool):
+            if config_param:
+                return true_value
+            else:
+                return false_value
+        elif isinstance(config_param, (int, float)):
+            return config_param  # Use the specified numeric value
+        else:
+            raise ValueError("Invalid configuration. Expected boolean or numeric value.")
+
+
     @abstractmethod
     def set_trainable_parameters(self, model):
         """
@@ -54,8 +68,10 @@ class FineTuner(ABC):
         """
         if self.optimizer == 'sgd':
             return torch.optim.SGD(model_parameters, lr=self.lr, weight_decay=self.weight_decay)
-        else:
+        elif self.optimizer == 'adam':
             return torch.optim.Adam(model_parameters, betas=(0.9, 0.99), lr=self.lr, weight_decay=self.weight_decay)
+        else:
+            raise ValueError(f"Optimizer '{self.optimizer}' not supported.")
 
     def initialize_loss_function(self):
         """
@@ -65,21 +81,25 @@ class FineTuner(ABC):
             return torch.nn.BCELoss()
         elif self.loss_function == 'bce_logits':
             return torch.nn.BCEWithLogitsLoss()
-        else:
+        elif self.loss_function == 'mse':
             return torch.nn.MSELoss()
+        else:
+            raise ValueError(f"Loss Function '{self.loss_function}' not supported.")
 
 
 class FullRetrainFineTuner(FineTuner):
-    def __init__(self, epochs, lr, weight_decay, batch_size, val_split, log_interval, optimizer, loss_function, logger, task_type='classification'):
-        super().__init__(epochs, lr, weight_decay, batch_size, val_split, optimizer, loss_function,  log_interval, logger = logger)
-        self.task_type = task_type  # New attribute to specify the task type
+    def __init__(self, training_config, logger = None):
+        super().__init__(training_config, logger)
 
     def set_trainable_parameters(self, model):
         utils.set_trainable_parameters(model.py_model)
         utils.get_parameters(model.py_model, True)
         utils.get_parameters(model.head, True)
 
-    def train(self, model, dataloaders_dict, patience=10):
+    def train(self, model, dataloaders_dict, patience=10, log_interval = -1):
+        memory_usage = psutil.virtual_memory()
+        max_mem_usage = utils.print_gpu_utilization(memory_usage)
+        self.task_type = model.task
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         fp16 = False
         device_ids = list(range(torch.cuda.device_count()))
@@ -100,6 +120,7 @@ class FullRetrainFineTuner(FineTuner):
         epoch_train_loss = []
         epoch_val_loss = []
         best_val_loss = float('inf')
+        best_model_state = None  # To store the state of the best model
         best_epoch = 0
         epochs_no_improve = 0  # Counter for epochs with no improvement
         start_time = time.time()
@@ -135,7 +156,8 @@ class FullRetrainFineTuner(FineTuner):
                         loss.backward()
                         optimizer.step()
                     batch_loss += loss.item()
-
+                    mem_usage = utils.print_gpu_utilization(memory_usage)
+                    if mem_usage > max_mem_usage: max_mem_usage = mem_usage
                     if self.task_type == 'classification':
                         preds = torch.round(outputs)
                     elif self.task_type == 'regression':
@@ -144,7 +166,7 @@ class FullRetrainFineTuner(FineTuner):
                     all_preds.extend(preds.detach().cpu().numpy())
                     all_labels.extend(labels.detach().cpu().numpy())
 
-                    if self.log_interval != -1 and itr % self.log_interval == 0:
+                    if log_interval != -1 and itr % log_interval == 0:
                         self.logger.log(
                             f'({phase}) batch : {itr + 1}  / {len(dataloaders_dict[phase])} | running_loss : {batch_loss / (itr + 1)} (batch time : {time.time() - batch_start_time:.4f})')
 
@@ -167,31 +189,64 @@ class FullRetrainFineTuner(FineTuner):
                     # Early stopping check
                     if epoch_loss < best_val_loss:
                         best_val_loss = epoch_loss
+                        best_model_state = model.state_dict()
                         best_epoch = epoch
                         epochs_no_improve = 0
                     else:
                         epochs_no_improve += 1
 
              # Check early stopping condition
-            if epochs_no_improve >= patience:
+            if self.early_stopping != -1 and epochs_no_improve >= self.early_stopping:
                 self.logger.log('Early stopping triggered after {} epochs with no improvement'.format(patience))
                 break  # Break the loop if model hasn't improved for 'patience' epochs
+
+        # After the training loop, restore the best model state
+        if best_model_state:
+            model.load_state_dict(best_model_state)
+            self.logger.log(f'Restored model to epoch {best_epoch+1} with best validation loss.')
+
         
-        self.logger.log(f'Mean time per epoch: {(time.time() - start_time)/itr:.4f}s')
-        self.logger.log(f'Total training time: {(time.time() - start_time):.4f}s')
+        total_time = time.time() - start_time
+        self.logger.log(f'Mean time per epoch: {total_time/itr:.4f}s')
+        self.logger.log(f'Total training time: {total_time:.1f}s')
+        
         # After training, generate and save a plot of the training and validation loss
+        loss_data = {
+            "epoch_train_loss": epoch_train_loss,
+            "epoch_val_loss": epoch_val_loss
+        }
+        with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_loss.json', 'w', encoding='utf-8') as f:
+            json.dump(loss_data, f, indent=4)
+
         loss_plot = data_explore.create_loss_plot(epoch_train_loss, epoch_val_loss)
         self.logger.save_plot(loss_plot, "training_validation_loss")
         self.logger.save_model(model, self.task_type)
+        self.logger.log(f'Saved best model at epoch {best_epoch+1} with validation loss {best_val_loss:.4f}')
+        file_size_bytes = os.path.getsize(f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
+        file_size_mb = file_size_bytes / (1024 * 1024) # Convert bytes to megabytes
+        report = {
+            "training_time": f'{total_time:.1f}',
+            "avg_time_per_epoch": f'{total_time/itr:.4f}',
+            "best_epoch": best_epoch,
+            "best_val_loss": best_val_loss,
+            "model_file_size_mb": f'{file_size_mb:.2f}',
+            "max_vram_usage_mb": max_mem_usage
+        }
+        self.logger.save_data(report, 'report')
         if self.task_type == 'classification':
-            metrics, roc_auc_fig, cm_fig = data_explore.evaluate_classification(model, dataloaders_dict, device)
-            self.logger.save_data(metrics, 'Metrics')
-            self.logger.save_plot(roc_auc_fig, 'ROC_curve')
+            metrics, roc_auc_fig, cm_fig, roc_auc_data = data_explore.evaluate_classification(model, dataloaders_dict, device)
+            self.logger.save_data(metrics, 'metrics')
+            self.logger.save_plot(roc_auc_fig, 'roc_curve')
             self.logger.save_plot(cm_fig, 'confusion_matrix')
+            with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_roc_auc.json', 'w', encoding='utf-8') as f:
+                json.dump(roc_auc_data, f, indent=4)
         elif self.task_type == 'regression':
-            metrics, actual_vs_pred_fig = data_explore.evaluate_regression(model, dataloaders_dict, device)
-            self.logger.save_data(metrics, 'Metrics')
+            metrics, actual_vs_pred_fig, testing_data = data_explore.evaluate_regression(model, dataloaders_dict, device)
+            self.logger.save_data(metrics, 'metrics')
             self.logger.save_plot(actual_vs_pred_fig, 'actual_vs_predicted')
+            with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_pred_vs_true.json', 'w', encoding='utf-8') as f:
+                json.dump(testing_data, f, indent=4)
+        
 
 
 class LowRankAdaptationFineTuner(FineTuner):
