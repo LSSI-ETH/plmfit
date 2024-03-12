@@ -24,7 +24,7 @@ class FineTuner(ABC):
         self.accumulation_steps = self.handle_bool_float_config_param(training_config['gradient_accumulation'], false_value=1, true_value=8)
         self.optimizer = training_config['optimizer']
         self.loss_function = training_config['loss_f']
-        self.early_stopping = self.handle_bool_float_config_param(training_config['early_stopping'], false_value=-1, true_value=10)
+        self.early_stopping = self.handle_bool_float_config_param(training_config['early_stopping'], false_value=-1, true_value=5)
         self.logger = logger
 
     def handle_bool_float_config_param(self, config_param, false_value=0, true_value=1):
