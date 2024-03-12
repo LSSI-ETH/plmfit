@@ -4,16 +4,17 @@
     "network_type": "mlp",
     "output_dim": 1,
     "hidden_dim": 1024,
-    "task": "regression",
+    "task": "classification",
     "hidden_activation": "relu",
-    "hidden_dropout": 0.25
+    "hidden_dropout": 0.25,
+    "output_activation": "sigmoid"
   },
   "training_parameters":
   {
     "learning_rate": 0.00001,
     "epochs": 200,
     "batch_size": 128,
-    "loss_f": "mse",
+    "loss_f": "bce",
     "optimizer": "adam",
     "val_split": 0.2,
     "weight_decay": 0.01,

@@ -1,6 +1,0 @@
-{
-  "network_type": "logistic_regression",
-  "input_len": 4096,
-  "output_len": 1,
-  "activation_function": "sigma"
-}
