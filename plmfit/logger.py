@@ -30,12 +30,13 @@ class Logger():
             f.truncate(0)
         self.log(f'#---------Logger initiated with name "{self.experiment_name}" at {self.created_at}---------#')
 
-    def log(self, text: str, force_send=False):
+    def log(self, text: str, force_send=False, force_dont_send=False):
         with open(os.path.join(self.base_dir, self.file_name), 'a') as f:
             f.write(f'{text}\n')
 
         current_time = datetime.datetime.now()
         # Post to the server if 5 minutes have passed since the last log was successfully posted
+        if force_dont_send: return
         if self.log_to_server and (self.last_post_time is None or (current_time - self.last_post_time).total_seconds() > 300) or force_send:
             self.post_to_server(os.path.join(self.base_dir, self.file_name), self.file_name)
 
@@ -76,7 +77,7 @@ class Logger():
             try:
                 self.post_to_server(file_path, f"{self.experiment_name}_data.json")
             except Exception as e:
-                self.log(f'Error posting data to server: {e}')
+                self.log(f'Error posting data to server: {e}', force_dont_send=True)
 
 
     def save_plot(self, plot, plot_name):
@@ -88,17 +89,23 @@ class Logger():
             try:
                 self.post_to_server(plot_path, f"{self.experiment_name}_{plot_name}.png")
             except Exception as e:
-                self.log(f'Error posting data to server: {e}')
+                self.log(f'Error posting data to server: {e}', force_dont_send=True)
 
     def save_model(self, model, model_name):
-        plot_path = os.path.join(self.base_dir, f"{self.experiment_name}_{model_name}.pt")
+        plot_path = os.path.join(self.base_dir, f"{self.experiment_name}.pt")
         torch.save(model.state_dict(
         ), plot_path)
-        self.log(f'Saved model with name "{self.experiment_name}_{model_name}.pt"')
+        self.log(f'Saved model with name "{self.experiment_name}.pt"')
 
     def post_to_server(self, file_path, data_name):
         # Ensure the token is included in the headers for authorization
         headers = {'Authorization': f'Bearer {self.token}'}
+
+        # Check if the file size is greater than 2MB
+        file_size = os.path.getsize(file_path)
+        if file_size > 2 * 1024 * 1024:  # 2MB in bytes
+            self.log(f'File {data_name} is larger than 2MB and will not be posted.', force_dont_send=True)
+            return
 
         try:
             with open(file_path, 'rb') as file:
@@ -111,7 +118,7 @@ class Logger():
             else:
                 self.log(f'Failed to post {data_name} to server. Status code: {response.status_code}')
         except Exception as e:
-            self.log(f'Exception occurred while posting to server: {e}')
+            self.log(f'Exception occurred while posting to server: {e}', force_dont_send=True)
 
     def save_log_to_server(self):
         if self.log_to_server:
