@@ -254,7 +254,13 @@ def plot_roc_curve(y_test_list, y_pred_list):
     plt.ylabel('True Positive Rate')
     plt.title('Receiver Operating Characteristic')
     plt.legend(loc="lower right")
-    return fig
+
+    roc_auc_data = {
+        "fpr": fpr,
+        "tpr": tpr,
+        "roc_auc_val": roc_auc_val
+    }
+    return fig, roc_auc_data
 
 
 def plot_actual_vs_predicted(y_test_list, y_pred_list, axis_range=[0, 1], eval_metrics=None):
@@ -274,7 +280,7 @@ def plot_actual_vs_predicted(y_test_list, y_pred_list, axis_range=[0, 1], eval_m
     ax.legend(loc='upper left')
 
     # Display selected metrics in the top right of the graph
-    metrics_text = f"R²: {eval_metrics['R^2']:.3f}\nRMSE: {eval_metrics['RMSE']:.3f}\nSpearman: {eval_metrics['Spearman']:.3f}"
+    metrics_text = f"R²: {eval_metrics['r_sq']:.3f}\nRMSE: {eval_metrics['rmse']:.3f}\nSpearman's: {eval_metrics['spearman']:.3f}"
     ax.text(0.95, 0.05, metrics_text, horizontalalignment='right', verticalalignment='bottom', transform=ax.transAxes, fontsize=10, bbox=dict(boxstyle="round", alpha=0.5, facecolor='white'))
 
     plt.tight_layout()
@@ -324,29 +330,28 @@ def evaluate_classification(model, dataloaders_dict, device):
     mcc = matthews_corrcoef(y_test_list, np.round(y_pred_list))
     cm = confusion_matrix(y_test_list, np.round(y_pred_list))
 
-    fig = plot_roc_curve(y_test_list, y_pred_list)
+    fig, roc_auc_data  = plot_roc_curve(y_test_list, y_pred_list)
     cm_fig = plot_confusion_matrix_heatmap(cm)
 
     cm = cm.tolist()
 
     # Assuming cm is your confusion matrix as a numpy array
     cm_dict = {
-        "True Negatives (TN)": int(cm[0][0]),
-        "False Positives (FP)": int(cm[0][1]),
-        "False Negatives (FN)": int(cm[1][0]),
-        "True Positives (TP)": int(cm[1][1])
+        "true_negatives": int(cm[0][0]),
+        "false_positives": int(cm[0][1]),
+        "false_negatives": int(cm[1][0]),
+        "true_positives": int(cm[1][1])
     }
 
     # Log evaluation metrics
     eval_metrics = {
-        "Final Accuracy (%)": acc.item(),
-        "ROC AUC": roc_auc,
-        "MCC": mcc,
-        "Confusion Matrix": cm_dict
+        "accuracy": acc.item(),
+        "roc_auc": roc_auc,
+        "mcc": mcc,
+        "confusion_matrix": cm_dict
     }
 
-    return eval_metrics, fig, cm_fig
-
+    return eval_metrics, fig, cm_fig, roc_auc_data
 
 def evaluate_regression(model, dataloaders_dict, device):
     model.eval()  # Set the model to evaluation mode
@@ -356,24 +361,36 @@ def evaluate_regression(model, dataloaders_dict, device):
         for inputs, labels in dataloaders_dict['test']:
             inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs).squeeze()
-            y_pred_list.extend(outputs.detach().cpu().numpy())
-            y_test_list.extend(labels.detach().cpu().numpy())
+            # Directly append numpy arrays to lists
+            y_pred_list.append(outputs.detach().cpu().numpy())
+            y_test_list.append(labels.detach().cpu().numpy())
+
+    # Convert list of arrays to a single numpy array and then to list for JSON serialization
+    y_pred_list = np.concatenate(y_pred_list).tolist()
+    y_test_list = np.concatenate(y_test_list).tolist()
 
     # Calculate metrics
     mse = mean_squared_error(y_test_list, y_pred_list)
     rmse = np.sqrt(mse)
     mae = mean_absolute_error(y_test_list, y_pred_list)
     r2 = r2_score(y_test_list, y_pred_list)
-    spearman = spearmanr(y_test_list, y_pred_list)
+    spearman_corr = spearmanr(y_test_list, y_pred_list).correlation
 
     eval_metrics = {
-        "MSE": float(mse),
-        "RMSE": float(rmse),
-        "MAE": float(mae),
-        "R^2": float(r2),
-        "Spearman": float(spearman.correlation)  # Spearman's rank correlation
+        "mse": float(mse),
+        "rmse": float(rmse),
+        "mae": float(mae),
+        "r_sq": float(r2),
+        "spearman": float(spearman_corr)  # Ensure spearman correlation is a float
     }
 
+    # Assuming plot_actual_vs_predicted is defined elsewhere and returns a matplotlib figure
     fig = plot_actual_vs_predicted(y_test_list, y_pred_list, eval_metrics=eval_metrics)
 
-    return eval_metrics, fig
+    testing_data = {
+        "y_test": y_test_list,
+        "y_pred": y_pred_list,
+        "eval_metrics": eval_metrics
+    }
+
+    return eval_metrics, fig, testing_data
