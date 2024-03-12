@@ -141,7 +141,7 @@ env.py
 
 .csv
 *.csv
-!scripts/*.csv
+!scripts/*/*.csv
 src/data/*/*.json
 !src/data/*/wild_type.json
 .pt
