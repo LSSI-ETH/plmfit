@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 from pynvml import *
 import os
+import torch.nn as nn
 
 # def load_model(model_name):
 #   return ProGenForCausalLM.from_pretrained(f'./plmfit/language_models/progen2/checkpoints/{model_name}')
@@ -31,6 +32,7 @@ def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2
         emb_path = f'./plmfit/data/{data_type}/embeddings/{data_type}_{model}_embs_layer{layer}_{reduction}.pt'
     
     try:
+        print(f"{emb_path}/{data_type}_{model}_embs_{layer}_{reduction}/{data_type}_{model}_embs_{layer}_{reduction}.pt")
         embeddings = torch.load(f"{emb_path}/{data_type}_{model}_embs_{layer}_{reduction}/{data_type}_{model}_embs_{layer}_{reduction}.pt")
         #embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
         return torch.tensor(embeddings, dtype=torch.float32)
@@ -50,7 +52,7 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
         test_size (float): Fraction of the data to be used as the test set (default is 0.2).
         validation_size (float): Fraction of the training data to be used as the validation set (default is 0.1).
         batch_size (int): Batch size for DataLoader (default is 64).
-        scaler (str): Scaler name for feature scaling (default is None). Supported scalers: 'standard'.
+        scaler (bool): If to use feature scaling with a standard scaler.
 
     Returns:
         dict: Dictionary containing DataLoader objects for train, validation, and test.
@@ -75,14 +77,11 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
         y_val = scores[split == 'validation']
 
     # Scale the features if scaler is provided
-    if scaler is not None:
-        if scaler == 'standard':
-            scaler = StandardScaler()
-            X_train = scaler.fit_transform(X_train)
-            X_val = scaler.transform(X_val)
-            X_test = scaler.transform(X_test)
-        else:
-            raise "Unsupported scaler. Use 'standard' or None."
+    if scaler:
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_val = scaler.transform(X_val)
+        X_test = scaler.transform(X_test)
 
     # Convert splits to PyTorch tensors
     X_train = torch.tensor(X_train, dtype=dtype)
@@ -149,6 +148,18 @@ def load_head_config(config_file_name):
 
     return config
 
+
+def get_activation_function(name):
+    """Returns the activation function based on its name."""
+    if name == 'relu':
+        return nn.ReLU()
+    elif name == 'sigmoid':
+        return nn.Sigmoid()
+    elif name == 'tanh':
+        return nn.Tanh()
+    # Add more activation functions as needed
+    else:
+        raise f"Unsupported activation function: {name}"
 
 def get_wild_type(data_type):
     file = f'./plmfit/data/{data_type}'
