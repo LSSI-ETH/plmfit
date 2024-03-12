@@ -10,6 +10,6 @@ do
   experiment_name="${data_type}_${plm}_${ft_method}_${layer}_${reduction}_${head}_${task}"
   experiment_dir="$output_dir/$function/$experiment_name"
   sbatch --output="$experiment_dir/euler_output.out" --error="$experiment_dir/euler_error.err" \
-    --mem-per-cpu="$mem_per_cpu" --gpus="$gpus"  --gpus-per-node="$gpus" --gres="gpumem:$gres" scripts/feature_extraction_mass.sh \
+    --mem-per-cpu="$mem_per_cpu" --gpus="$gpus"  --gpus-per-node="$gpus" --gres="gpumem:$gres" scripts/feature_extraction/feature_extraction_mass.sh \
     "$function" "$ft_method" "$head_config" "$data_type" "$plm" "$layer" "$reduction" "$output_dir" "$experiment_dir" "$experiment_name"
 done
