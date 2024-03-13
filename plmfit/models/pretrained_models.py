@@ -1,5 +1,5 @@
 import os
-from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForCausalLM
+from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForSequenceClassification
 from plmfit.language_models.proteinbert import load_pretrained_model
 from plmfit.language_models.proteinbert.conv_and_global_attention_model import get_model_with_hidden_layers_as_outputs
 
@@ -165,7 +165,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         # IPretrainedProteinLanguageModel.__init__(self)
         super().__init__(logger)
         self.name = progen_model_name
-        self.py_model = ProGenForCausalLM.from_pretrained(
+        self.py_model = ProGenForSequenceClassification.from_pretrained(
             f'./plmfit/language_models/progen2/checkpoints/{progen_model_name}')
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.transformer.h)
@@ -414,8 +414,8 @@ class ProGenClassifier(ProGenFamily):
         self.classifier = head
         self.no_parameters += utils.get_parameters(head)
 
-    def forward(self, src):
-        src = self.py_model(src).hidden_states[self.layer_to_use]
+    def forward(self, input_ids, *args, **kwargs):
+        src = self.py_model(input_ids).hidden_states[self.layer_to_use]
         src = torch.mean(src, dim=1)
         src = self.classifier(src)
         return src
