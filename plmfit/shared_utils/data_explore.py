@@ -265,7 +265,7 @@ def plot_roc_curve(y_test_list, y_pred_list):
 
 def plot_actual_vs_predicted(y_test_list, y_pred_list, axis_range=[0, 1], eval_metrics=None):
     fig, ax = plt.subplots(figsize=(8, 8))
-    ax.scatter(y_test_list, y_pred_list, color='darkorange', edgecolors='k', label='Predicted vs Actual')
+    ax.scatter(y_test_list, y_pred_list, color='darkorange', alpha=0.1, label='Predicted vs Actual')
     
     min_val = min(min(y_test_list), min(y_pred_list), axis_range[0])
     max_val = max(max(y_test_list), max(y_pred_list), axis_range[1])
