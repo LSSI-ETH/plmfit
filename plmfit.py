@@ -6,10 +6,6 @@ from plmfit.models.pretrained_models import *
 import plmfit.shared_utils.utils as utils
 import plmfit.models.downstream_heads as heads
 import traceback
-try:
-    from env import TOKEN, USER
-except ImportError as e:
-    print(f"No environment file 'env.py' detected")
 
 
 parser = argparse.ArgumentParser(description='plmfit_args')
@@ -42,7 +38,7 @@ args = parser.parse_args()
 
 experiment_dir = args.experiment_dir
 if not os.path.exists(experiment_dir):
-    os.makedirs(experiment_dir)
+    os.makedirs(experiment_dir, exist_ok=True)
 
 logger = l.Logger(
     experiment_name = args.experiment_name, 
@@ -50,7 +46,7 @@ logger = l.Logger(
     log_to_server=args.logger!='local', 
     server_path=f'{args.function}/{args.experiment_name}')
 
-def init_plm(model_name, logger, task_type='', head=None,):
+def init_plm(model_name, logger):
     model = None
     supported_progen2 = ['progen2-small', 'progen2-medium', 'progen2-xlarge']
     supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
@@ -60,12 +56,7 @@ def init_plm(model_name, logger, task_type='', head=None,):
 
     if 'progen' in model_name:
         assert model_name in supported_progen2, 'Progen version is not supported'
-        if task_type == '':
-            model = ProGenFamily(model_name, logger)
-        elif task_type == 'classification':
-            model = ProGenClassifier(model_name, head)
-        else:
-            raise f'Task type {task_type} not supported for {model_name}'
+        model = ProGenFamily(model_name, logger)
 
     elif 'esm' in model_name:
         assert model_name in supported_ESM, 'ESM version is not supported'
@@ -96,15 +87,17 @@ if __name__ == '__main__':
                                     reduction=args.reduction)
 
         elif args.function == 'fine_tuning':
+
+            # Load dataset
+            data = utils.load_dataset(args.data_type)
+
             if args.ft_method == 'feature_extraction':
-                # Load dataset
-                data = utils.load_dataset(args.data_type)
                 # Load embeddings and scores
                 ### TODO : Load embeddings if do not exist
                 embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings/',data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
                 assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
                 
-                head_config = utils.load_head_config(args.head_config)
+                head_config = utils.load_config(args.head_config)
 
                 scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
                 scores = torch.tensor(scores, dtype=torch.float32)
@@ -129,53 +122,37 @@ if __name__ == '__main__':
                 fine_tuner.train(pred_model, dataloaders_dict=data_loaders)
                 
             elif args.ft_method == 'lora':
-                
-                config = utils.load_head_config(args.head_config)
-                if config['network_type'] != args.head:
-                    raise f'Wrong configuration file for "{args.head}" head'
-                
-                base_dir = f'./plmfit/data/'
-                output_dir = f'{args.data_type}/models/lora/{args.head}/{args.plm}_{args.layer}_{args.reduction}'
-                output_path = base_dir + output_dir
-                if (args.logger == 'local'):
-                    logger = l.Logger(args.head, base_dir=output_path)
-                else:
-                    logger = l.ServerLogger(args.head, base_dir=output_path, token=TOKEN, server_path=f'{USER}/{output_dir}')
-                
-                logger.save_data(vars(args), 'Arguments')
-                logger.save_data(config, 'Head config')
-                try:
-                    data = utils.load_dataset(args.data_type)
-                    if args.head == 'logistic_regression':
-                        pred_model = heads.LogisticRegression(config)
-                        scores = data['binary_score'].values
-                        task_type = 'classification'
-                    elif args.head == 'linear_regression' or args.head == 'mlp':
-                        pred_model = heads.LinearRegression(config) if args.head == 'linear_regression' else heads.MLP(config)
-                        scores = data['score'].values
-                        task_type = 'regression'
-                    
-                    model = init_plm(args.plm, task_type=task_type, head=pred_model)
-                    assert model != None, 'Model is not initialized'
-                    model.set_layer_to_use(args.layer)
 
-                    fine_tuner = LowRankAdaptationFineTuner(
-                            epochs=args.epochs, lr=args.lr, weight_decay=args.weight_decay, batch_size=args.batch_size, val_split=0.2, optimizer=args.optimizer, loss_function=args.loss_f, log_interval=100, task_type=task_type)
-                    model = fine_tuner.set_trainable_parameters(model)
-                    utils.get_parameters(model, logger=logger)
-                    scores = torch.tensor(
-                        scores, dtype=torch.float32)
-                    encs = utils.categorical_encode(data['aa_seq'].values, model.tokenizer, max(data['len'].values), add_bos=True, add_eos=True)
-                    data_loaders = utils.create_data_loaders(
-                        encs, scores, scaler=args.scaler, batch_size=args.batch_size, dtype=int, validation_size=0.2)
-                    fine_tuner.train(
-                        model, dataloaders_dict=data_loaders, logger=logger)
-                except Exception as e:
-                    # Get the entire stack trace as a string
-                    stack_trace = traceback.format_exc()
-                    logger.log(stack_trace, force_send=True) if args.logger == 'remote' else logger.log(stack_trace)
-                if (args.logger == 'remote'):
-                        logger.save_log_to_server()
+                model = init_plm(args.plm, logger)
+                assert model != None, 'Model is not initialized'
+                
+                head_config = utils.load_config(args.head_config)
+                
+                logger.save_data(vars(args), 'arguments')
+                logger.save_data(head_config, 'head_config')
+
+                network_type = head_config['architecture_parameters']['network_type']
+                if network_type == 'linear':
+                    head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
+                    pred_model = heads.LinearHead(head_config['architecture_parameters'])
+                elif network_type == 'mlp':
+                    head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
+                    pred_model = heads.MLP(head_config['architecture_parameters'])
+                else:
+                    raise ValueError('Head type not supported')
+                
+                model.py_model.set_head(pred_model)
+
+                encs = model.categorical_encode(data)
+
+                scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
+                training_params = head_config['training_parameters']
+                data_loaders = utils.create_data_loaders(
+                        encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
+                
+                fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, logger=logger)
+                fine_tuner.set_trainable_parameters(model)
+                fine_tuner.train(model, dataloaders_dict=data_loaders)
             else:
                 raise ValueError('Fine Tuning method not supported')
         else:
