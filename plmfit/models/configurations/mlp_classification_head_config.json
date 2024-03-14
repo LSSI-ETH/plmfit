@@ -6,7 +6,7 @@
     "hidden_dim": 1024,
     "task": "multilabel_classification",
     "hidden_activation": "relu",
-    "hidden_dropout": 0.25,
+    "hidden_dropout": 0.20,
     "output_activation": "sigmoid"
   },
   "training_parameters":
@@ -17,7 +17,7 @@
     "loss_f": "weighted_bce",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 0.01,
+    "weight_decay": 0.00,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,

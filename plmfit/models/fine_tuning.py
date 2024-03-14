@@ -12,6 +12,7 @@ import psutil
 import plmfit.logger as l
 import os
 import json
+import plmfit.shared_utils.custom_loss_functions as custom_loss_functions
 
 class FineTuner(ABC):
     logger: l.Logger
@@ -121,6 +122,7 @@ class FullRetrainFineTuner(FineTuner):
         if self.loss_function == "weighted_bce":
             train_labels = dataloaders_dict["train"].dataset.tensors[1]
             class_weights = utils.get_loss_weights(train_labels)
+            self.logger.log(f'{class_weights}')
 
         loss_function = self.initialize_loss_function(class_weights)
 
@@ -157,8 +159,15 @@ class FullRetrainFineTuner(FineTuner):
                     input, labels = training_data
                     input = input.to(device)
                     labels = labels.to(device)
-                    outputs = model(input).squeeze()
-                    loss = loss_function(outputs, labels)
+                    
+                    if self.task_type == "multilabel_classification":
+                        mask = ~torch.isnan(labels)
+                        outputs = model(input)
+                        loss = loss_function(outputs[mask], labels[mask])
+                    else:
+                        outputs = model(input).squeeze()
+                        loss = loss_function(outputs, labels)
+
                     if phase == 'train':
                         loss.backward()
                         optimizer.step()
@@ -170,8 +179,9 @@ class FullRetrainFineTuner(FineTuner):
                     elif self.task_type == 'regression':
                         preds = outputs.squeeze()
 
-                    all_preds.extend(preds.detach().cpu().numpy())
-                    all_labels.extend(labels.detach().cpu().numpy())
+                    if self.task_type != "multilabel_classification":
+                        all_preds.extend(preds.detach().cpu().numpy())
+                        all_labels.extend(labels.detach().cpu().numpy())
 
                     if log_interval != -1 and itr % log_interval == 0:
                         self.logger.log(
