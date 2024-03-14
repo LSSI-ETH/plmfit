@@ -321,3 +321,10 @@ def print_gpu_utilization(memory_usage):
     handle = nvmlDeviceGetHandleByIndex(0)
     info = nvmlDeviceGetMemoryInfo(handle)
     return info.used//1024**2
+
+
+def get_loss_weights(labels):
+    pos = torch.sum(labels.values == 1)
+    neg = torch.sum(labels.values == 0)
+    obs = pos + neg
+    return (neg/obs, pos/obs)

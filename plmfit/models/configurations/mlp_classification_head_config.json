@@ -2,9 +2,9 @@
   "architecture_parameters":
   {
     "network_type": "mlp",
-    "output_dim": 1,
+    "output_dim": 3,
     "hidden_dim": 1024,
-    "task": "classification",
+    "task": "multilabel_classification",
     "hidden_activation": "relu",
     "hidden_dropout": 0.25,
     "output_activation": "sigmoid"
@@ -14,7 +14,7 @@
     "learning_rate": 0.0001,
     "epochs": 200,
     "batch_size": 128,
-    "loss_f": "bce",
+    "loss_f": "weighted_bce",
     "optimizer": "adam",
     "val_split": 0.2,
     "weight_decay": 0.01,
