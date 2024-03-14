@@ -262,11 +262,14 @@ class LowRankAdaptationFineTuner(FineTuner):
         )
 
     def set_trainable_parameters(self, model):
-        self.peft_model = get_peft_model(model.py_model, self.peft_config)
-        self.peft_model.print_trainable_parameters()
+        model.py_model = get_peft_model(model.py_model, self.peft_config)
+        utils.set_trainable_parameters(model.py_model.base_model.model.classifier)
+        model.py_model.print_trainable_parameters()
         # utils.unset_trainable_parameters_after_layer(model)
+        return model
 
     def train(self, model, dataloaders_dict, patience=10, log_interval = -1):
+        utils.get_parameters(model.py_model, logger=self.logger)
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         memory_usage = psutil.virtual_memory()
         max_mem_usage = utils.print_gpu_utilization(memory_usage, device)
@@ -319,7 +322,6 @@ class LowRankAdaptationFineTuner(FineTuner):
                     optimizer.zero_grad()
                     input, labels = training_data
                     input = input.to(device).int()
-                    print(input)
                     labels = labels.to(device)
                     outputs = model(input).squeeze()
                     loss = loss_function(outputs, labels)
