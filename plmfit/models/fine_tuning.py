@@ -268,12 +268,12 @@ class LowRankAdaptationFineTuner(FineTuner):
         # utils.unset_trainable_parameters_after_layer(model)
         return model
 
-    def train(self, model, dataloaders_dict, patience=10, log_interval = -1):
+    def train(self, model, dataloaders_dict, patience=10, log_interval = 100):
         utils.get_parameters(model.py_model, logger=self.logger)
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         memory_usage = psutil.virtual_memory()
         max_mem_usage = utils.print_gpu_utilization(memory_usage, device)
-        self.task_type = model.py_model.classifier.task
+        self.task_type = model.task
         fp16 = False
         device_ids = list(range(torch.cuda.device_count()))
 
@@ -323,7 +323,7 @@ class LowRankAdaptationFineTuner(FineTuner):
                     input, labels = training_data
                     input = input.to(device).int()
                     labels = labels.to(device)
-                    outputs = model(input).squeeze()
+                    outputs = model(input).logits.squeeze()
                     loss = loss_function(outputs, labels)
                     if phase == 'train':
                         loss.backward()
