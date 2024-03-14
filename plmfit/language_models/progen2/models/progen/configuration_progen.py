@@ -45,6 +45,7 @@ class ProGenConfig(PretrainedConfig):
         use_cache=True,
         bos_token_id=50256,
         eos_token_id=50256,
+        pad_token_id=0,
         num_labels=1,
         **kwargs
     ):
@@ -70,6 +71,7 @@ class ProGenConfig(PretrainedConfig):
         self.num_labels=num_labels
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id
+        self.pad_token_id = pad_token_id
 
     @property
     def max_position_embeddings(self):
