@@ -103,15 +103,22 @@ if __name__ == '__main__':
                 ### TODO : Load embeddings if do not exist
                 embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings/',data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
                 assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
-                
+                logger.log(f'{embeddings.shape}. Success!!!')
                 head_config = utils.load_head_config(args.head_config)
 
-                scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
-                scores = torch.tensor(scores, dtype=torch.float32)
+                if "multilabel" in head_config["task"]:
+                    # TODO : Make multilabel task agnostic
+                    scores = data[["mouse","cattle","bat"]].values
+                    scores_dict = {0:"mouse",1:"cattle",2:"bat"}
+                    logger.log(f'Scores: have {scores.size}. ')
+                else:
+                    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
+                    scores = torch.tensor(scores, dtype=torch.float32)
+                    
                 training_params = head_config['training_parameters']
                 data_loaders = utils.create_data_loaders(
-                        embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
-                
+                    embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
+
                 logger.save_data(vars(args), 'arguments')
                 logger.save_data(head_config, 'head_config')
 
