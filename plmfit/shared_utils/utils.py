@@ -9,12 +9,16 @@ import numpy as np
 from pynvml import *
 import os
 import torch.nn as nn
+import psutil
+
+data_dir = './plmfit/data'
+config_dir ='./plmfit/models/configurations'
 
 # def load_model(model_name):
 #   return ProGenForCausalLM.from_pretrained(f'./plmfit/language_models/progen2/checkpoints/{model_name}')
 
 def load_dataset(data_type):
-    return pd.read_csv(f'./plmfit/data/{data_type}/{data_type}_data_full.csv')
+    return pd.read_csv(f'{data_dir}/{data_type}/{data_type}_data_full.csv')
 
 
 def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2-small', reduction='mean', device='cpu'):
@@ -29,7 +33,7 @@ def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2
         reduction (str): Reduction method (default is 'mean').
     """
     if emb_path is None:
-        emb_path = f'./plmfit/data/{data_type}/embeddings/{data_type}_{model}_embs_layer{layer}_{reduction}.pt'
+        emb_path = f'{data_dir}/{data_type}/embeddings/{data_type}_{model}_embs_layer{layer}_{reduction}.pt'
     
     try:
         print(f"{emb_path}/{data_type}_{model}_embs_{layer}_{reduction}/{data_type}_{model}_embs_{layer}_{reduction}.pt")
@@ -129,7 +133,7 @@ def get_epoch_dataloaders(dataloader, epoch_size=0):
     
     return {'train': train_dataloader, 'val': val_dataloader, 'test': dataloader['test']}
 
-def load_head_config(config_file_name):
+def load_config(config_file_name):
     """
     Load a head configuration file from the plmfit/models/configurations directory.
 
@@ -140,13 +144,14 @@ def load_head_config(config_file_name):
         dict: Loaded configuration.
     """
     # Construct the full path to the configuration file
-    config_file_path = f'./plmfit/models/configurations/{config_file_name}'
+    config_file_path = f'{config_dir}/{config_file_name}'
 
     # Load the configuration from the file
     with open(config_file_path, 'r') as file:
         config = json.load(file)
 
     return config
+    
 
 
 def get_activation_function(name):
@@ -316,8 +321,26 @@ def convert_to_number(s):
             # If both conversions fail, return the original string or an indication that it's not a number
             return None  # or return s to return the original string
 
-def print_gpu_utilization(memory_usage):
-    nvmlInit()
-    handle = nvmlDeviceGetHandleByIndex(0)
-    info = nvmlDeviceGetMemoryInfo(handle)
-    return info.used//1024**2
+def print_gpu_utilization(memory_usage, device='cuda'):
+    if 'cuda' in device:
+        nvmlInit()
+        handle = nvmlDeviceGetHandleByIndex(0)
+        info = nvmlDeviceGetMemoryInfo(handle)
+        return info.used//1024**2
+    else:
+        memory = psutil.virtual_memory()
+        return memory.used // 1024 ** 2  # Convert from Bytes to Megabytes
+
+def print_cpu_utilization():
+    # Get CPU utilization percentage
+    cpu_percent = psutil.cpu_percent(interval=1)
+    print(f"CPU Utilization: {cpu_percent}%")
+
+    # Get memory usage
+    memory = psutil.virtual_memory()
+    memory_used = memory.used // 1024 ** 2  # Convert from Bytes to Megabytes
+    memory_total = memory.total // 1024 ** 2  # Convert from Bytes to Megabytes
+    print(f"Memory Used: {memory_used} MB")
+    print(f"Total Memory: {memory_total} MB")
+
+    return cpu_percent, memory_used
