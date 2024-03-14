@@ -151,7 +151,7 @@ if __name__ == '__main__':
                         encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
                 
                 fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, logger=logger)
-                fine_tuner.set_trainable_parameters(model)
+                model = fine_tuner.set_trainable_parameters(model)
                 fine_tuner.train(model, dataloaders_dict=data_loaders)
             else:
                 raise ValueError('Fine Tuning method not supported')
