@@ -152,6 +152,7 @@ if __name__ == '__main__':
                 
                 fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, logger=logger)
                 model = fine_tuner.set_trainable_parameters(model)
+                model.task = pred_model.task
                 fine_tuner.train(model, dataloaders_dict=data_loaders)
             else:
                 raise ValueError('Fine Tuning method not supported')
