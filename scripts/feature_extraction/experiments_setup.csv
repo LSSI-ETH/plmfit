@@ -1,2 +1,2 @@
 function	ft_method	data_type	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu
-fine_tuning	feature_extraction	rbd	ankh-base	linear	classification	linear_classification_head_config.json	48	mean	/cluster/scratch/bsahin	1	10g	10g
+fine_tuning	feature_extraction	rbd	ankh-base	mlp	multilabel_classification	mlp_classification_head_config.json	48	mean	/cluster/scratch/bsahin	1	24g	32g

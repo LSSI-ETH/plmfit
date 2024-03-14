@@ -50,7 +50,7 @@ def init_plm(model_name, logger):
     model = None
     supported_progen2 = ['progen2-small', 'progen2-medium', 'progen2-xlarge']
     supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
-                     "esm2_t30_150M_UR50D", "esm2_t33_650M_UR50D"]
+                     "esm2_t30_150M_UR50D", "esm2_t33_650M_UR50D","esm2_t36_3B_UR50D"]
     supported_Ankh = ['ankh-base', 'ankh-large', 'ankh2-large']
     supported_Proteinbert = ['proteinbert']
 
@@ -99,18 +99,19 @@ if __name__ == '__main__':
                 
                 head_config = utils.load_config(args.head_config)
 
-                if "multilabel" in head_config["task"]:
+                split = None
+                training_params = head_config['training_parameters']
+                if "multilabel" in head_config['architecture_parameters']['task']:
                     # TODO : Make multilabel task agnostic
                     scores = data[["mouse","cattle","bat"]].values
                     scores_dict = {0:"mouse",1:"cattle",2:"bat"}
-                    logger.log(f'Scores: have {scores.size}. ')
+                    split = data["random"].values
                 else:
                     scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
                     scores = torch.tensor(scores, dtype=torch.float32)
-                    
-                training_params = head_config['training_parameters']
+
                 data_loaders = utils.create_data_loaders(
-                    embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
+                        embeddings, scores, split = split, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
 
                 logger.save_data(vars(args), 'arguments')
                 logger.save_data(head_config, 'head_config')

@@ -333,7 +333,7 @@ def print_gpu_utilization(memory_usage, device='cuda'):
 
 
 def get_loss_weights(labels):
-    pos = torch.sum(labels.values == 1)
-    neg = torch.sum(labels.values == 0)
+    pos = torch.sum(labels == 1)
+    neg = torch.sum(labels == 0)
     obs = pos + neg
     return (neg/obs, pos/obs)

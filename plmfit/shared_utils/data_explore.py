@@ -228,7 +228,16 @@ def PCA_2d(data_type, model, layers, reduction, output_path='default', labels_co
 
         plt.close()
 
-
+def create_recall_plot(train_recalls,val_recalls):
+    fig = plt.figure(figsize=(10, 5))
+    plt.plot(train_recalls, label='Training Recall')
+    plt.plot(val_recalls, label='Validation Recall')
+    plt.xlabel('Epochs')
+    plt.ylabel('Recall')
+    plt.title('Training and Validation Recalls')
+    plt.legend()
+    return fig
+    
 def create_loss_plot(training_losses, validation_losses):
     fig = plt.figure(figsize=(10, 5))
     plt.plot(training_losses, label='Training Loss')
