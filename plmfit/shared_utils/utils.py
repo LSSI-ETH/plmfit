@@ -331,16 +331,9 @@ def print_gpu_utilization(memory_usage, device='cuda'):
         memory = psutil.virtual_memory()
         return memory.used // 1024 ** 2  # Convert from Bytes to Megabytes
 
-def print_cpu_utilization():
-    # Get CPU utilization percentage
-    cpu_percent = psutil.cpu_percent(interval=1)
-    print(f"CPU Utilization: {cpu_percent}%")
 
-    # Get memory usage
-    memory = psutil.virtual_memory()
-    memory_used = memory.used // 1024 ** 2  # Convert from Bytes to Megabytes
-    memory_total = memory.total // 1024 ** 2  # Convert from Bytes to Megabytes
-    print(f"Memory Used: {memory_used} MB")
-    print(f"Total Memory: {memory_total} MB")
-
-    return cpu_percent, memory_used
+def get_loss_weights(labels):
+    pos = torch.sum(labels.values == 1)
+    neg = torch.sum(labels.values == 0)
+    obs = pos + neg
+    return (neg/obs, pos/obs)

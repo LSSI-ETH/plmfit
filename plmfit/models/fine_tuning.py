@@ -73,7 +73,7 @@ class FineTuner(ABC):
         else:
             raise ValueError(f"Optimizer '{self.optimizer}' not supported.")
 
-    def initialize_loss_function(self):
+    def initialize_loss_function(self, class_weights = None):
         """
         Initializes the loss function. Can be overridden by subclasses to use different loss functions.
         """
@@ -83,6 +83,8 @@ class FineTuner(ABC):
             return torch.nn.BCEWithLogitsLoss()
         elif self.loss_function == 'mse':
             return torch.nn.MSELoss()
+        elif self.loss_function == "weighted_bce":
+            return custom_loss_functions.WeightedBCELoss(class_weights)
         else:
             raise ValueError(f"Loss Function '{self.loss_function}' not supported.")
 
@@ -115,7 +117,12 @@ class FullRetrainFineTuner(FineTuner):
         model = model.to(device)
 
         optimizer = self.initialize_optimizer(model.parameters())
-        loss_function = self.initialize_loss_function()
+        class_weights = None
+        if self.loss_function == "weighted_bce":
+            train_labels = dataloaders_dict["train"].dataset.tensors[1]
+            class_weights = utils.get_loss_weights(train_labels)
+
+        loss_function = self.initialize_loss_function(class_weights)
 
         epoch_train_loss = []
         epoch_val_loss = []
