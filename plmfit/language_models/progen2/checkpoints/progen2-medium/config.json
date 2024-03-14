@@ -32,5 +32,6 @@
   },
   "torch_dtype": "float32",
   "use_cache": true,
-  "vocab_size": 32
+  "vocab_size": 32,
+  "pad_token_id": 0
 }
