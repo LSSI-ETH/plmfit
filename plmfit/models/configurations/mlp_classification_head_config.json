@@ -11,10 +11,10 @@
   },
   "training_parameters":
   {
-    "learning_rate": 0.0001,
-    "epochs": 200,
-    "batch_size": 128,
-    "loss_f": "bce",
+    "learning_rate": 0.001,
+    "epochs": 40,
+    "batch_size": 16,
+    "loss_f": "mse",
     "optimizer": "adam",
     "val_split": 0.2,
     "weight_decay": 0.01,
