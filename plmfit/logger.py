@@ -6,11 +6,15 @@ import torch
 import requests
 try:
     import env
-except ImportError as e:
-    raise f"No environment file 'env.py' detected, reverting back to local logger"
+    env_exists = True
+except:
+    env_exists = False
+    print(f"No environment file 'env.py' detected, reverting back to local logger")
 
 class Logger():
     def __init__(self, experiment_name: str, base_dir='loggers', log_to_server=False, server_path=''): 
+        if not env_exists:
+            log_to_server = False
         self.created_at = datetime.datetime.now()
         self.experiment_name = experiment_name
         formatted_date = self.created_at.strftime("%Y%m%d_%H%M%S")
@@ -36,8 +40,8 @@ class Logger():
 
         current_time = datetime.datetime.now()
         # Post to the server if 5 minutes have passed since the last log was successfully posted
-        if force_dont_send: return
-        if self.log_to_server and (self.last_post_time is None or (current_time - self.last_post_time).total_seconds() > 300) or force_send:
+        if force_dont_send or not self.log_to_server: return
+        if (self.last_post_time is None or (current_time - self.last_post_time).total_seconds() > 300) or force_send:
             self.post_to_server(os.path.join(self.base_dir, self.file_name), self.file_name)
 
     def ensure_dir(self, dir_path):
