@@ -709,6 +709,9 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         self.model_parallel = False
         self.device_map = None
     
+    def set_head(self, head):
+        self.classifier = head
+
     def parallelize(self, device_map=None):
         self.device_map = (
             get_device_map(len(self.transformer.h), range(torch.cuda.device_count()))
@@ -764,7 +767,7 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
             return_dict=return_dict,
         )
         hidden_states = transformer_outputs[0]
-        logits = self.score(hidden_states)
+        logits = self.classifier(hidden_states)
 
         if input_ids is not None:
             batch_size = input_ids.shape[0]
