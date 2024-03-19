@@ -12,6 +12,8 @@ import psutil
 import plmfit.logger as l
 import os
 import json
+from torch.cuda.amp import GradScaler, autocast
+from torch.nn import DataParallel
 
 class FineTuner(ABC):
     logger: l.Logger
@@ -25,6 +27,7 @@ class FineTuner(ABC):
         self.optimizer = training_config['optimizer']
         self.loss_function = training_config['loss_f']
         self.early_stopping = self.handle_bool_float_config_param(training_config['early_stopping'], false_value=-1, true_value=10)
+        self.model_output = training_config['model_output']
         self.logger = logger
 
     def handle_bool_float_config_param(self, config_param, false_value=0, true_value=1):
@@ -143,34 +146,39 @@ class FullRetrainFineTuner(FineTuner):
                 batch_loss = 0
                 all_preds = []
                 all_labels = []
+                with torch.set_grad_enabled(phase == 'train'):
+                    for itr, training_data in enumerate(dataloaders_dict[phase], 0):
+                        batch_start_time = time.time()
+                        optimizer.zero_grad()
+                        input, labels = training_data
+                        input = input.to(device)
+                        labels = labels.to(device)
+                        if self.model_output == 'default':
+                            outputs = model(input).squeeze()
+                        elif self.model_output == 'logits':
+                            outputs = model(input).logits.squeeze()
+                        else:
+                            raise f'Model output "{self.model_output}" not defined'
+                        loss = loss_function(outputs, labels)
+                        if phase == 'train':
+                            loss.backward()
+                            optimizer.step()
+                        batch_loss += loss.item()
+                        mem_usage = utils.print_gpu_utilization(memory_usage, device)
+                        if mem_usage > max_mem_usage: max_mem_usage = mem_usage
+                        if self.task_type == 'classification':
+                            preds = torch.round(outputs)
+                        elif self.task_type == 'regression':
+                            preds = outputs.squeeze()
 
-                for itr, training_data in enumerate(dataloaders_dict[phase], 0):
-                    batch_start_time = time.time()
-                    optimizer.zero_grad()
-                    input, labels = training_data
-                    input = input.to(device)
-                    labels = labels.to(device)
-                    outputs = model(input).squeeze()
-                    loss = loss_function(outputs, labels)
-                    if phase == 'train':
-                        loss.backward()
-                        optimizer.step()
-                    batch_loss += loss.item()
-                    mem_usage = utils.print_gpu_utilization(memory_usage, device)
-                    if mem_usage > max_mem_usage: max_mem_usage = mem_usage
-                    if self.task_type == 'classification':
-                        preds = torch.round(outputs)
-                    elif self.task_type == 'regression':
-                        preds = outputs.squeeze()
+                        all_preds.extend(preds.detach().cpu().numpy())
+                        all_labels.extend(labels.detach().cpu().numpy())
 
-                    all_preds.extend(preds.detach().cpu().numpy())
-                    all_labels.extend(labels.detach().cpu().numpy())
+                        if log_interval != -1 and itr % log_interval == 0:
+                            self.logger.log(
+                                f'({phase}) batch : {itr + 1}  / {len(dataloaders_dict[phase])} | running_loss : {batch_loss / (itr + 1)} (batch time : {time.time() - batch_start_time:.4f})')
 
-                    if log_interval != -1 and itr % log_interval == 0:
-                        self.logger.log(
-                            f'({phase}) batch : {itr + 1}  / {len(dataloaders_dict[phase])} | running_loss : {batch_loss / (itr + 1)} (batch time : {time.time() - batch_start_time:.4f})')
-
-                epoch_loss = batch_loss / itr
+                epoch_loss = batch_loss / (itr + 1)
 
                 self.logger.log('({}) Loss: {:.4f} {:.4f}s'.format(
                     phase, epoch_loss, time.time() - epoch_start_time))
@@ -207,7 +215,7 @@ class FullRetrainFineTuner(FineTuner):
 
         
         total_time = time.time() - start_time
-        self.logger.log(f'Mean time per epoch: {total_time/itr:.4f}s')
+        self.logger.log(f'Mean time per epoch: {total_time/(itr+1):.4f}s')
         self.logger.log(f'Total training time: {total_time:.1f}s')
         
         # After training, generate and save a plot of the training and validation loss
@@ -226,7 +234,7 @@ class FullRetrainFineTuner(FineTuner):
         file_size_mb = file_size_bytes / (1024 * 1024) # Convert bytes to megabytes
         report = {
             "training_time": f'{total_time:.1f}',
-            "avg_time_per_epoch": f'{total_time/itr:.4f}',
+            "avg_time_per_epoch": f'{total_time/(itr+1):.4f}',
             "best_epoch": best_epoch,
             "best_val_loss": best_val_loss,
             "model_file_size_mb": f'{file_size_mb:.2f}',
@@ -234,14 +242,14 @@ class FullRetrainFineTuner(FineTuner):
         }
         self.logger.save_data(report, 'report')
         if self.task_type == 'classification':
-            metrics, roc_auc_fig, cm_fig, roc_auc_data = data_explore.evaluate_classification(model, dataloaders_dict, device)
+            metrics, roc_auc_fig, cm_fig, roc_auc_data = data_explore.evaluate_classification(model, dataloaders_dict, device, model_output=self.model_output)
             self.logger.save_data(metrics, 'metrics')
             self.logger.save_plot(roc_auc_fig, 'roc_curve')
             self.logger.save_plot(cm_fig, 'confusion_matrix')
             with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_roc_auc.json', 'w', encoding='utf-8') as f:
                 json.dump(roc_auc_data, f, indent=4)
         elif self.task_type == 'regression':
-            metrics, actual_vs_pred_fig, testing_data = data_explore.evaluate_regression(model, dataloaders_dict, device)
+            metrics, actual_vs_pred_fig, testing_data = data_explore.evaluate_regression(model, dataloaders_dict, device, model_output=self.model_output)
             self.logger.save_data(metrics, 'metrics')
             self.logger.save_plot(actual_vs_pred_fig, 'actual_vs_predicted')
             with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_pred_vs_true.json', 'w', encoding='utf-8') as f:
@@ -253,22 +261,23 @@ class LowRankAdaptationFineTuner(FineTuner):
     def __init__(self, training_config, logger = None):
         super().__init__(training_config, logger)
         peft_config = utils.load_config('lora_config.json')
+        logger.save_data(peft_config, 'lora_config')
         self.peft_config = LoraConfig(
             r = peft_config['r'],
             lora_alpha = peft_config['lora_alpha'],
             lora_dropout= peft_config['lora_dropout'],
             target_modules = peft_config['target_modules'],
+            modules_to_save = peft_config['modules_to_save'],
             bias = peft_config['bias']
         )
 
     def set_trainable_parameters(self, model):
         model.py_model = get_peft_model(model.py_model, self.peft_config)
-        utils.set_trainable_parameters(model.py_model.base_model.model.classifier)
         model.py_model.print_trainable_parameters()
-        # utils.unset_trainable_parameters_after_layer(model)
+        model.py_model.base_model.model.unset_trainable_parameters_after_layer_to_use()
         return model
 
-    def train(self, model, dataloaders_dict, patience=10, log_interval = 100):
+    def train(self, model, dataloaders_dict, patience=10, log_interval = -1):
         utils.get_parameters(model.py_model, logger=self.logger)
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         memory_usage = psutil.virtual_memory()
@@ -276,19 +285,24 @@ class LowRankAdaptationFineTuner(FineTuner):
         self.task_type = model.task
         fp16 = False
         device_ids = list(range(torch.cuda.device_count()))
-
+        parallel = False
         if torch.cuda.is_available():
             self.logger.log(f'Available GPUs : {torch.cuda.device_count()}')
             for i in range(torch.cuda.device_count()):
                 self.logger.log(
                     f'Running on {torch.cuda.get_device_properties(i).name}')
+            if torch.cuda.device_count() > 1:
+                model = DataParallel(model.py_model)
+                parallel = True
         else:
             self.logger.log(f'No GPU found, rolling device back to {device}')
 
-        model = model.py_model.to(device)
+        model = model.py_model.to(device) if not parallel else model.to(device)
 
+        self.logger.log(model)
         optimizer = self.initialize_optimizer(model.parameters())
         loss_function = self.initialize_loss_function()
+        scaler = GradScaler()
 
         epoch_train_loss = []
         epoch_val_loss = []
@@ -303,12 +317,17 @@ class LowRankAdaptationFineTuner(FineTuner):
             epoch_start_time = time.time()
             self.logger.log('\nEpoch {}/{}'.format(epoch + 1, self.epochs))
             self.logger.log('-' * 10)
+
+            model.eval()
+
+            optimizer.zero_grad()
             
             # TODO torch_no_grad om val and autocast
             for phase in ['train', 'val']:
                 if phase == 'train':
-                    # Set model to training mode
-                    model.train()
+                    # Set head and lora modules to training mode
+                    model.base_model.model.classifier.train() if not parallel else model.module.base_model.model.classifier.train()
+                    utils.set_modules_to_train_mode(model, 'lora')
                 else:
                     # Set model to evaluate mode
                     model.eval()
@@ -316,35 +335,40 @@ class LowRankAdaptationFineTuner(FineTuner):
                 batch_loss = 0
                 all_preds = []
                 all_labels = []
+                with torch.set_grad_enabled(phase == 'train'):
+                    for itr, (input, labels) in enumerate(dataloaders_dict[phase], 0):
+                        batch_start_time = time.time()
+                        input, labels = input.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+                        with torch.cuda.amp.autocast(enabled=fp16):
+                            if self.model_output == 'default':
+                                outputs = model(input).squeeze()
+                            elif self.model_output == 'logits':
+                                outputs = model(input).logits.squeeze()
+                            else:
+                                raise f'Model output "{self.model_output}" not defined'
+                            loss = loss_function(outputs, labels) / self.accumulation_steps
+                            
+                            if phase == 'train':
+                                scaler.scale(loss).backward()
+                                if (itr + 1) % self.accumulation_steps == 0 or (itr + 1) == len(dataloaders_dict[phase]):
+                                    scaler.step(optimizer)  # Adjust model weights
+                                    scaler.update()
+                                    optimizer.zero_grad()  # Reset gradients after updating
+                            batch_loss += loss.item() * self.accumulation_steps
+                            mem_usage = utils.print_gpu_utilization(memory_usage, device)
+                            if mem_usage > max_mem_usage: max_mem_usage = mem_usage
+                            if self.task_type == 'classification':
+                                preds = torch.round(outputs)
+                            elif self.task_type == 'regression':
+                                preds = outputs.squeeze()
+                            all_preds.extend(preds.detach().cpu().numpy())
+                            all_labels.extend(labels.detach().cpu().numpy())
 
-                for itr, training_data in enumerate(dataloaders_dict[phase], 0):
-                    batch_start_time = time.time()
-                    optimizer.zero_grad()
-                    input, labels = training_data
-                    input = input.to(device).int()
-                    labels = labels.to(device)
-                    outputs = model(input).logits.squeeze()
-                    loss = loss_function(outputs, labels)
-                    if phase == 'train':
-                        loss.backward()
-                        optimizer.step()
-                    batch_loss += loss.item()
-                    mem_usage = utils.print_gpu_utilization(memory_usage, device)
-                    if mem_usage > max_mem_usage: max_mem_usage = mem_usage
-                    if self.task_type == 'classification':
-                        preds = torch.round(outputs)
-                    elif self.task_type == 'regression':
-                        preds = outputs.squeeze()
+                        if log_interval != -1 and itr % log_interval == 0:
+                            self.logger.log(
+                                f'({phase}) batch : {itr + 1}  / {len(dataloaders_dict[phase])} | running_loss : {batch_loss / (itr + 1)} (batch time : {time.time() - batch_start_time:.4f})')
 
-                    all_preds.extend(preds.detach().cpu().numpy())
-                    all_labels.extend(labels.detach().cpu().numpy())
-
-                    if log_interval != -1 and itr % log_interval == 0:
-                        self.logger.log(
-                            f'({phase}) batch : {itr + 1}  / {len(dataloaders_dict[phase])} | running_loss : {batch_loss / (itr + 1)} (batch time : {time.time() - batch_start_time:.4f})')
-
-                epoch_loss = batch_loss / itr
-
+                epoch_loss = batch_loss / (itr + 1)
                 self.logger.log('({}) Loss: {:.4f} {:.4f}s'.format(
                     phase, epoch_loss, time.time() - epoch_start_time))
                 if self.task_type == 'classification':
@@ -393,9 +417,10 @@ class LowRankAdaptationFineTuner(FineTuner):
 
         loss_plot = data_explore.create_loss_plot(epoch_train_loss, epoch_val_loss)
         self.logger.save_plot(loss_plot, "training_validation_loss")
-        self.logger.save_model(model, self.task_type)
+        model.save_pretrained(f'{self.logger.base_dir}')
+        # self.logger.save_model(model, self.task_type)
         self.logger.log(f'Saved best model at epoch {best_epoch+1} with validation loss {best_val_loss:.4f}')
-        file_size_bytes = os.path.getsize(f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
+        file_size_bytes = os.path.getsize(f'{self.logger.base_dir}/adapter_model.safetensors')
         file_size_mb = file_size_bytes / (1024 * 1024) # Convert bytes to megabytes
         report = {
             "training_time": f'{total_time:.1f}',
@@ -407,14 +432,14 @@ class LowRankAdaptationFineTuner(FineTuner):
         }
         self.logger.save_data(report, 'report')
         if self.task_type == 'classification':
-            metrics, roc_auc_fig, cm_fig, roc_auc_data = data_explore.evaluate_classification(model, dataloaders_dict, device)
+            metrics, roc_auc_fig, cm_fig, roc_auc_data = data_explore.evaluate_classification(model, dataloaders_dict, device, model_output=self.model_output)
             self.logger.save_data(metrics, 'metrics')
             self.logger.save_plot(roc_auc_fig, 'roc_curve')
             self.logger.save_plot(cm_fig, 'confusion_matrix')
             with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_roc_auc.json', 'w', encoding='utf-8') as f:
                 json.dump(roc_auc_data, f, indent=4)
         elif self.task_type == 'regression':
-            metrics, actual_vs_pred_fig, testing_data = data_explore.evaluate_regression(model, dataloaders_dict, device)
+            metrics, actual_vs_pred_fig, testing_data = data_explore.evaluate_regression(model, dataloaders_dict, device, model_output=self.model_output)
             self.logger.save_data(metrics, 'metrics')
             self.logger.save_plot(actual_vs_pred_fig, 'actual_vs_predicted')
             with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_pred_vs_true.json', 'w', encoding='utf-8') as f:
