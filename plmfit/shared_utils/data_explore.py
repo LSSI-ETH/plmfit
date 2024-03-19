@@ -478,10 +478,10 @@ def plot_confusion_matrices(cms, class_names, normalize = False, titles = None, 
             ax.text(j, i, format(cm[i, j], fmt),
                      horizontalalignment="center",
                      color=color, fontsize=12)
-
+        ax.set_ylabel('True label', fontsize=14)
+        ax.set_xlabel('Predicted label', fontsize=14)
+    
     plt.tight_layout()
-    plt.ylabel('True label', fontsize=14)
-    plt.xlabel('Predicted label', fontsize=14)
     plt.subplots_adjust(wspace=0.4)
     return fig
 
@@ -525,6 +525,34 @@ def get_threshold_MCC(y_pred, y_test, c_type):
     
     return (best_tre,fig)
 
+def plot_exact_accuracy(y_pred,y_test,best_tre):
+
+    # Calculates the number of correct predictions per sequence
+    y_pred_tre = torch.clone(y_pred)
+    y_pred_tre[y_pred >= best_tre] = 1
+    y_pred_tre[y_pred < best_tre] = 0
+
+    pred_sum = torch.sum(torch.round(y_pred_tre) == y_test,dim = 1)
+    n_correct, frequency = np.unique(pred_sum,return_counts = True)
+
+    # Create bar plot
+    fig = plt.figure(figsize=(8, 6))
+    bars = plt.bar(n_correct, frequency, color='skyblue')
+
+    # Add labels to the bars
+    for bar, label in zip(bars, frequency):
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width() / 2, height, label,
+                ha='center', va='bottom')
+
+    # Add labels and title
+    plt.xlabel('# Correct Guesses')
+    plt.ylabel('Frequency')
+    plt.title('Exact Accuracy')
+
+    # Show plot
+    return fig
+    
 def test_multi_label_classification(model, dataloaders_dict, device):
     # Evaluate the model on the test dataset
     model.eval()
@@ -536,11 +564,11 @@ def test_multi_label_classification(model, dataloaders_dict, device):
             labels = labels.to(device).int()
             output = model(embeddings)
 
-            y_pred.append(output.cpu().detach())
-            y_test.append(labels.cpu().detach())
+            y_pred.extend(output.cpu().detach().numpy())
+            y_test.extend(labels.cpu().detach().numpy())
 
-    y_pred = y_pred[0]
-    y_test = y_test[0].int()
+    y_pred = torch.tensor(np.array(y_pred))
+    y_test = torch.tensor(np.array(y_test)).int()
 
     return y_pred,y_test
 
@@ -594,4 +622,7 @@ def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
     prec_rec_fig= plot_multilabel_prec_recall(precision, recall)
     figures["prec_recall_curve"] = prec_rec_fig
 
+    # Plot exact accuracy
+    exact_acc_fig = plot_exact_accuracy(y_pred,y_test,best_tre)
+    figures["correct_guesses"] = exact_acc_fig
     return (results,pooled_results,figures)

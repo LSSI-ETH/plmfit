@@ -40,7 +40,7 @@ if __name__ == '__main__':
     print(embeddings.size())
     
     # Read head_config to initialize the model
-    head_config = utils.load_head_config(args["head_config"])
+    head_config = utils.load_config(args["head_config"])
     network_type = head_config['architecture_parameters']['network_type']
 
     if network_type == 'linear':
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     del data
     del embeddings
 
-    batch_size = 1000
+    batch_size = 250
 
     test_dataset = TensorDataset(
         embs_test, torch.tensor(data_test[["mouse","cattle","bat"]].values,dtype = torch.float))

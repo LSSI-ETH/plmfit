@@ -171,13 +171,16 @@ class FullRetrainFineTuner(FineTuner):
                         loss.backward()
                         optimizer.step()
                     batch_loss += loss.item()
+
                     mem_usage = utils.print_gpu_utilization(memory_usage, device)
-                    if mem_usage > max_mem_usage: max_mem_usage = mem_usage
+                    if mem_usage > max_mem_usage: 
+                        max_mem_usage = mem_usage
+
                     if self.task_type == 'classification':
                         preds = torch.round(outputs)
                     elif self.task_type == 'regression':
                         preds = outputs.squeeze()
-
+            
                     if self.task_type != "multilabel_classification":
                         all_preds.extend(preds.detach().cpu().numpy())
                         all_labels.extend(labels.detach().cpu().numpy())
