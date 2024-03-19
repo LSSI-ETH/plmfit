@@ -625,5 +625,5 @@ def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
     # Plot exact accuracy
     exact_acc_fig = plot_exact_accuracy(y_pred,y_test,best_tre)
     figures["correct_guesses"] = exact_acc_fig
-    
+
     return (results,pooled_results,figures)
