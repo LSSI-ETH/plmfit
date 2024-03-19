@@ -10,6 +10,8 @@ import torch
 from sklearn.metrics import matthews_corrcoef, confusion_matrix, roc_auc_score, mean_squared_error, mean_absolute_error, r2_score
 import numpy as np
 from scipy.stats import spearmanr
+import torchmetrics.functional as functional
+import itertools
 
 
 def plot_label_distribution(data, label="binary_score", path=None, text="Keep"):
@@ -403,3 +405,193 @@ def evaluate_regression(model, dataloaders_dict, device):
     }
 
     return eval_metrics, fig, testing_data
+
+def plot_multilabel_ROC(fpr, tpr, roc_auc, colors = None, labels = None):
+    
+    # Plot ROC curve
+    if colors == None:
+        colors = ["darkorange", "green", "red"]
+    
+    if labels == None:
+        labels = ["Mouse", "Cattle", "Bat"]
+
+    fig = plt.figure(figsize=(12, 9))  # Adjust figure size for better visibility
+    for i in range(len(fpr)):
+        plt.plot(fpr[i], tpr[i], color=colors[i], lw=2, label=f'{labels[i]} (AUC = %0.2f)' % roc_auc[i])
+
+    plt.plot([0, 1], [0, 1], color='gray', lw=2, linestyle='--')  # Adjusted color and style for unity line
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate', fontsize=14)  # Adjust label font size
+    plt.ylabel('True Positive Rate', fontsize=14)  # Adjust label font size
+    plt.title('Receiver Operating Characteristic (ROC) Curve', fontsize=16)  # Adjust title font size
+    plt.legend(loc="lower right", fontsize=12)  # Adjust legend font size
+    plt.grid(True, linestyle='--', alpha=0.7)  # Adjusted grid style for better visibility
+    plt.tight_layout()  # Adjust layout for better spacing
+
+    return fig
+
+def plot_multilabel_prec_recall(prec, rec, colors = None, labels = None ):
+    
+    # Plot ROC curve
+    if colors == None:
+        colors = ["darkorange", "green", "red"]
+    
+    if labels == None:
+        labels = ["Mouse", "Cattle", "Bat"]
+
+    fig = plt.figure(figsize=(12, 9))  # Adjust figure size for better visibility
+    for i in range(len(prec)):
+        plt.plot(rec[i], prec[i], color=colors[i], lw=2, label=f'{labels[i]}')
+
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('Recall', fontsize=14)  # Adjust label font size
+    plt.ylabel('Precision', fontsize=14)  # Adjust label font size
+    plt.title('Precision Recall Curve', fontsize=16)  # Adjust title font size
+    plt.legend(loc="lower right", fontsize=12)  # Adjust legend font size
+    plt.grid(True, linestyle='--', alpha=0.7)  # Adjusted grid style for better visibility
+    plt.tight_layout()  # Adjust layout for better spacing
+
+    return fig
+
+def plot_confusion_matrices(cms, class_names, normalize = False, titles = None, cmap=plt.cm.Blues):
+    if titles == None:
+        titles = ['Confusion Matrix 1', 'Confusion Matrix 2', 'Confusion Matrix 3']
+        
+    num_plots = len(cms)
+    fig, axes = plt.subplots(1, num_plots, figsize=(16, 6))
+
+    for idx, (cm, title) in enumerate(zip(cms, titles)):
+        ax = axes[idx]
+        ax.imshow(cm, interpolation='nearest', cmap=cmap)
+        ax.set_title(title, fontsize=16)
+        ax.set_xticks(np.arange(len(class_names)))
+        ax.set_xticklabels(class_names, rotation=45, fontsize=12)
+        ax.set_yticks(np.arange(len(class_names)))
+        ax.set_yticklabels(class_names, fontsize=12)
+
+        fmt = '.2f' if normalize else 'd'
+        thresh = cm.max() / 2.
+        for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+            color = 'white' if cm[i, j] > thresh else 'black'
+            ax.text(j, i, format(cm[i, j], fmt),
+                     horizontalalignment="center",
+                     color=color, fontsize=12)
+
+    plt.tight_layout()
+    plt.ylabel('True label', fontsize=14)
+    plt.xlabel('Predicted label', fontsize=14)
+    plt.subplots_adjust(wspace=0.4)
+    return fig
+
+def plot_mcc(thresholds, scores, best_tre, best_score):
+    fig = plt.figure(figsize=(8, 6))  # Adjust figure size for better visibility
+    plt.plot(thresholds, scores, lw=2, label= 'MCC')
+    plt.plot(best_tre, best_score, 'ro') # 'ro' for red circle
+    plt.text(best_tre, best_score, f'Highest: {best_score:.2f}', fontsize=12, ha='right', va='bottom')
+    y_max = 0.5 + best_score.item()/2
+    plt.axvline(x=best_tre, color='gray', linestyle='--', ymax= y_max, linewidth=1, c = 'red')
+    plt.text(best_tre, -0.9, f'Best Threshold: {best_tre:.2f}', fontsize=12, ha='right')
+
+    plt.xlim([0.0, 1.0])
+    plt.ylim([-1.0, 1.00])
+
+    plt.xlim([0.0, 1.0])
+    plt.ylim([-1.0, 1.00])
+
+    plt.xlabel('Threshold', fontsize=14)  # Adjust label font size
+    plt.ylabel('MCC Score', fontsize=14)  # Adjust label font size
+    plt.title('Threshold Determination', fontsize=16)
+    plt.grid(True, linestyle='--', alpha=0.7)  # Adjusted grid style for better visibility
+    plt.tight_layout()  # Adjust layout for better spacing
+    return fig
+
+def get_threshold_MCC(y_pred, y_test, c_type):
+    # Calculate the best treshold utilizing MCC
+    best_tre = None
+    best_score = -np.inf
+    scores = []
+    n_class = len(y_pred[0])
+    
+    for tre in np.linspace(0.01,1,100):
+        score = functional.matthews_corrcoef(y_pred,y_test,c_type,threshold = tre,num_labels = n_class)
+        scores.append(score)
+        if score > best_score:
+            best_score = score
+            best_tre = tre
+
+    fig= plot_mcc(np.linspace(0.01,1,100),scores,best_tre,best_score)
+    
+    return (best_tre,fig)
+
+def test_multi_label_classification(model, dataloaders_dict, device):
+    # Evaluate the model on the test dataset
+    model.eval()
+    y_pred = []
+    y_test = []
+    with torch.no_grad():
+        for (embeddings, labels) in dataloaders_dict['test']:
+            embeddings = embeddings.to(device)
+            labels = labels.to(device).int()
+            output = model(embeddings)
+
+            y_pred.append(output.cpu().detach())
+            y_test.append(labels.cpu().detach())
+
+    y_pred = y_pred[0]
+    y_test = y_test[0].int()
+
+    return y_pred,y_test
+
+def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
+    # Initialize dictionaries to save results, and initialize the metrics
+    results = {}
+    pooled_results = {}
+    figures = {}
+
+    metrics = {'Accuracy':functional.accuracy, 'Precision': functional.precision, 'Recall': functional.recall}
+    pooled_metrics = {'MCC': functional.matthews_corrcoef, 'Exact Match': functional.exact_match}
+
+    # Calculate the best threshold for classification based on MCC
+    best_tre, mcc_fig = get_threshold_MCC(y_pred,y_test,c_type)
+    figures["MCC"] = mcc_fig
+
+    n_class = len(y_pred[0])
+    c_type = "multilabel"
+
+    # Calculate scores for all metrics
+    for (name,metric) in metrics.items():
+        result = metric(y_pred,y_test,c_type, threshold = best_tre, average = "none", num_labels = n_class)
+        results[name] = result
+        pooled_results[name] = torch.mean(result).item()
+
+    # Calculate binary MCC for all classes
+    mcc_list = []
+    for i in range(n_class):
+        mcc = functional.matthews_corrcoef(y_pred[:,i],y_test[:,i],"binary",threshold = best_tre)
+        mcc_list.append(mcc)
+    results["MCC"] = np.array(mcc_list)
+
+    # Calculate scores for "pooled metrics"
+    for (name,metric) in pooled_metrics.items():
+        result = metric(y_pred,y_test,c_type, threshold = best_tre, num_labels = n_class)
+        pooled_results[name] = result.item()
+
+    # Plot confusion matrix
+    cm = functional.confusion_matrix(y_pred,y_test,c_type, threshold = best_tre, num_labels = n_class)
+    cm_fig = plot_confusion_matrices(cm,["Non-bind","Bind"],titles = ["Mouse","Cattle","Bat"])
+    figures["con_mat"] = cm_fig
+
+    # Plot ROC curve
+    fpr, tpr, thresholds = functional.roc(y_pred,y_test,c_type, num_labels = n_class)
+    auc = functional.auroc(y_pred,y_test,c_type, num_labels = n_class,average = 'none')
+    roc_fig= plot_multilabel_ROC(fpr, tpr, auc)
+    figures["ROC"] = roc_fig
+
+    # Plot Precision Recall curve
+    precision, recall, thresholds = functional.precision_recall_curve(y_pred,y_test,c_type, num_labels = n_class)
+    prec_rec_fig= plot_multilabel_prec_recall(precision, recall)
+    figures["prec_recall_curve"] = prec_rec_fig
+
+    return (results,pooled_results,figures)

@@ -25,7 +25,7 @@ class FineTuner(ABC):
         self.accumulation_steps = self.handle_bool_float_config_param(training_config['gradient_accumulation'], false_value=1, true_value=8)
         self.optimizer = training_config['optimizer']
         self.loss_function = training_config['loss_f']
-        self.early_stopping = self.handle_bool_float_config_param(training_config['early_stopping'], false_value=-1, true_value=5)
+        self.early_stopping = self.handle_bool_float_config_param(training_config['early_stopping'], false_value=-1, true_value=10)
         self.logger = logger
 
     def handle_bool_float_config_param(self, config_param, false_value=0, true_value=1):
@@ -160,13 +160,9 @@ class FullRetrainFineTuner(FineTuner):
                     input = input.to(device)
                     labels = labels.to(device)
                     
-                    if self.task_type == "multilabel_classification":
-                        mask = ~torch.isnan(labels)
-                        outputs = model(input)
-                        loss = loss_function(outputs[mask], labels[mask])
-                    else:
-                        outputs = model(input).squeeze()
-                        loss = loss_function(outputs, labels)
+                    mask = ~torch.isnan(labels)
+                    outputs = model(input).squeeze()
+                    loss = loss_function(outputs[mask], labels[mask])
 
                     if phase == 'train':
                         loss.backward()
