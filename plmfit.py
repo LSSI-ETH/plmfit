@@ -71,9 +71,9 @@ def init_plm(model_name, logger):
         model = AnkhFamily(model_name)
     elif 'antiberty' in args.plm:
         model = Antiberty()
-    # elif 'proteinbert' in model_name:
-    #     assert model_name in supported_Proteinbert, 'ProteinBERT version is not supported'
-    #     model = ProteinBERTFamily(model_name)
+    elif 'proteinbert' in model_name:
+        assert model_name in supported_Proteinbert, 'ProteinBERT version is not supported'
+        model = ProteinBERTFamily(logger)
     else:
         raise 'PLM not supported'
 
