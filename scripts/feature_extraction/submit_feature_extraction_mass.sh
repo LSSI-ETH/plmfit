@@ -10,7 +10,7 @@ tail -n +2 "$csv_file" | while IFS=$'\t' read -r function ft_method data_type pl
 do
   output_dir="$output_dir"
   experiment_name="${data_type}_${plm}_${ft_method}_${layer}_${reduction}_${head}_${task}"
-  experiment_dir="$output_dir/$function/$experiment_name"
+  experiment_dir="$output_dir/$function/$ft_method/$experiment_name/$uid"
   sbatch --job-name="feature_extraction_${uid}" \
          --output="$experiment_dir/euler_output.out" \
          --error="$experiment_dir/euler_error.err" \
