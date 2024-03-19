@@ -44,7 +44,7 @@ def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2
         return None
 
 
-def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32):
+def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32, num_workers=1):
     """
     Create DataLoader objects for training, validation, and testing.
 
@@ -100,11 +100,9 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     val_dataset = TensorDataset(X_val, y_val)
     test_dataset = TensorDataset(X_test, y_test)
 
-    train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=torch.cuda.is_available())
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=torch.cuda.is_available())
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=torch.cuda.is_available())
 
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
 
@@ -253,13 +251,25 @@ def set_trainable_parameters(model, ft='all'):
 
     return
 
-def unset_trainable_parameters_after_layer(model):
-    # Set layers after self.layer_to_use to non-trainable
-    for i, layer in enumerate(model.py_model.transformer.h):
-        if i > model.layer_to_use:
-            for param in layer.parameters():
-                param.requires_grad = False
+def freeze_parameters(model):
+    for name, p in model.named_parameters():
+        p.requires_grad = False
 
+    return
+
+def set_modules_to_train_mode(model, module_name):
+    """
+    This function iterates through all modules in the given model.
+    If it finds a module that has 'module_name' in its name,
+    it sets that module to training mode.
+    """
+    for name, module in model.named_modules():
+        # Identify modules by checking if 'module_name' is in their name.
+        if module_name in name:
+            module.train()  # Set the identified 'module_name' module to training mode
+
+    # Note: This does not change the global training/evaluation mode of the model,
+    # but specifically sets 'module_name' modules to training mode.
 
 def read_fasta(file_path):
     sequences = {}
