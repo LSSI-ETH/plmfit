@@ -19,3 +19,5 @@ requests
 psutil
 pynvml
 einops
+botocore
+boto3

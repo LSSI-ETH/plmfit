@@ -172,9 +172,13 @@ def get_wild_type(data_type):
 
 
 def load_tokenizer(model_name):
-    model_file = ''
     if 'progen2' in model_name:
         model_file = 'progen2'
+    elif 'bert' in model_name:
+        model_file = 'proteinbert'
+    else:
+        raise 'Model tokenizer not defined'
+    
     file = f'./plmfit/language_models/{model_file}/tokenizer.json'
 
     with open(file, 'r') as f:
@@ -185,36 +189,65 @@ def one_hot_encode(seqs):
     return torch.tensor([0])
 
 
-def categorical_encode(seqs, tokenizer, max_len, add_bos=False, add_eos=False, logger = None):
+def categorical_encode(seqs, tokenizer, max_len, add_bos=False, add_eos=False, logger = None, model_name='progen2'):
     if logger != None:
         logger.log(f'Initiating categorical encoding')
         logger.log(f'Memory needed for encoding: {len(seqs) * max_len * 4}B')
 
-    # Adjust max_len if BOS or EOS tokens are to be added
-    internal_max_len = max_len + int(add_bos) + int(add_eos)
+    if 'progen2' in model_name:
+        # Adjust max_len if BOS or EOS tokens are to be added
+        internal_max_len = max_len + int(add_bos) + int(add_eos)
 
-    seq_tokens = tokenizer.get_vocab()['<|pad|>'] * torch.ones((len(seqs), internal_max_len), dtype=int)
-    for itr, seq in enumerate(seqs):
-         # Encode the sequence without adding special tokens by the tokenizer itself
-        encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
+        seq_tokens = tokenizer.get_vocab()['<|pad|>'] * torch.ones((len(seqs), internal_max_len), dtype=int)
+        for itr, seq in enumerate(seqs):
+            # Encode the sequence without adding special tokens by the tokenizer itself
+            encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
 
-        # Prepare sequence with space for BOS and/or EOS if needed
-        sequence = []
-        if add_bos:
-            sequence.append(tokenizer.get_vocab()['<|bos|>'])
-        sequence.extend(encoded_seq_ids[:max_len])  # Ensure the core sequence does not exceed user-specified max_len
-        if add_eos:
-            sequence.append(tokenizer.get_vocab()['<|eos|>'])
+            # Prepare sequence with space for BOS and/or EOS if needed
+            sequence = []
+            if add_bos:
+                sequence.append(tokenizer.get_vocab()['<|bos|>'])
+            sequence.extend(encoded_seq_ids[:max_len])  # Ensure the core sequence does not exceed user-specified max_len
+            if add_eos:
+                sequence.append(tokenizer.get_vocab()['<|eos|>'])
 
-        # Truncate the sequence if it exceeds internal_max_len
-        truncated_sequence = sequence[:internal_max_len]
+            # Truncate the sequence if it exceeds internal_max_len
+            truncated_sequence = sequence[:internal_max_len]
 
-        # Update the seq_tokens tensor
-        seq_len = len(truncated_sequence)
-        seq_tokens[itr, :seq_len] = torch.tensor(truncated_sequence, dtype=torch.long)
+            # Update the seq_tokens tensor
+            seq_len = len(truncated_sequence)
+            seq_tokens[itr, :seq_len] = torch.tensor(truncated_sequence, dtype=torch.long)
 
-        if itr == 0 and logger is not None:
-            logger.log(f'First sequence tokens: {seq_tokens[0].tolist()}')
+            if itr == 0 and logger is not None:
+                logger.log(f'First sequence tokens: {seq_tokens[0].tolist()}')
+    elif 'bert' in model_name:
+        # Adjust max_len if BOS or EOS tokens are to be added
+        internal_max_len = max_len + int(add_bos) + int(add_eos)
+
+        seq_tokens = tokenizer.get_vocab()['<pad>'] * torch.ones((len(seqs), internal_max_len), dtype=int)
+        for itr, seq in enumerate(seqs):
+            # Encode the sequence without adding special tokens by the tokenizer itself
+            encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
+
+            # Prepare sequence with space for BOS and/or EOS if needed
+            sequence = []
+            if add_bos:
+                sequence.append(tokenizer.get_vocab()['<cls>'])
+            sequence.extend(encoded_seq_ids[:max_len])  # Ensure the core sequence does not exceed user-specified max_len
+            if add_eos:
+                sequence.append(tokenizer.get_vocab()['<sep>'])
+
+            # Truncate the sequence if it exceeds internal_max_len
+            truncated_sequence = sequence[:internal_max_len]
+
+            # Update the seq_tokens tensor
+            seq_len = len(truncated_sequence)
+            seq_tokens[itr, :seq_len] = torch.tensor(truncated_sequence, dtype=torch.long)
+
+            if itr == 0 and logger is not None:
+                logger.log(f'First sequence tokens: {seq_tokens[0].tolist()}')
+    else:
+        raise 'Model tokenizer not defined'
     if logger != None:
         logger.log(f'Categorical encoding finished')
     return seq_tokens
