@@ -322,16 +322,22 @@ def binary_accuracy(y_true, y_pred):
     return acc
 
 
-def evaluate_classification(model, dataloaders_dict, device):
+def evaluate_classification(model, dataloaders_dict, device, model_output='default'):
     model.eval()  # Set the model to evaluation mode
     y_pred_list = []
     y_test_list = []
-    for inputs, labels in dataloaders_dict['test']:
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs = model(inputs).squeeze()
-        y_pred = outputs
-        y_pred_list.extend(y_pred.detach().cpu().numpy())
-        y_test_list.extend(labels.detach().cpu().numpy())
+    with torch.no_grad():
+        for inputs, labels in dataloaders_dict['test']:
+            inputs, labels = inputs.to(device), labels.to(device)
+            if model_output == 'default':
+                outputs = model(inputs).squeeze()
+            elif model_output == 'logits':
+                outputs = model(inputs).logits.squeeze()
+            else:
+                raise f'Model output "{model_output}" not defined'
+            y_pred = outputs
+            y_pred_list.extend(y_pred.detach().cpu().numpy())
+            y_test_list.extend(labels.detach().cpu().numpy())
 
     # Calculate metrics
     acc = binary_accuracy(torch.tensor(y_test_list), torch.tensor(y_pred_list))
@@ -362,14 +368,19 @@ def evaluate_classification(model, dataloaders_dict, device):
 
     return eval_metrics, fig, cm_fig, roc_auc_data
 
-def evaluate_regression(model, dataloaders_dict, device):
+def evaluate_regression(model, dataloaders_dict, device, model_output='default'):
     model.eval()  # Set the model to evaluation mode
     y_pred_list = []
     y_test_list = []
     with torch.no_grad():
         for inputs, labels in dataloaders_dict['test']:
             inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs).squeeze()
+            if model_output == 'default':
+                outputs = model(inputs).squeeze()
+            elif model_output == 'logits':
+                outputs = model(inputs).logits.squeeze()
+            else:
+                raise f'Model output "{model_output}" not defined'
             # Directly append numpy arrays to lists
             y_pred_list.append(outputs.detach().cpu().numpy())
             y_test_list.append(labels.detach().cpu().numpy())
