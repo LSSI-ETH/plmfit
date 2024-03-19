@@ -174,15 +174,6 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.tokenizer = utils.load_tokenizer(progen_model_name)
         self.layer_to_use = -1
         self.config = self.py_model.config
-  
-
-    def concat_task_specific_head(self, head):
-        # assert head.in_.in_features == self.output_dim, f'Head\'s input dimension ({head.in_.in_features}) is not compatible with {self.name}\'s output dimension ({self.output_dim}). To concat modules these must be equal.'
-        # TODO: Add concat option with lm head or final transformer layer.
-        self.head = head
-        self.head_name = head.__class__.__name__  # parse name from variable
-        self.no_parameters += utils.get_parameters(head)
-        return
     
     def categorical_encode(self, data):
         encs = utils.categorical_encode(
@@ -345,48 +336,6 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             stack_trace = traceback.format_exc()
             self.logger.log(stack_trace)
 
-    def fine_tune(self, data_type, fine_tuner, train_split_name, optimizer, loss_f):
-
-        assert self.head != None, 'Task specific head haven\'t specified.'
-        
-        data = utils.load_dataset(data_type)
-        self.logger.log(f' Encoding {data.shape[0]} sequences....')
-        start_enc_time = time.time()
-        encs = utils.categorical_encode(
-            data['aa_seq'].values, self.tokenizer, max(data['len'].values), add_bos=True, add_eos=True, logger=self.logger)
-        self.logger.log(
-            f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
-        data_train = data[data[train_split_name] == 'train']
-        data_test = data[data[train_split_name] == 'test']
-        encs_train = encs[data_train.index]
-        encs_test = encs[data_test.index]
-        train_dataset = data_utils.TensorDataset(
-            encs_train, torch.tensor(data_train['score'].values))
-        n_val_samples = int(fine_tuner.val_split * len(train_dataset))
-        n_train_samples = len(train_dataset) - n_val_samples
-        train_set, val_set = torch.utils.data.random_split(
-            train_dataset, [n_train_samples, n_val_samples])
-        test_dataset = data_utils.TensorDataset(
-            encs_test, torch.tensor(data_test['score'].values))
-        train_dataloader = DataLoader(
-            train_set, batch_size=fine_tuner.batch_size, shuffle=True)
-        valid_dataloader = DataLoader(
-            val_set, batch_size=fine_tuner.batch_size, shuffle=True)
-        test_dataloader = DataLoader(
-            test_dataset, batch_size=fine_tuner.batch_size, shuffle=True)
-
-        dataloader_dict = {'train': train_dataloader, 'val': valid_dataloader}
-
-        fine_tuner .set_trainable_parameters(self)
-        # Check if parameters of self model are affected just by calling them as argument
-        # TODO: move the whole training loop in tuner method train
-        training_start_time = time.time()
-        fine_tuner.train(self, dataloader_dict, optimizer, loss_f, self.logger)
-        self.logger.log(' Finetuning  ({}) on {} data completed after {:.4f}s '.format(
-            fine_tuner.method, data_type, time.time() - training_start_time))
-        self.fine_tuned = fine_tuner.method
-        return
-    
     def set_layer_to_use(self, layer):
         if layer == 'last':
             # The last hidden layer (not counting the logits layer)
