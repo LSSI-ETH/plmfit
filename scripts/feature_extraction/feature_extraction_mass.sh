@@ -3,7 +3,6 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --tasks-per-node=1
-#SBATCH --gpus-per-node=1
 #SBATCH --time=4:00:00
 
 module load eth_proxy
