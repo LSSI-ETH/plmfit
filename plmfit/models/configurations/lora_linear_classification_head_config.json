@@ -8,9 +8,9 @@
   },
   "training_parameters":
   {
-    "learning_rate": 0.001,
-    "epochs": 40,
-    "batch_size": 16,
+    "learning_rate": 0.00005,
+    "epochs": 15,
+    "batch_size": 4,
     "loss_f": "bce_logits",
     "optimizer": "adam",
     "val_split": 0.2,
@@ -19,7 +19,8 @@
     "gradient_clipping": false,
     "scheduler": false,
     "scaler": false,
-    "gradient_accumulation": false,
-    "early_stopping": true
+    "gradient_accumulation": 16,
+    "early_stopping": 3,
+    "model_output": "logits" 
   }
 }
