@@ -169,7 +169,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             f'./plmfit/language_models/progen2/checkpoints/{progen_model_name}')
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.transformer.h)
-        self.output_dim = self.py_model.lm_head.out_features
+        self.output_dim = self.py_model.classifier.out_features
         self.emb_layers_dim = self.py_model.transformer.h[0].attn.out_proj.out_features
         self.tokenizer = utils.load_tokenizer(progen_model_name)
         self.layer_to_use = self.no_layers - 1
@@ -183,12 +183,17 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.head_name = head.__class__.__name__  # parse name from variable
         self.no_parameters += utils.get_parameters(head)
         return
+    
+    def categorical_encode(self, data):
+        encs = utils.categorical_encode(
+            data['aa_seq'].values, self.tokenizer, max(data['len'].values), add_bos=True, add_eos=True, logger=self.logger)
+        return encs
 
     def extract_embeddings(self, data_type, batch_size = 1, layer=11, reduction='mean', log_interval=1000):
         try:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
             memory_usage = psutil.virtual_memory()
-            max_mem_usage = utils.print_gpu_utilization(memory_usage)
-            device = 'cpu'
+            max_mem_usage = utils.print_gpu_utilization(memory_usage, device)
             fp16 = False
             device_ids = []
             if torch.cuda.is_available():
@@ -209,9 +214,8 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 
             start_enc_time = time.time()
             self.logger.log(f'Encoding {data.shape[0]} sequences....')
-            encs = utils.categorical_encode(
-                data['aa_seq'].values, self.tokenizer, max(data['len'].values), add_bos=True, add_eos=True, logger=self.logger)
-            mem_usage = utils.print_gpu_utilization(memory_usage)
+            encs = self.categorical_encode(data)
+            mem_usage = utils.print_gpu_utilization(memory_usage, device)
             if mem_usage > max_mem_usage: max_mem_usage = mem_usage
             self.logger.log(
                 f'Encoding completed! {time.time() -  start_enc_time:.4f}s')
@@ -236,11 +240,11 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                         current_batch_size = batch[0].shape[0]
                         if layer == 'logits':
                             out = self.py_model(batch[0]).logits
-                            mem_usage = utils.print_gpu_utilization(memory_usage)
+                            mem_usage = utils.print_gpu_utilization(memory_usage, device)
                             if mem_usage > max_mem_usage: max_mem_usage = mem_usage
                         else:
                             model_output = self.py_model(batch[0])
-                            mem_usage = utils.print_gpu_utilization(memory_usage)
+                            mem_usage = utils.print_gpu_utilization(memory_usage, device)
                             if mem_usage > max_mem_usage: max_mem_usage = mem_usage
                             hidden_states = model_output.hidden_states  # Get all hidden states
 
