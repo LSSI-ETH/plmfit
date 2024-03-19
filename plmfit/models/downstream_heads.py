@@ -8,16 +8,10 @@ class LinearHead(nn.Module):
     def __init__(self, config):
         super(LinearHead, self).__init__()
         self.linear = nn.Linear(config['input_dim'], config['output_dim'])
-        # self.dropout = nn.Dropout(config['dropout'])
         self.task = config['task']
-        if self.task == 'classification':
-            self.activation = get_activation_function(config['activation'])
     
     def forward(self, x):
         x = self.linear(x)
-        # x = self.dropout(x)
-        if self.task == 'classification':
-            x= self.activation(x)
         return x
 
 
