@@ -705,10 +705,14 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         self.classifier = nn.Linear(config.n_embd, self.num_labels, bias=False)
         self.init_weights()
 
+        self.layer_to_use = -1
+
         # Model parallel
         self.model_parallel = False
         self.device_map = None
-    
+
+        
+
     def set_head(self, head):
         self.classifier = head
 
@@ -729,6 +733,14 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         self.classifier = self.classifier.to("cpu")
         self.model_parallel = False
         torch.cuda.empty_cache()
+
+    def unset_trainable_parameters_after_layer_to_use(self):
+        # Set layers after self.layer_to_use to non-trainable
+        if self.layer_to_use == -1: return
+        for i, layer in enumerate(self.transformer.h):
+            if i > self.layer_to_use:
+                for param in layer.parameters():
+                    param.requires_grad = False
     
     def forward(
         self,
@@ -743,7 +755,7 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         use_cache=None,
         output_attentions=True,
         output_hidden_states=True,
-        return_dict=None,
+        return_dict=None
     ):
         r"""
         labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
@@ -753,6 +765,9 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
+        # Convert input ids to int if not already done
+        if input_ids is not None:
+            input_ids = input_ids.int()
         transformer_outputs = self.transformer(
             input_ids,
             past_key_values=past_key_values,
@@ -767,8 +782,9 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
             return_dict=return_dict,
         )
         hidden_states = transformer_outputs[0]
-        logits = self.classifier(hidden_states)
-
+        if output_hidden_states and self.layer_to_use != -1:
+            all_hidden_states = transformer_outputs.hidden_states
+            hidden_states = all_hidden_states[self.layer_to_use]
         if input_ids is not None:
             batch_size = input_ids.shape[0]
         else:
@@ -787,9 +803,8 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
                     f"{self.__class__.__name__} will not detect padding tokens in `inputs_embeds`. Results may be "
                     "unexpected if using padding tokens in conjunction with `inputs_embeds.`"
                 )
-
-        pooled_logits = logits[torch.arange(batch_size, device=logits.device), sequence_lengths]
-
+        hidden_states = hidden_states[torch.arange(batch_size, device=hidden_states.device), sequence_lengths]
+        pooled_logits = self.classifier(hidden_states)
         loss = None
         if labels is not None:
             if self.config.problem_type is None:

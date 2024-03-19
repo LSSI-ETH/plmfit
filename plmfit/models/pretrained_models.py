@@ -172,7 +172,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.output_dim = self.py_model.classifier.out_features
         self.emb_layers_dim = self.py_model.transformer.h[0].attn.out_proj.out_features
         self.tokenizer = utils.load_tokenizer(progen_model_name)
-        self.layer_to_use = self.no_layers - 1
+        self.layer_to_use = -1
         self.config = self.py_model.config
   
 
@@ -390,7 +390,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
     def set_layer_to_use(self, layer):
         if layer == 'last':
             # The last hidden layer (not counting the logits layer)
-            self.layer_to_use = self.no_layers - 1
+            self.layer_to_use = -1
         elif layer == 'middle':
             # Adjusted to consider the first transformer block as the "first" layer
             self.layer_to_use = 1 + (self.no_layers - 1) // 2
@@ -409,21 +409,6 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         src = torch.mean(src, dim=1)
         if self.head != None:
             src = self.head(src)
-        return src
-    
-class ProGenClassifier(ProGenFamily):
-    def __init__(self, progen_model_name: str, head):
-        # IPretrainedProteinLanguageModel.__init__(self)
-        super().__init__(progen_model_name)
-        self.classifier = head
-        self.no_parameters += utils.get_parameters(head)
-
-    def forward(self, input_ids, *args, **kwargs):
-        src = self.py_model(input_ids).hidden_states[self.layer_to_use]
-
-        
-        src = torch.mean(src, dim=1)
-        src = self.classifier(src)
         return src
 
 # TODO: Implement handler classes for different PLM families
