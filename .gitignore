@@ -187,4 +187,5 @@ loggers/
 *.err
 sandbox.py
 plmfit/data/*/models/*
+plmfit/data/rbd/results/plots/*
 myenv/*
