@@ -32,7 +32,7 @@ class IPretrainedProteinLanguageModel(nn.Module):
     output_dim: int
     logger: l.Logger
 
-    def __init__(self, logger):
+    def __init__(self, logger = None):
         super().__init__()
         self.head_name = 'none'
         self.logger = logger
@@ -454,7 +454,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
 
         else:
             logger.log(f' No gpu found rolling device back to {device}')
-        data = utils.load_dataset(data_type)
+        data = utils.load_dataset(data_type).sample(10000)
         start_enc_time = time.time()
         logger.log(f' Encoding {data.shape[0]} sequences....')
         encs = self.categorical_encode(data['aa_seq'].values, self.tokenizer,max(data['len'].values)) 

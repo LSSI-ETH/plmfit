@@ -584,7 +584,7 @@ def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
 
     # Calculate scores for "pooled metrics"
     for (name,metric) in pooled_metrics.items():
-        result = metric(y_pred,y_test,c_type, threshold = best_tre, num_labels = n_class)
+        result = metric(y_pred,y_test,c_type, threshold = best_tre, num_labels = n_class).tolist()
         pooled_results[name] = result.item()
 
     # Plot confusion matrix
