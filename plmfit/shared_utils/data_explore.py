@@ -552,25 +552,6 @@ def plot_exact_accuracy(y_pred,y_test,best_tre):
 
     # Show plot
     return fig
-    
-def test_multi_label_classification(model, dataloaders_dict, device):
-    # Evaluate the model on the test dataset
-    model.eval()
-    y_pred = []
-    y_test = []
-    with torch.no_grad():
-        for (embeddings, labels) in dataloaders_dict['test']:
-            embeddings = embeddings.to(device)
-            labels = labels.to(device).int()
-            output = model(embeddings)
-
-            y_pred.extend(output.cpu().detach().numpy())
-            y_test.extend(labels.cpu().detach().numpy())
-
-    y_pred = torch.tensor(np.array(y_pred))
-    y_test = torch.tensor(np.array(y_test)).int()
-
-    return y_pred,y_test
 
 def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
     # Initialize dictionaries to save results, and initialize the metrics
@@ -591,7 +572,7 @@ def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
     # Calculate scores for all metrics
     for (name,metric) in metrics.items():
         result = metric(y_pred,y_test,c_type, threshold = best_tre, average = "none", num_labels = n_class)
-        results[name] = result
+        results[name] = result.tolist()
         pooled_results[name] = torch.mean(result).item()
 
     # Calculate binary MCC for all classes
@@ -599,7 +580,7 @@ def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
     for i in range(n_class):
         mcc = functional.matthews_corrcoef(y_pred[:,i],y_test[:,i],"binary",threshold = best_tre)
         mcc_list.append(mcc)
-    results["MCC"] = np.array(mcc_list)
+    results["MCC"] = np.array(mcc_list).tolist()
 
     # Calculate scores for "pooled metrics"
     for (name,metric) in pooled_metrics.items():
@@ -627,3 +608,23 @@ def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
     figures["correct_guesses"] = exact_acc_fig
 
     return (results,pooled_results,figures)
+
+def evaluate_multi_label_classification(model, dataloaders_dict, device):
+    # Evaluate the model on the test dataset
+    model.eval()
+    y_pred = []
+    y_test = []
+    with torch.no_grad():
+        for (embeddings, labels) in dataloaders_dict['test']:
+            embeddings = embeddings.to(device)
+            labels = labels.to(device).int()
+            output = model(embeddings)
+
+            y_pred.extend(output.cpu().detach().numpy())
+            y_test.extend(labels.cpu().detach().numpy())
+
+    y_pred = torch.tensor(np.array(y_pred))
+    y_test = torch.tensor(np.array(y_test)).int()
+    n_class = len(y_test[0])
+    
+    return evaluate_predictions(y_pred,y_test, c_type = "multilabel", n_class = n_class)

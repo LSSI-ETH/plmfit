@@ -70,8 +70,7 @@ if __name__ == '__main__':
     test_dataloader = DataLoader(
         test_dataset, batch_size=batch_size, shuffle=True)
 
-    y_pred, y_test = data_explore.test_multi_label_classification(pred_model, {"test":test_dataloader}, device)
-    res, pool, plots = data_explore.evaluate_predictions(y_pred,y_test,"multilabel",n_class = 3)
+    res, pool, plots = data_explore.evaluate_multi_label_classification(pred_model, {"test":test_dataloader}, device)
 
     # Create dataframes to save results in
     results = pd.DataFrame(res).rename(index={0:"Mouse",1:"Cattle",2:"Bat"})

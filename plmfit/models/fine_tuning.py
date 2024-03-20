@@ -125,7 +125,6 @@ class FullRetrainFineTuner(FineTuner):
         if self.loss_function == "weighted_bce":
             train_labels = dataloaders_dict["train"].dataset.tensors[1]
             class_weights = utils.get_loss_weights(train_labels)
-            self.logger.log(f'{class_weights}')
 
         loss_function = self.initialize_loss_function(class_weights)
 
@@ -265,8 +264,11 @@ class FullRetrainFineTuner(FineTuner):
             self.logger.save_plot(actual_vs_pred_fig, 'actual_vs_predicted')
             with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_pred_vs_true.json', 'w', encoding='utf-8') as f:
                 json.dump(testing_data, f, indent=4)
-        
-
+        elif self.task_type == "multilabel_classification":
+            metrics, pooled_metrics, plots = data_explore.evaluate_multi_label_classification(model, dataloaders_dict, device)
+            self.logger.save_data(metrics, 'metrics')
+            self.logger.save_data(pooled_metrics, 'pooled_metrics')
+            for (name,plot) in plots.items(): self.logger.save_plot(plot, name)
 
 class LowRankAdaptationFineTuner(FineTuner):
     def __init__(self, training_config, logger = None):
