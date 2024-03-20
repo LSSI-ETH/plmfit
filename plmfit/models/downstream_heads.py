@@ -9,9 +9,13 @@ class LinearHead(nn.Module):
         super(LinearHead, self).__init__()
         self.linear = nn.Linear(config['input_dim'], config['output_dim'])
         self.task = config['task']
+        if self.task == 'classification':
+            self.activation = get_activation_function(config['output_activation'])
     
     def forward(self, x):
         x = self.linear(x)
+        if self.task == 'classification':
+            x= self.activation(x)
         return x
 
 
@@ -60,6 +64,10 @@ class MLP(nn.Module):
 
         # Output Layer
         self.layers.append(nn.Linear(config['hidden_dim'], config['output_dim']))
+
+        # Check if there's an activation function specified for the layer
+        if 'classification' in self.task:
+            self.layers.append(get_activation_function(config['output_activation']))
         
         self.init_weights()
 

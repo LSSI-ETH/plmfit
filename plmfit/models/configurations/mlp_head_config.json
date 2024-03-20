@@ -10,9 +10,9 @@
   },
   "training_parameters":
   {
-    "learning_rate": 0.001,
-    "epochs": 40,
-    "batch_size": 16,
+    "learning_rate": 0.00005,
+    "epochs": 200,
+    "batch_size": 64,
     "loss_f": "mse",
     "optimizer": "adam",
     "val_split": 0.2,
@@ -22,6 +22,7 @@
     "scheduler": false,
     "scaler": false,
     "gradient_accumulation": false,
-    "early_stopping": true
+    "epoch_sizing": false,
+    "early_stopping": 10
   }
 }

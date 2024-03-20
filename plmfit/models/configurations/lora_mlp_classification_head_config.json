@@ -6,14 +6,15 @@
     "hidden_dim": 1024,
     "task": "classification",
     "hidden_activation": "relu",
-    "hidden_dropout": 0.25
+    "hidden_dropout": 0.25,
+    "output_activation": "sigmoid"
   },
   "training_parameters":
   {
     "learning_rate": 0.00005,
     "epochs": 15,
-    "batch_size": 4,
-    "loss_f": "bce_logits",
+    "batch_size": 16,
+    "loss_f": "bce",
     "optimizer": "adam",
     "val_split": 0.2,
     "weight_decay": 0.01,
@@ -21,8 +22,9 @@
     "gradient_clipping": false,
     "scheduler": false,
     "scaler": false,
-    "gradient_accumulation": 16,
+    "gradient_accumulation": false,
     "early_stopping": 3,
+    "epoch_sizing": 0.3,
     "model_output": "logits" 
   }
 }
