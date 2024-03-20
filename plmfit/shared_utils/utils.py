@@ -44,7 +44,7 @@ def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2
         return None
 
 
-def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32, num_workers=1):
+def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32, num_workers=0):
     """
     Create DataLoader objects for training, validation, and testing.
 
@@ -100,9 +100,9 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     val_dataset = TensorDataset(X_val, y_val)
     test_dataset = TensorDataset(X_test, y_test)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=torch.cuda.is_available())
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=torch.cuda.is_available())
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=torch.cuda.is_available())
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=num_workers>0)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=num_workers>0)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=num_workers>0)
 
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
 
@@ -115,6 +115,7 @@ def get_epoch_dataloaders(dataloader, epoch_size=0):
     val = dataloader['val'].dataset
     
     # Randomly sample indices from the dataset
+    if epoch_size < 1: epoch_size = int(len(train) * epoch_size)
     train_inds = np.random.choice(len(train), epoch_size, replace=False)
     val_inds = np.random.choice(len(val), int(len(val) * epoch_size / len(train)), replace=False)
     
