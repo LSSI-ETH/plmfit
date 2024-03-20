@@ -10,7 +10,7 @@
   {
     "learning_rate": 0.00005,
     "epochs": 15,
-    "batch_size": 4,
+    "batch_size": 16,
     "loss_f": "mse",
     "optimizer": "adam",
     "val_split": 0.2,
@@ -19,8 +19,9 @@
     "gradient_clipping": false,
     "scheduler": false,
     "scaler": false,
-    "gradient_accumulation": 16,
+    "gradient_accumulation": false,
     "early_stopping": 3,
-    "model_output": "logits" 
+    "epoch_sizing": 0.3,
+    "model_output": "logits"
   }
 }
