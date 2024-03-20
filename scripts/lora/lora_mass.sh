@@ -3,7 +3,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --tasks-per-node=1
-#SBATCH --time=40:00:00
+#SBATCH --time=12:00:00
 
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
