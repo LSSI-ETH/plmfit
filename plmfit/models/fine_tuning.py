@@ -27,7 +27,8 @@ class FineTuner(ABC):
         self.optimizer = training_config['optimizer']
         self.loss_function = training_config['loss_f']
         self.early_stopping = self.handle_bool_float_config_param(training_config['early_stopping'], false_value=-1, true_value=10)
-        self.model_output = training_config['model_output']
+        self.epoch_sizing = self.handle_bool_float_config_param(training_config['epoch_sizing'], false_value=0, true_value=0.2)
+        self.model_output = training_config.get('model_output', 'default')
         self.logger = logger
 
     def handle_bool_float_config_param(self, config_param, false_value=0, true_value=1):
@@ -164,8 +165,7 @@ class FullRetrainFineTuner(FineTuner):
                             loss.backward()
                             optimizer.step()
                         batch_loss += loss.item()
-                        mem_usage = utils.print_gpu_utilization(memory_usage, device)
-                        if mem_usage > max_mem_usage: max_mem_usage = mem_usage
+                        
                         if self.task_type == 'classification':
                             preds = torch.round(outputs)
                         elif self.task_type == 'regression':
@@ -177,6 +177,9 @@ class FullRetrainFineTuner(FineTuner):
                         if log_interval != -1 and itr % log_interval == 0:
                             self.logger.log(
                                 f'({phase}) batch : {itr + 1}  / {len(dataloaders_dict[phase])} | running_loss : {batch_loss / (itr + 1)} (batch time : {time.time() - batch_start_time:.4f})')
+
+                mem_usage = utils.print_gpu_utilization(memory_usage, device)
+                if mem_usage > max_mem_usage: max_mem_usage = mem_usage
 
                 epoch_loss = batch_loss / (itr + 1)
 
@@ -205,7 +208,7 @@ class FullRetrainFineTuner(FineTuner):
 
              # Check early stopping condition
             if self.early_stopping != -1 and epochs_no_improve >= self.early_stopping:
-                self.logger.log('Early stopping triggered after {} epochs with no improvement'.format(patience))
+                self.logger.log('Early stopping triggered after {} epochs with no improvement'.format(self.early_stopping))
                 break  # Break the loop if model hasn't improved for 'patience' epochs
 
         # After the training loop, restore the best model state
@@ -299,7 +302,6 @@ class LowRankAdaptationFineTuner(FineTuner):
 
         model = model.py_model.to(device) if not parallel else model.to(device)
 
-        self.logger.log(model)
         optimizer = self.initialize_optimizer(model.parameters())
         loss_function = self.initialize_loss_function()
         scaler = GradScaler()
@@ -317,7 +319,7 @@ class LowRankAdaptationFineTuner(FineTuner):
             epoch_start_time = time.time()
             self.logger.log('\nEpoch {}/{}'.format(epoch + 1, self.epochs))
             self.logger.log('-' * 10)
-
+            epoch_dataloaders_dict = utils.get_epoch_dataloaders(dataloaders_dict, self.epoch_sizing)
             model.eval()
 
             optimizer.zero_grad()
@@ -331,12 +333,11 @@ class LowRankAdaptationFineTuner(FineTuner):
                 else:
                     # Set model to evaluate mode
                     model.eval()
-
                 batch_loss = 0
                 all_preds = []
                 all_labels = []
                 with torch.set_grad_enabled(phase == 'train'):
-                    for itr, (input, labels) in enumerate(dataloaders_dict[phase], 0):
+                    for itr, (input, labels) in enumerate(epoch_dataloaders_dict[phase], 0):
                         batch_start_time = time.time()
                         input, labels = input.to(device, non_blocking=True), labels.to(device, non_blocking=True)
                         with torch.cuda.amp.autocast(enabled=fp16):
@@ -347,27 +348,26 @@ class LowRankAdaptationFineTuner(FineTuner):
                             else:
                                 raise f'Model output "{self.model_output}" not defined'
                             loss = loss_function(outputs, labels) / self.accumulation_steps
-                            
                             if phase == 'train':
                                 scaler.scale(loss).backward()
-                                if (itr + 1) % self.accumulation_steps == 0 or (itr + 1) == len(dataloaders_dict[phase]):
+                                if (itr + 1) % self.accumulation_steps == 0 or (itr + 1) == len(epoch_dataloaders_dict[phase]):
                                     scaler.step(optimizer)  # Adjust model weights
                                     scaler.update()
                                     optimizer.zero_grad()  # Reset gradients after updating
                             batch_loss += loss.item() * self.accumulation_steps
-                            mem_usage = utils.print_gpu_utilization(memory_usage, device)
-                            if mem_usage > max_mem_usage: max_mem_usage = mem_usage
                             if self.task_type == 'classification':
                                 preds = torch.round(outputs)
                             elif self.task_type == 'regression':
                                 preds = outputs.squeeze()
-                            all_preds.extend(preds.detach().cpu().numpy())
-                            all_labels.extend(labels.detach().cpu().numpy())
+                            all_preds.extend(np.atleast_1d(preds.detach().cpu().numpy()))
+                            all_labels.extend(np.atleast_1d(labels.detach().cpu().numpy()))
 
                         if log_interval != -1 and itr % log_interval == 0:
                             self.logger.log(
-                                f'({phase}) batch : {itr + 1}  / {len(dataloaders_dict[phase])} | running_loss : {batch_loss / (itr + 1)} (batch time : {time.time() - batch_start_time:.4f})')
+                                f'({phase}) batch : {itr + 1}  / {len(epoch_dataloaders_dict[phase])} | running_loss : {batch_loss / (itr + 1)} (batch time : {time.time() - batch_start_time:.4f})')
 
+                mem_usage = utils.print_gpu_utilization(memory_usage, device)
+                if mem_usage > max_mem_usage: max_mem_usage = mem_usage
                 epoch_loss = batch_loss / (itr + 1)
                 self.logger.log('({}) Loss: {:.4f} {:.4f}s'.format(
                     phase, epoch_loss, time.time() - epoch_start_time))
@@ -424,7 +424,7 @@ class LowRankAdaptationFineTuner(FineTuner):
         file_size_mb = file_size_bytes / (1024 * 1024) # Convert bytes to megabytes
         report = {
             "training_time": f'{total_time:.1f}',
-            "avg_time_per_epoch": f'{total_time/itr:.4f}',
+            "avg_time_per_epoch": f'{total_time/self.epochs:.4f}',
             "best_epoch": best_epoch,
             "best_val_loss": best_val_loss,
             "model_file_size_mb": f'{file_size_mb:.2f}',
