@@ -167,7 +167,7 @@ if __name__ == '__main__':
                         validation_size=training_params['val_split'], 
                         dtype=torch.int8, 
                         num_workers=2)
-                fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, logger=logger)
+                fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, model_name=args.plm, logger=logger)
                 model = fine_tuner.set_trainable_parameters(model)
                 model.task = pred_model.task
                 fine_tuner.train(model, dataloaders_dict=data_loaders)
