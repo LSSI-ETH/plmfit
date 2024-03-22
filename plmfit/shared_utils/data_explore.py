@@ -197,7 +197,7 @@ def PCA_2d(data_type, model, layers, reduction, output_path='default', labels_co
 
     for layer in layers:
         # Load embeddings
-        file_path = f'./plmfit/data/{data_type}/embeddings/{data_type}_{model}_embs_layer{layer}_{reduction}.pt'
+        file_path = f'./plmfit/data/{data_type}/embeddings/{data_type}_{model}_embs_{layer}_{reduction}/{data_type}_{model}_embs_{layer}_{reduction}.pt'
         embeddings = torch.load(file_path, map_location=torch.device('cpu'))
         embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
 
