@@ -336,7 +336,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 
     def set_layer_to_use(self, layer):
         if layer == 'last':
-            # The last hidden layer (not counting the logits layer)
+            # The last hidden layer
             self.layer_to_use = -1
         elif layer == 'middle':
             # Adjusted to consider the first transformer block as the "first" layer
@@ -519,10 +519,19 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
             data['aa_seq'].values, self.tokenizer, max(data['len'].values), add_bos=True, add_eos=True, logger=self.logger, model_name=self.name)
         return encs
 
-    # Implement the abstract methods for BERT
-    def concat_task_specific_head(self, head):
-        # Implementation for BERT...
-        pass
+    def set_layer_to_use(self, layer):
+        if layer == 'last':
+            # The last hidden layer
+            self.layer_to_use = -1
+        elif layer == 'middle':
+            # Adjusted to consider the first transformer block as the "first" layer
+            self.layer_to_use = 1 + (self.no_layers - 1) // 2
+        elif layer == 'first':
+            # The first transformer block after the input embeddings
+            self.layer_to_use = 1  # Adjusted to 1 to skip the input embeddings
+        else:
+            # Fallback for numeric layer specification or unexpected strings
+            self.layer_to_use = int(layer) if layer.isdigit() else self.no_layers - 1
 
     def extract_embeddings(self, data_type, batch_size = 1, layer=11, reduction='mean', log_interval=1000):
         try:
@@ -575,18 +584,15 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
                         current_batch_size = batch[0].shape[0]
                         if layer == 'logits':
                             out = self.py_model(batch[0]).logits
-                            mem_usage = utils.print_gpu_utilization(memory_usage, device)
-                            if mem_usage > max_mem_usage: max_mem_usage = mem_usage
                         else:
-                            _, hidden_states = self.py_model(batch[0])
-                            mem_usage = utils.print_gpu_utilization(memory_usage, device)
-                            if mem_usage > max_mem_usage: max_mem_usage = mem_usage
+                            model_output = self.py_model(batch[0])
+                            hidden_states = model_output.hidden_states
 
                             # Log the shape of each layer's embeddings for the first batch if we are unsure what our model outputs
                             # if i == 0:
                             #     for layer_index, layer_output in enumerate(hidden_states):
                             #         self.logger.log(f'Layer {layer_index} shape: {layer_output.shape}')
-
+                            
                             # Determine the layer index based on the 'layer' description
                             if layer == 'last':
                                 # The last hidden layer (not counting the logits layer)
@@ -648,6 +654,8 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
                         if log_interval != -1 and i % log_interval == 0:
                             self.logger.log(
                                 f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ')
+            mem_usage = utils.print_gpu_utilization(memory_usage, device)
+            if mem_usage > max_mem_usage: max_mem_usage = mem_usage
             extraction_time = time.time() - start_extraction_time
             torch.save(embs, f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
             file_size_bytes = os.path.getsize(f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
