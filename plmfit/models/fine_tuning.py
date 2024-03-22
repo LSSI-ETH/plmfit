@@ -99,7 +99,7 @@ class FullRetrainFineTuner(FineTuner):
         utils.get_parameters(model.py_model, True)
         utils.get_parameters(model.head, True)
 
-    def train(self, model, dataloaders_dict, patience=10, log_interval = -1, on_ray_tracing=False):
+    def train(self, model, dataloaders_dict, patience=10, log_interval = -1, on_ray_tuning=False):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         memory_usage = psutil.virtual_memory()
         max_mem_usage = utils.print_gpu_utilization(memory_usage, device)
@@ -196,7 +196,7 @@ class FullRetrainFineTuner(FineTuner):
                 else:
 
                     #! RAY TUNING EXPERIMENTATION !#
-                    if on_ray_tracing: ray.train.report({
+                    if on_ray_tuning: ray.train.report({
                                 "loss": epoch_loss,
                                 "metric": epoch_metric
                             })
@@ -233,7 +233,7 @@ class FullRetrainFineTuner(FineTuner):
         with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_loss.json', 'w', encoding='utf-8') as f:
             json.dump(loss_data, f, indent=4)
         
-        if not on_ray_tracing:
+        if not on_ray_tuning:
             loss_plot = data_explore.create_loss_plot(epoch_train_loss, epoch_val_loss)
             self.logger.save_plot(loss_plot, "training_validation_loss")
 
@@ -251,7 +251,7 @@ class FullRetrainFineTuner(FineTuner):
         }
         self.logger.save_data(report, 'report')
 
-        if not on_ray_tracing:
+        if not on_ray_tuning:
             if self.task_type == 'classification':
                 metrics, roc_auc_fig, cm_fig, roc_auc_data = data_explore.evaluate_classification(model, dataloaders_dict, device, model_output=self.model_output)
                 self.logger.save_data(metrics, 'metrics')

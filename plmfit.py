@@ -25,7 +25,7 @@ parser.add_argument('--data_type', type=str, default='aav')
 parser.add_argument('--data_file_name', type=str, default='data_train')
 
 parser.add_argument('--head_config', type=str, default='linear_head_config.json')
-parser.add_argument('--ray_tracing', type=bool, default=False)
+parser.add_argument('--ray_tuning', type=bool, default=False)
 
 parser.add_argument('--split', type=str, default='') #TODO implement split logic as well
 
@@ -94,7 +94,7 @@ def extract_embeddings(args, logger):
     model.extract_embeddings(data_type=args.data_type, layer=args.layer,
                             reduction=args.reduction)
 
-def feature_extraction(config, args, logger, on_ray_tracing=False):
+def feature_extraction(config, args, logger, on_ray_tuning=False):
     # Load dataset
     data = utils.load_dataset(args.data_type)
     head_config = config
@@ -125,7 +125,7 @@ def feature_extraction(config, args, logger, on_ray_tracing=False):
     
     utils.set_trainable_parameters(pred_model)
     fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
-    fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tracing=on_ray_tracing)
+    fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning)
 
 def lora(args, logger):
     # Load dataset
@@ -223,7 +223,7 @@ def ray_tuning(head_config, args, logger):
 
     logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
     result = tune.run(
-        partial(feature_extraction, args=args, logger=logger, on_ray_tracing=True),
+        partial(feature_extraction, args=args, logger=logger, on_ray_tuning=True),
         config=head_config,
         local_dir=f'{os.path.dirname(__file__)}/test',
         num_samples=100,
@@ -248,7 +248,7 @@ if __name__ == '__main__':
         elif args.function == 'fine_tuning':
             if args.ft_method == 'feature_extraction':
                 head_config = utils.load_config(args.head_config)
-                if args.ray_tracing:
+                if args.ray_tuning:
                     head_config = ray_tuning(head_config, args, logger)
                 feature_extraction(head_config, args, logger)
             elif args.ft_method == 'lora':
