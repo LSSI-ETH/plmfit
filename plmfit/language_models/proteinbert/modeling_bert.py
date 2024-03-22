@@ -24,6 +24,7 @@ import math
 import torch
 from torch import nn
 from torch.utils.checkpoint import checkpoint
+from transformers.modeling_outputs import SequenceClassifierOutputWithPast
 
 from .modeling_utils import ProteinConfig
 from .modeling_utils import ProteinModel
@@ -131,7 +132,6 @@ class ProteinBertEmbeddings(nn.Module):
             position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
         if token_type_ids is None:
             token_type_ids = torch.zeros_like(input_ids)
-
         words_embeddings = self.word_embeddings(input_ids)
         position_embeddings = self.position_embeddings(position_ids)
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
@@ -366,12 +366,17 @@ class ProteinBertPooler(nn.Module):
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.activation = nn.Tanh()
 
-    def forward(self, hidden_states):
+    def forward(self, hidden_states, pooling_method='default'):
         # We "pool" the model by simply taking the hidden state corresponding
         # to the first token.
-        first_token_tensor = hidden_states[:, 0]
-        pooled_output = self.dense(first_token_tensor)
-        pooled_output = self.activation(pooled_output)
+        if pooling_method == 'default':
+            first_token_tensor = hidden_states[:, 0]
+            pooled_output = self.dense(first_token_tensor)
+            pooled_output = self.activation(pooled_output)
+        elif pooling_method == 'bos':
+            pooled_output = hidden_states[:, 0]
+        elif pooling_method == 'mean':
+            pooled_output = torch.mean(hidden_states, dim=1)
         return pooled_output
 
 
@@ -515,26 +520,39 @@ class ProteinBertForSequenceClassification(ProteinBertAbstractModel):
         self.num_labels = config.num_labels
         self.bert = ProteinBertModel(config)
         self.classifier = nn.Linear(config.hidden_size, self.num_labels, bias=False)
-
+        self.reduction = 'bos'
         self.init_weights()
 
     def set_head(self, head):
         self.classifier = head
 
-    def forward(self, input_ids, input_mask=None, targets=None):
+    def unset_trainable_parameters_after_layer_to_use(self):
+        # Set layers after self.layer_to_use to non-trainable
+        if self.layer_to_use == -1: return
+        for i, layer in enumerate(self.bert.encoder.layer):
+            if i > self.layer_to_use - 1: # Adjusted by 1 because in 'h' the initial embeddings are not accounted for
+                for param in layer.parameters():
+                    param.requires_grad = False
 
+    def forward(self, input_ids, input_mask=None, targets=None):
+        if input_ids is not None:
+            input_ids = input_ids.int()
         outputs = self.bert(input_ids, input_mask=input_mask)
         
         # The first element of outputs is the last layer hidden-state
         sequence_output = outputs[0]
         # The third element of outputs is the hidden states from all layers
         all_hidden_states = outputs[2]
-
-        pooled_output = self.bert.pooler(sequence_output)
+        if self.layer_to_use != -1:
+            sequence_output = all_hidden_states[self.layer_to_use]
+        pooled_output = self.bert.pooler(sequence_output, pooling_method=self.reduction)
 
         logits = self.classifier(pooled_output)
         # (loss), prediction_scores, (hidden_states), (attentions)
-        return logits, all_hidden_states
+        return SequenceClassifierOutputWithPast(
+            logits=logits,
+            hidden_states=all_hidden_states
+        )
 
 
 class ProteinBertForSequenceToSequenceClassification(ProteinBertAbstractModel):
