@@ -270,9 +270,13 @@ class FullRetrainFineTuner(FineTuner):
 
 
 class LowRankAdaptationFineTuner(FineTuner):
-    def __init__(self, training_config, logger = None):
+    def __init__(self, training_config, model_name='progen', logger = None):
         super().__init__(training_config, logger)
-        peft_config = utils.load_config('lora_config.json')
+        if 'progen' in model_name:
+            lora_config = f'lora_config_progen.json'
+        elif 'proteinbert' in model_name:
+            lora_config = f'lora_config_proteinbert.json'
+        peft_config = utils.load_config(lora_config)
         logger.save_data(peft_config, 'lora_config')
         self.peft_config = LoraConfig(
             r = peft_config['r'],
@@ -289,7 +293,7 @@ class LowRankAdaptationFineTuner(FineTuner):
         model.py_model.base_model.model.unset_trainable_parameters_after_layer_to_use()
         return model
 
-    def train(self, model, dataloaders_dict, patience=10, log_interval = -1):
+    def train(self, model, dataloaders_dict, log_interval = -1):
         utils.get_parameters(model.py_model, logger=self.logger)
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         memory_usage = psutil.virtual_memory()
@@ -403,7 +407,7 @@ class LowRankAdaptationFineTuner(FineTuner):
 
              # Check early stopping condition
             if self.early_stopping != -1 and epochs_no_improve >= self.early_stopping:
-                self.logger.log('Early stopping triggered after {} epochs with no improvement'.format(patience))
+                self.logger.log('Early stopping triggered after {} epochs with no improvement'.format(self.early_stopping))
                 break  # Break the loop if model hasn't improved for 'patience' epochs
 
         # After the training loop, restore the best model state
@@ -413,7 +417,7 @@ class LowRankAdaptationFineTuner(FineTuner):
 
         
         total_time = time.time() - start_time
-        self.logger.log(f'Mean time per epoch: {total_time/itr:.4f}s')
+        self.logger.log(f'Mean time per epoch: {total_time/(itr+1):.4f}s')
         self.logger.log(f'Total training time: {total_time:.1f}s')
         
         # After training, generate and save a plot of the training and validation loss
