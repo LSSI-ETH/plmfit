@@ -94,7 +94,7 @@ if __name__ == '__main__':
 
             # Load dataset
             data = utils.load_dataset(args.data_type)
-
+            # data = data.sample(3001) # Use for testing code
             if args.ft_method == 'feature_extraction':
                 # Load embeddings and scores
                 ### TODO : Load embeddings if do not exist
@@ -154,6 +154,7 @@ if __name__ == '__main__':
                     raise ValueError('Head type not supported')
                 
                 model.py_model.set_head(pred_model)
+                model.py_model.reduction = args.reduction
                 model.set_layer_to_use(args.layer)
                 model.py_model.layer_to_use = model.layer_to_use
                 encs = model.categorical_encode(data)

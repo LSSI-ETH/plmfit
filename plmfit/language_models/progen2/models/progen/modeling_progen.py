@@ -706,6 +706,7 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         self.init_weights()
 
         self.layer_to_use = -1
+        self.reduction = 'eos'
 
         # Model parallel
         self.model_parallel = False
@@ -738,7 +739,7 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         # Set layers after self.layer_to_use to non-trainable
         if self.layer_to_use == -1: return
         for i, layer in enumerate(self.transformer.h):
-            if i > self.layer_to_use:
+            if i > self.layer_to_use - 1: # Adjusted by 1 because in 'h' the initial embeddings are not accounted for
                 for param in layer.parameters():
                     param.requires_grad = False
     
@@ -790,21 +791,27 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         else:
             batch_size = inputs_embeds.shape[0]
 
-        if self.config.pad_token_id is None and batch_size != 1:
-            raise ValueError("Cannot handle batch sizes > 1 if no padding token is defined.")
-        if self.config.pad_token_id is None:
-            sequence_lengths = -1
-        else:
-            if input_ids is not None:
-                sequence_lengths = torch.ne(input_ids, self.config.pad_token_id).sum(-1) - 1
-            else:
+        if self.reduction == 'eos':
+            if self.config.pad_token_id is None and batch_size != 1:
+                raise ValueError("Cannot handle batch sizes > 1 if no padding token is defined.")
+            if self.config.pad_token_id is None:
                 sequence_lengths = -1
-                logger.warning(
-                    f"{self.__class__.__name__} will not detect padding tokens in `inputs_embeds`. Results may be "
-                    "unexpected if using padding tokens in conjunction with `inputs_embeds.`"
-                )
-        hidden_states = hidden_states[torch.arange(batch_size, device=hidden_states.device), sequence_lengths]
+            else:
+                if input_ids is not None:
+                    sequence_lengths = torch.ne(input_ids, self.config.pad_token_id).sum(-1) - 1
+                else:
+                    sequence_lengths = -1
+                    logger.warning(
+                        f"{self.__class__.__name__} will not detect padding tokens in `inputs_embeds`. Results may be "
+                        "unexpected if using padding tokens in conjunction with `inputs_embeds.`"
+                    )
+            hidden_states = hidden_states[torch.arange(batch_size, device=hidden_states.device), sequence_lengths]
+        elif self.reduction == 'mean':
+            hidden_states = torch.mean(hidden_states, dim=1)
+
         pooled_logits = self.classifier(hidden_states)
+
+
         loss = None
         if labels is not None:
             if self.config.problem_type is None:
