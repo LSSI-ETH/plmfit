@@ -55,9 +55,9 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
                 filename = os.path.basename(file_path)
                 parts = filename.split('_')
                 model_name = parts[1]
-                layer = parts[3]
-                reduction = parts[4]
-                head_type = parts[5]
+                layer = parts[-5]
+                reduction = parts[-4]
+                head_type = parts[-3]
                 
                 # Depending on the task type, extract the relevant metrics
                 entry = {
@@ -141,7 +141,7 @@ def main():
     username = 'estamkopoulo'
     key_path = '/Users/tbikias/Desktop/vaggelis/Config/.ssh/id_ed25519_euler'
     base_folder = '$SCRATCH/fine_tuning/lora'
-    data_type = 'meltome'
+    data_type = 'aav'
     task_type = 'regression'
     
     if use_cache:
