@@ -1,13 +1,19 @@
 import torch
-import plmfit.logger as l
+from plmfit.logger import Logger
 import os
-import builtins
 import argparse
 from plmfit.models.pretrained_models import *
+from plmfit.models.fine_tuning import FullRetrainFineTuner, LowRankAdaptationFineTuner
 import plmfit.shared_utils.utils as utils
 import plmfit.models.downstream_heads as heads
 import traceback
 import torch.multiprocessing as mp
+from ray import tune
+from ray.tune.search.bayesopt import BayesOptSearch
+from ray.tune.schedulers import ASHAScheduler
+from functools import partial
+import ray
+
 
 
 parser = argparse.ArgumentParser(description='plmfit_args')
@@ -19,6 +25,7 @@ parser.add_argument('--data_type', type=str, default='aav')
 parser.add_argument('--data_file_name', type=str, default='data_train')
 
 parser.add_argument('--head_config', type=str, default='linear_head_config.json')
+parser.add_argument('--ray_tracing', type=bool, default=False)
 
 parser.add_argument('--split', type=str, default='') #TODO implement split logic as well
 
@@ -44,11 +51,12 @@ if not os.path.exists(experiment_dir):
 
 # Removing the output_dir prefix from experiment_dir
 trimmed_experiment_dir = experiment_dir.removeprefix(f"{args.output_dir}/")
-logger = l.Logger(
+logger = Logger(
     experiment_name = args.experiment_name, 
     base_dir= args.experiment_dir, 
     log_to_server=args.logger!='local', 
-    server_path=f'{trimmed_experiment_dir}')
+    server_path=f'{trimmed_experiment_dir}'
+)
 
 def init_plm(model_name, logger):
     model = None
@@ -79,124 +87,174 @@ def init_plm(model_name, logger):
 
     return model
 
+def extract_embeddings(args, logger):
+    model = init_plm(args.plm, logger)
+    assert model != None, 'Model is not initialized'
+
+    model.extract_embeddings(data_type=args.data_type, layer=args.layer,
+                            reduction=args.reduction)
+
+def feature_extraction(config, args, logger, on_ray_tracing=False):
+    # Load dataset
+    data = utils.load_dataset(args.data_type)
+    head_config = config
+    # Load embeddings and scores
+    ### TODO : Load embeddings if do not exist
+    embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings', data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
+    assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
+
+    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
+    scores = torch.tensor(scores, dtype=torch.float32)
+
+    training_params = head_config['training_parameters']
+    data_loaders = utils.create_data_loaders(
+            embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], num_workers=0)
+    
+    logger.save_data(vars(args), 'arguments')
+    logger.save_data(head_config, 'head_config')
+
+    network_type = head_config['architecture_parameters']['network_type']
+    if network_type == 'linear':
+        head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
+        pred_model = heads.LinearHead(head_config['architecture_parameters'])
+    elif network_type == 'mlp':
+        head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
+        pred_model = heads.MLP(head_config['architecture_parameters'])
+    else:
+        raise ValueError('Head type not supported')
+    
+    utils.set_trainable_parameters(pred_model)
+    fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
+    fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tracing=on_ray_tracing)
+
+def lora(args, logger):
+    # Load dataset
+    data = utils.load_dataset(args.data_type)
+    
+    model = init_plm(args.plm, logger)
+    assert model != None, 'Model is not initialized'
+    
+    head_config = utils.load_config(args.head_config)
+    
+    logger.save_data(vars(args), 'arguments')
+    logger.save_data(head_config, 'head_config')
+    # data = data.sample(1000)
+    network_type = head_config['architecture_parameters']['network_type']
+    if network_type == 'linear':
+        head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
+        pred_model = heads.LinearHead(head_config['architecture_parameters'])
+    elif network_type == 'mlp':
+        head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
+        pred_model = heads.MLP(head_config['architecture_parameters'])
+    else:
+        raise ValueError('Head type not supported')
+    
+    model.py_model.set_head(pred_model)
+    model.py_model.reduction = args.reduction
+    model.set_layer_to_use(args.layer)
+    model.py_model.layer_to_use = model.layer_to_use
+    encs = model.categorical_encode(data)
+
+    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
+    training_params = head_config['training_parameters']
+    data_loaders = utils.create_data_loaders(
+            encs, scores, scaler=training_params['scaler'], 
+            batch_size=training_params['batch_size'], 
+            validation_size=training_params['val_split'], 
+            dtype=torch.int8, 
+            num_workers=2)
+    fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, model_name=args.plm, logger=logger)
+    model = fine_tuner.set_trainable_parameters(model)
+    model.task = pred_model.task
+    fine_tuner.train(model, dataloaders_dict=data_loaders)
+
+def full_retrain(args, logger):
+    # Load dataset
+    data = utils.load_dataset(args.data_type)
+
+    model = init_plm(args.plm, logger)
+    assert model != None, 'Model is not initialized'
+    
+    head_config = utils.load_config(args.head_config)
+    
+    logger.save_data(vars(args), 'arguments')
+    logger.save_data(head_config, 'head_config')
+
+    network_type = head_config['architecture_parameters']['network_type']
+    if network_type == 'linear':
+        head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
+        pred_model = heads.LinearHead(head_config['architecture_parameters'])
+    elif network_type == 'mlp':
+        head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
+        pred_model = heads.MLP(head_config['architecture_parameters'])
+    else:
+        raise ValueError('Head type not supported')
+    
+    utils.freeze_parameters(model.py_model)
+    utils.set_trainable_parameters(pred_model)
+    model.py_model.set_head(pred_model)
+    utils.get_parameters(model.py_model, logger=logger)
+    data = data.sample(100000)
+    encs = model.categorical_encode(data)
+    logger.log(model.py_model)
+    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
+    training_params = head_config['training_parameters']
+    data_loaders = utils.create_data_loaders(
+            encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], dtype=torch.int8)
+    fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
+    model.py_model.task = pred_model.task
+    fine_tuner.train(model.py_model, dataloaders_dict=data_loaders)
+
+def ray_tuning(head_config, args, logger):
+    # head_config['architecture_parameters']['hidden_dim'] = tune.choice([256, 512, 1024, 1536, 2048, 4096])
+    head_config['training_parameters']['learning_rate'] = tune.loguniform(1e-6, 1e-3)
+    head_config['training_parameters']['batch_size'] = tune.choice([8, 16, 32, 64, 128, 256, 512])
+    head_config['training_parameters']['weight_decay'] = tune.loguniform(1e-3, 1e-1)
+
+    scheduler = ASHAScheduler(
+        metric="loss",
+        mode="min",
+        max_t=20,
+        grace_period=1,
+        reduction_factor=2,
+    )
+
+    ray.init()
+
+    logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
+    result = tune.run(
+        partial(feature_extraction, args=args, logger=logger, on_ray_tracing=True),
+        config=head_config,
+        local_dir=f'{os.path.dirname(__file__)}/test',
+        num_samples=100,
+        scheduler=scheduler,
+        verbose=0
+    )
+    logger.mute = False # Ok, logger can be normal now
+
+    best_trial = result.get_best_trial("loss", "min", "last")
+    logger.log(f"Best trial config: {best_trial.config}")
+    logger.log(f"Best trial final validation loss: {best_trial.last_result['loss']}")
+    logger.log(f"Best trial final validation metric: {best_trial.last_result['metric']}")
+
+    return best_trial.config
+
+
 if __name__ == '__main__':
 
     try:
         if args.function == 'extract_embeddings':
-            
-            model = init_plm(args.plm, logger)
-            assert model != None, 'Model is not initialized'
-
-            model.extract_embeddings(data_type=args.data_type, layer=args.layer,
-                                    reduction=args.reduction)
-
+            extract_embeddings(args, logger)
         elif args.function == 'fine_tuning':
-
-            # Load dataset
-            data = utils.load_dataset(args.data_type)
-            # data = data.sample(3001) # Use for testing code
             if args.ft_method == 'feature_extraction':
-                # Load embeddings and scores
-                ### TODO : Load embeddings if do not exist
-                embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings/',data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
-                assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
-                
                 head_config = utils.load_config(args.head_config)
-
-                scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
-                scores = torch.tensor(scores, dtype=torch.float32)
-                training_params = head_config['training_parameters']
-                data_loaders = utils.create_data_loaders(
-                        embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
-                
-                logger.save_data(vars(args), 'arguments')
-                logger.save_data(head_config, 'head_config')
-
-                network_type = head_config['architecture_parameters']['network_type']
-                if network_type == 'linear':
-                    head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
-                    pred_model = heads.LinearHead(head_config['architecture_parameters'])
-                elif network_type == 'mlp':
-                    head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
-                    pred_model = heads.MLP(head_config['architecture_parameters'])
-                else:
-                    raise ValueError('Head type not supported')
-                utils.set_trainable_parameters(pred_model)
-                fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
-                fine_tuner.train(pred_model, dataloaders_dict=data_loaders)
-                
+                if args.ray_tracing:
+                    head_config = ray_tuning(head_config, args, logger)
+                feature_extraction(head_config, args, logger)
             elif args.ft_method == 'lora':
-
-                model = init_plm(args.plm, logger)
-                assert model != None, 'Model is not initialized'
-                
-                head_config = utils.load_config(args.head_config)
-                
-                logger.save_data(vars(args), 'arguments')
-                logger.save_data(head_config, 'head_config')
-                # data = data.sample(1000)
-                network_type = head_config['architecture_parameters']['network_type']
-                if network_type == 'linear':
-                    head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
-                    pred_model = heads.LinearHead(head_config['architecture_parameters'])
-                elif network_type == 'mlp':
-                    head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
-                    pred_model = heads.MLP(head_config['architecture_parameters'])
-                else:
-                    raise ValueError('Head type not supported')
-                
-                model.py_model.set_head(pred_model)
-                model.py_model.reduction = args.reduction
-                model.set_layer_to_use(args.layer)
-                model.py_model.layer_to_use = model.layer_to_use
-                encs = model.categorical_encode(data)
-
-                scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
-                training_params = head_config['training_parameters']
-                data_loaders = utils.create_data_loaders(
-                        encs, scores, scaler=training_params['scaler'], 
-                        batch_size=training_params['batch_size'], 
-                        validation_size=training_params['val_split'], 
-                        dtype=torch.int8, 
-                        num_workers=2)
-                fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, model_name=args.plm, logger=logger)
-                model = fine_tuner.set_trainable_parameters(model)
-                model.task = pred_model.task
-                fine_tuner.train(model, dataloaders_dict=data_loaders)
+                lora(args, logger)
             elif args.ft_method == 'full':
-
-                model = init_plm(args.plm, logger)
-                assert model != None, 'Model is not initialized'
-                
-                head_config = utils.load_config(args.head_config)
-                
-                logger.save_data(vars(args), 'arguments')
-                logger.save_data(head_config, 'head_config')
-
-                network_type = head_config['architecture_parameters']['network_type']
-                if network_type == 'linear':
-                    head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
-                    pred_model = heads.LinearHead(head_config['architecture_parameters'])
-                elif network_type == 'mlp':
-                    head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
-                    pred_model = heads.MLP(head_config['architecture_parameters'])
-                else:
-                    raise ValueError('Head type not supported')
-                
-                utils.freeze_parameters(model.py_model)
-                utils.set_trainable_parameters(pred_model)
-                model.py_model.set_head(pred_model)
-                utils.get_parameters(model.py_model, logger=logger)
-                data = data.sample(100000)
-                encs = model.categorical_encode(data)
-                logger.log(model.py_model)
-                scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
-                training_params = head_config['training_parameters']
-                data_loaders = utils.create_data_loaders(
-                        encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], dtype=torch.int8)
-                fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
-                model.py_model.task = pred_model.task
-                fine_tuner.train(model.py_model, dataloaders_dict=data_loaders)
+                full_retrain(args, logger)
             else:
                 raise ValueError('Fine Tuning method not supported')
         else:

@@ -6,17 +6,16 @@ import time
 import numpy as np
 import plmfit.shared_utils.data_explore as data_explore
 from sklearn.metrics import accuracy_score, mean_squared_error
-from peft import LoraConfig, get_peft_model, TaskType
-from transformers import TrainingArguments, Trainer
+from peft import LoraConfig, get_peft_model
 import psutil
-import plmfit.logger as l
 import os
 import json
 from torch.cuda.amp import GradScaler, autocast
 from torch.nn import DataParallel
+import ray
+import ray.cloudpickle as pickle
 
 class FineTuner(ABC):
-    logger: l.Logger
     def __init__(self, training_config, logger = None):
         self.epochs = training_config['epochs']
         self.lr = training_config['learning_rate']
@@ -100,7 +99,7 @@ class FullRetrainFineTuner(FineTuner):
         utils.get_parameters(model.py_model, True)
         utils.get_parameters(model.head, True)
 
-    def train(self, model, dataloaders_dict, patience=10, log_interval = -1):
+    def train(self, model, dataloaders_dict, patience=10, log_interval = -1, on_ray_tracing=False):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         memory_usage = psutil.virtual_memory()
         max_mem_usage = utils.print_gpu_utilization(memory_usage, device)
@@ -143,7 +142,6 @@ class FullRetrainFineTuner(FineTuner):
                 else:
                     # Set model to evaluate mode
                     model.eval()
-
                 batch_loss = 0
                 all_preds = []
                 all_labels = []
@@ -170,7 +168,7 @@ class FullRetrainFineTuner(FineTuner):
                             preds = torch.round(outputs)
                         elif self.task_type == 'regression':
                             preds = outputs.squeeze()
-
+                        
                         all_preds.extend(preds.detach().cpu().numpy())
                         all_labels.extend(labels.detach().cpu().numpy())
 
@@ -186,16 +184,23 @@ class FullRetrainFineTuner(FineTuner):
                 self.logger.log('({}) Loss: {:.4f} {:.4f}s'.format(
                     phase, epoch_loss, time.time() - epoch_start_time))
                 if self.task_type == 'classification':
-                    epoch_acc = accuracy_score(all_labels, all_preds)
-                    self.logger.log(f'{phase} Accuracy: {epoch_acc:.4f}')
+                    epoch_metric = accuracy_score(all_labels, all_preds)
+                    self.logger.log(f'{phase} Accuracy: {epoch_metric:.4f}')
                 elif self.task_type == 'regression':
-                    epoch_rmse = np.sqrt(
+                    epoch_metric = np.sqrt(
                         mean_squared_error(all_labels, all_preds))
-                    self.logger.log(f'{phase} RMSE: {epoch_rmse:.4f}')
+                    self.logger.log(f'{phase} RMSE: {epoch_metric:.4f}')
 
                 if phase == 'train':
                     epoch_train_loss.append(epoch_loss)
                 else:
+
+                    #! RAY TUNING EXPERIMENTATION !#
+                    if on_ray_tracing: ray.train.report({
+                                "loss": epoch_loss,
+                                "metric": epoch_metric
+                            })
+
                     epoch_val_loss.append(epoch_loss)
                     # Early stopping check
                     if epoch_loss < best_val_loss:
@@ -205,7 +210,6 @@ class FullRetrainFineTuner(FineTuner):
                         epochs_no_improve = 0
                     else:
                         epochs_no_improve += 1
-
              # Check early stopping condition
             if self.early_stopping != -1 and epochs_no_improve >= self.early_stopping:
                 self.logger.log('Early stopping triggered after {} epochs with no improvement'.format(self.early_stopping))
@@ -228,9 +232,11 @@ class FullRetrainFineTuner(FineTuner):
         }
         with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_loss.json', 'w', encoding='utf-8') as f:
             json.dump(loss_data, f, indent=4)
+        
+        if not on_ray_tracing:
+            loss_plot = data_explore.create_loss_plot(epoch_train_loss, epoch_val_loss)
+            self.logger.save_plot(loss_plot, "training_validation_loss")
 
-        loss_plot = data_explore.create_loss_plot(epoch_train_loss, epoch_val_loss)
-        self.logger.save_plot(loss_plot, "training_validation_loss")
         self.logger.save_model(model, self.task_type)
         self.logger.log(f'Saved best model at epoch {best_epoch+1} with validation loss {best_val_loss:.4f}')
         file_size_bytes = os.path.getsize(f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
@@ -244,19 +250,21 @@ class FullRetrainFineTuner(FineTuner):
             "max_vram_usage_mb": max_mem_usage
         }
         self.logger.save_data(report, 'report')
-        if self.task_type == 'classification':
-            metrics, roc_auc_fig, cm_fig, roc_auc_data = data_explore.evaluate_classification(model, dataloaders_dict, device, model_output=self.model_output)
-            self.logger.save_data(metrics, 'metrics')
-            self.logger.save_plot(roc_auc_fig, 'roc_curve')
-            self.logger.save_plot(cm_fig, 'confusion_matrix')
-            with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_roc_auc.json', 'w', encoding='utf-8') as f:
-                json.dump(roc_auc_data, f, indent=4)
-        elif self.task_type == 'regression':
-            metrics, actual_vs_pred_fig, testing_data = data_explore.evaluate_regression(model, dataloaders_dict, device, model_output=self.model_output)
-            self.logger.save_data(metrics, 'metrics')
-            self.logger.save_plot(actual_vs_pred_fig, 'actual_vs_predicted')
-            with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_pred_vs_true.json', 'w', encoding='utf-8') as f:
-                json.dump(testing_data, f, indent=4)
+
+        if not on_ray_tracing:
+            if self.task_type == 'classification':
+                metrics, roc_auc_fig, cm_fig, roc_auc_data = data_explore.evaluate_classification(model, dataloaders_dict, device, model_output=self.model_output)
+                self.logger.save_data(metrics, 'metrics')
+                self.logger.save_plot(roc_auc_fig, 'roc_curve')
+                self.logger.save_plot(cm_fig, 'confusion_matrix')
+                with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_roc_auc.json', 'w', encoding='utf-8') as f:
+                    json.dump(roc_auc_data, f, indent=4)
+            elif self.task_type == 'regression':
+                metrics, actual_vs_pred_fig, testing_data = data_explore.evaluate_regression(model, dataloaders_dict, device, model_output=self.model_output)
+                self.logger.save_data(metrics, 'metrics')
+                self.logger.save_plot(actual_vs_pred_fig, 'actual_vs_predicted')
+                with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_pred_vs_true.json', 'w', encoding='utf-8') as f:
+                    json.dump(testing_data, f, indent=4)
         
 
 
@@ -268,7 +276,7 @@ class LowRankAdaptationFineTuner(FineTuner):
         elif 'proteinbert' in model_name:
             lora_config = f'lora_config_proteinbert.json'
         peft_config = utils.load_config(lora_config)
-        logger.save_data(peft_config, 'lora_config')
+        self.logger.save_data(peft_config, 'lora_config')
         self.peft_config = LoraConfig(
             r = peft_config['r'],
             lora_alpha = peft_config['lora_alpha'],
@@ -305,7 +313,6 @@ class LowRankAdaptationFineTuner(FineTuner):
             self.logger.log(f'No GPU found, rolling device back to {device}')
 
         model = model.py_model.to(device) if not parallel else model.to(device)
-
         optimizer = self.initialize_optimizer(model.parameters())
         loss_function = self.initialize_loss_function()
         scaler = GradScaler()

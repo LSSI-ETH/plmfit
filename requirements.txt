@@ -21,3 +21,6 @@ pynvml
 einops
 botocore
 boto3
+paramiko
+ray[tune]
+bayesian-optimization
