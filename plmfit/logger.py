@@ -4,6 +4,7 @@ import json
 import matplotlib.pyplot as plt
 import torch
 import requests
+import traceback
 try:
     import env
     env_exists = True
@@ -21,7 +22,8 @@ class Logger():
         self.file_name = f'{formatted_date}_{experiment_name}.log'
         self.base_dir = base_dir
         self.log_to_server = log_to_server
-
+        self.mute = False
+        
         if log_to_server:
             self.server_url = env.POST_URL
             self.token = env.TOKEN
@@ -35,6 +37,8 @@ class Logger():
         self.log(f'#---------Logger initiated with name "{self.experiment_name}" at {self.created_at}---------#')
 
     def log(self, text: str, force_send=False, force_dont_send=False):
+        if self.mute: return
+        
         with open(os.path.join(self.base_dir, self.file_name), 'a') as f:
             f.write(f'{text}\n')
 
