@@ -1,7 +1,7 @@
 {
     "r": 8,
     "lora_alpha": 16,
-    "target_modules": ["query", "key", "value"],
+    "target_modules": ["qkv_proj"],
     "lora_dropout": 0.1,
     "bias": "none",
     "modules_to_save": ["classifier"]
