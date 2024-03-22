@@ -11,14 +11,12 @@ import torch.utils.data as data_utils
 from torch.utils.data import DataLoader
 import time
 from abc import abstractmethod
-from plmfit.models.fine_tuning import *
 from tokenizers import Tokenizer
 from transformers import AutoTokenizer, AutoModel, EsmForMaskedLM
 from antiberty import AntiBERTyRunner
 from numpy import array
 import psutil
 import traceback
-
 
 class IPretrainedProteinLanguageModel(nn.Module):
 
@@ -241,7 +239,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                             # if i == 0:
                             #     for layer_index, layer_output in enumerate(hidden_states):
                             #         self.logger.log(f'Layer {layer_index} shape: {layer_output.shape}')
-
+                            
                             # Determine the layer index based on the 'layer' description
                             if layer == 'last':
                                 # The last hidden layer (not counting the logits layer)
