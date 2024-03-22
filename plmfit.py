@@ -211,7 +211,7 @@ def ray_tuning(head_config, args, logger):
         head_config['architecture_parameters']['hidden_dim'] = tune.choice([256, 512, 1024, 1536, 2048, 4096])
         head_config['architecture_parameters']['hidden_dropout'] = tune.choice([0.1, 0.25, 0.5, 0.9])
     head_config['training_parameters']['learning_rate'] = tune.loguniform(1e-6, 1e-3)
-    head_config['training_parameters']['batch_size'] = tune.choice([8, 16, 32, 64, 128, 256, 512])
+    head_config['training_parameters']['batch_size'] = tune.choice([8, 16, 32, 64, 128, 256])
     head_config['training_parameters']['weight_decay'] = tune.loguniform(1e-3, 1e-1)
 
     scheduler = ASHAScheduler(
@@ -220,6 +220,7 @@ def ray_tuning(head_config, args, logger):
         max_t=20,
         grace_period=1,
         reduction_factor=2,
+        resources_per_trial={"cpu": 1, "gpu": 1}
     )
 
     ray.init()
@@ -228,7 +229,6 @@ def ray_tuning(head_config, args, logger):
     result = tune.run(
         partial(feature_extraction, args=args, logger=logger, on_ray_tuning=True),
         config=head_config,
-        local_dir=f'{os.path.dirname(__file__)}/test',
         num_samples=1000,
         scheduler=scheduler,
         verbose=0
