@@ -326,6 +326,10 @@ def evaluate_classification(model, dataloaders_dict, device, model_output='defau
                 outputs = model(inputs).logits.squeeze()
             else:
                 raise f'Model output "{model_output}" not defined'
+            if outputs.dim() > 1:
+                outputs = outputs.squeeze()
+            if labels.dim() > 1:
+                labels = labels.squeeze()
             y_pred = outputs
             y_pred_list.extend(y_pred.detach().cpu().numpy())
             y_test_list.extend(labels.detach().cpu().numpy())
@@ -372,9 +376,14 @@ def evaluate_regression(model, dataloaders_dict, device, model_output='default')
                 outputs = model(inputs).logits.squeeze()
             else:
                 raise f'Model output "{model_output}" not defined'
-            # Directly append numpy arrays to lists
-            y_pred_list.append(outputs.detach().cpu().numpy())
-            y_test_list.append(labels.detach().cpu().numpy())
+            
+            # Ensure outputs and labels are at least 1D
+            outputs = outputs.squeeze()
+            labels = labels.squeeze()
+
+            # Use np.atleast_1d to ensure the arrays are at least 1D
+            y_pred_list.append(np.atleast_1d(outputs.detach().cpu().numpy()))
+            y_test_list.append(np.atleast_1d(labels.detach().cpu().numpy()))
 
     # Convert list of arrays to a single numpy array and then to list for JSON serialization
     y_pred_list = np.concatenate(y_pred_list).tolist()
