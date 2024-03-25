@@ -304,6 +304,9 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                             
                             # Update the embeddings tensor with the selected embeddings
                             embs[i: i + current_batch_size, :] = selected_embs
+                        #elif reduction == 'mut_mean':
+                        #TODO: add mutation mean functionality
+
                         elif utils.convert_to_number(reduction) is not None:
                             # Select the embeddings for the i token of each sequence in the batch
                             embs[i: i + current_batch_size, :] = out[:, utils.convert_to_number(reduction), :]
