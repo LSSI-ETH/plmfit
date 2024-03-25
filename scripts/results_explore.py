@@ -34,7 +34,7 @@ def find_and_download_json_files(ssh, sftp, base_folder, data_type, task_type, t
     
     return [os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith('.json')]
 
-def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='regression'):
+def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='regression', method_type='feature_extraction'):
     # # Define the pattern to search for JSON files based on the provided criteria
     # search_pattern = os.path.join(base_folder, f"**/*{data_type}*{task_type}*_data.json")
     
@@ -112,7 +112,7 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
     ax = sns.heatmap(heatmap_data, annot=True, cmap="RdBu_r", fmt=".2f", linewidths=.5,
                     cbar_kws={'label': column_name}, center=0, vmin=-1, vmax=1)
     # Main title and subtitle setup
-    main_title = f'{data_type.upper()} - {task_type.upper()} Task'
+    main_title = f'{data_type.upper()} - {task_type.upper()} Task | {method_type}'
     subtitle = f'{column_name} Across Models, Heads, Layers, and Reduction Methods'
 
     # Set the main title with more emphasis
@@ -131,29 +131,31 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
 
     
     # Optionally, save the table to a CSV file
-    output_csv = os.path.join(f"{data_type}_{task_type}_metrics_summary.csv")
+    output_csv = os.path.join(f"{data_type}_{task_type}_{method_type}_metrics_summary.csv")
     df.to_csv(output_csv, index=False)
     print(f"Summary table saved to {output_csv}")
 
 def main():
-    use_cache = False
+    use_cache = True
     hostname = 'euler.ethz.ch'
     username = 'estamkopoulo'
     key_path = '/Users/tbikias/Desktop/vaggelis/Config/.ssh/id_ed25519_euler'
-    base_folder = '$SCRATCH/fine_tuning/lora'
-    data_type = 'aav'
+    base_folder = '$SCRATCH/fine_tuning/'
+    method_type = 'lora'
+    data_type = 'meltome'
     task_type = 'regression'
     
+    path = f'{base_folder}{method_type}'
     if use_cache:
-        collect_metrics(csv_file=f"{data_type}_{task_type}_metrics_summary.csv", data_type=data_type, task_type=task_type)
+        collect_metrics(csv_file=f"{data_type}_{task_type}_{method_type}_metrics_summary.csv", data_type=data_type, task_type=task_type)
         return
 
     ssh, sftp = establish_ssh_sftp_sessions(hostname, username, key_path=key_path)
     
     # Create a temporary directory to store downloaded files
     with tempfile.TemporaryDirectory() as temp_dir:
-        json_files = find_and_download_json_files(ssh, sftp, base_folder, data_type, task_type, temp_dir)
-        collect_metrics(json_files=json_files, data_type=data_type, task_type=task_type)
+        json_files = find_and_download_json_files(ssh, sftp, path, data_type, task_type, temp_dir)
+        collect_metrics(json_files=json_files, data_type=data_type, task_type=task_type, method_type=method_type)
     
     # Close SSH and SFTP sessions
     sftp.close()
