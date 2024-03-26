@@ -12,8 +12,6 @@ from ray import tune
 from ray.tune.search.bayesopt import BayesOptSearch
 from ray.tune.schedulers import ASHAScheduler
 from functools import partial
-import ray
-import pathlib
 
 parser = argparse.ArgumentParser(description='plmfit_args')
 # options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
@@ -56,8 +54,6 @@ logger = Logger(
     log_to_server=args.logger!='local', 
     server_path=f'{trimmed_experiment_dir}'
 )
-
-logger.log(utils.path)
 
 def init_plm(model_name, logger):
     model = None
@@ -218,7 +214,7 @@ def ray_tuning(head_config, args, logger):
     scheduler = ASHAScheduler(
         metric="loss",
         mode="min",
-        max_t=20,
+        max_t=10,
         grace_period=1,
         reduction_factor=2
     )
@@ -226,21 +222,26 @@ def ray_tuning(head_config, args, logger):
     logger.log("Initializing ray tuning...")
 
     logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
-    result = tune.run(
-        partial(feature_extraction, args=args, logger=logger, on_ray_tuning=True),
-        config=head_config,
-        num_samples=1000,
-        scheduler=scheduler,
-        resources_per_trial={"cpu": 1, "gpu": 1}
+    tuner = tune.Tuner(
+        tune.with_resources(
+            tune.with_parameters(feature_extraction, args=args, logger=logger, on_ray_tuning=True),
+            resources={"cpu": 2, "gpu": 0}
+        ),
+        tune_config=tune.TuneConfig(
+            scheduler=scheduler,
+            num_samples=1000,
+        ),
+        param_space=head_config,
     )
+    results = tuner.fit()
     logger.mute = False # Ok, logger can be normal now
 
-    best_trial = result.get_best_trial("loss", "min", "last")
-    logger.log(f"Best trial config: {best_trial.config}")
-    logger.log(f"Best trial final validation loss: {best_trial.last_result['loss']}")
-    logger.log(f"Best trial final validation metric: {best_trial.last_result['metric']}")
+    best_result = results.get_best_result("loss", "min")
+    logger.log(f"Best trial config: {best_result.config}")
+    logger.log(f"Best trial final validation loss: {best_result.last_result['loss']}")
+    logger.log(f"Best trial final validation metric: {best_result.last_result['metric']}")
 
-    return best_trial.config
+    return best_result.config
 
 
 if __name__ == '__main__':
@@ -265,5 +266,6 @@ if __name__ == '__main__':
             raise ValueError('Function is not supported')
         logger.log("End of process", force_send=True)
     except:
+        logger.mute = False
         stack_trace = traceback.format_exc()
         logger.log(stack_trace, force_send=True)
