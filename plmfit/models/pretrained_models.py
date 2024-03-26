@@ -305,7 +305,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                             # Update the embeddings tensor with the selected embeddings
                             embs[i: i + current_batch_size, :] = selected_embs
                         #elif reduction == 'mut_mean':
-                        #TODO: add mutation mean functionality
+                        #TODO: add mutation mean functionality for ProGen
 
                         elif utils.convert_to_number(reduction) is not None:
                             # Select the embeddings for the i token of each sequence in the batch
@@ -507,6 +507,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                                 for pos in mut_pos[1:]:
                                     out[lay][:,f_pos] = torch.add(out[lay][:,f_pos],out[lay][:,pos])
                                 embs[j,k,i : i+ batch_size, : ] = torch.div(out[lay][:,f_pos],n_pos)
+                            # TODO: add mutation mean functionality for ESM Family (it's already added?)
                             else:
                                 raise 'Unsupported reduction option'
                     del out
@@ -530,7 +531,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         logger = l.Logger(f'logger_fine_tune_{self.version}_{self.head_type}_{fine_tuner.method}_{data_type}.txt')
         data = utils.load_dataset(data_type) 
         #data = data[data[train_split_name] == 'train'].head(50)
-        #data.reset_index(inplace = True) #### Remove after testing          
+        #data.reset_index(inplace = True) #### Remove after testing
         logger.log(f' Encoding {data.shape[0]} sequences....')
         start_enc_time = time.time()
         encs = self.categorical_encode(data['aa_seq'].values, self.tokenizer , max(data['len'].values))
@@ -651,7 +652,7 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
                 start = time.time()
                 out = self.py_model(batch[0]).hidden_states
                 for j in range(len(layer)):
-                    lay = layer[j]
+                    lay = layer[j] #### the layer you want to extract embeddings from
                     for k in range(len(reduction)):
                         if reduction[k] == 'mean':
                             embs[j,k,i : i+ batch_size, : ] = torch.mean(out[lay] , dim = 1)
@@ -664,9 +665,17 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
                         elif reduction[k] == 'mut_mean':
                             n_pos = len(mut_pos)
                             f_pos = mut_pos[0]
+                            wt = utils.get_wild_type(data_type)
+                            ### wt_enc = ... Categorically encode wt hint:there is a function in utils
+                            #### For each sequence in batch[0] find the indices that they differ from wt_enc
+                            ### For each embedding from the out get only the vectors in the indices positions you found before
+                            #### average the vectors in indices position so each sequence in out is represented by 1-d vec (the average of the mutation positon)
+                            #### pooled_batch = ......    calculating the batch_size X emb_dim var
+                            #embs[j, k,i : i+ batch_size, : ] = ... Batch_size X emb_dim (after pooling)
                             for pos in mut_pos[1:]:
                                 out[lay][:,f_pos] = torch.add(out[lay][:,f_pos],out[lay][:,pos])
                             embs[j,k,i : i+ batch_size, : ] = torch.div(out[lay][:,f_pos],n_pos)
+                            #TODO: Add mut_mean functionality to Ankh Family
                         else:
                             raise 'Unsupported reduction option'
                 del out

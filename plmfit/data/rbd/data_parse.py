@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,47 +6,41 @@ import seaborn as sns
 from tqdm import tqdm
 from plmfit.shared_utils import utils
 
-"""
-Already done:
-
-# Get rid of duplicate sequences with arbitrary labels
-mouse = mouse[mouse.groupby('aa_sequence')['binding'].transform('nunique') == 1].copy(deep=True)
-cattle = cattle[cattle.groupby('aa_sequence')['binding'].transform('nunique') == 1].copy(deep=True)
-bat = bat[bat.groupby('aa_sequence')['binding'].transform('nunique') == 1].copy(deep=True)
-
-# Drop sequences with ED greater than 8
-    df.drop(df[df["ED"] > 8].index, inplace= True)
+data_parse.py prepares rbd_data_full.csv for use with plmfit
+- enters raw_data/raw_data and searches for the relevant files (correct antibodies & cleaner data)
+- cleans data, removes redundant and contradictory sequences
+- creates rbd_data_full.csv
 """
 
-if __name__=='__main__':
-    
-    # Imports the dataset
-    data = utils.load_dataset("rbd")
+if __name__ == '__main__':
 
-    # We only keep the columns of interest to data analysis
-    data = data[["aa_seq","len","ed","mouse","cattle","ihbat"]]
+    # Load ab dictionary file, initialize df and define folder_path
+    antibody_dict = pd.read_csv("raw_data/antibody_dictionary.csv")
 
-    # Rename ihbat to bat
-    data.rename({"ihbat":"bat"}, axis = 1, inplace = True)
+    data = pd.DataFrame(columns=['aa_seq', 'len', 'label', 'antibody'])
+    folder_path = "raw_data/raw_data"
 
-    # Convert bind and non to 1 and 0
-    for species in ["mouse","cattle","bat"]:
-        data.loc[data[species] == "bind",species] = 1
-        data.loc[data[species] == "non",species] = 0
-    
-    # Dropping duplicates just in case there are any
-    data.drop_duplicates(subset="aa_seq", keep="first", inplace=True)
+    # Collect data from files
+    for file_name in os.listdir(folder_path):
+        if file_name.endswith(".csv") and ("Lib1_labeled" in file_name or "Lib2_labeled" in file_name):
 
-    # Training and test splits are created
-    data["random"] = "train"
-    n_test = 1000
-    test_ind = data.dropna().sample(n_test,replace = False).index
-    data.loc[test_ind,"random"] = "test"
+            file_path = os.path.join(folder_path, file_name)
+            temp_df = pd.DataFrame(columns=['aa_seq', 'len', 'label', 'antibody'])
 
-    # Validation split is created
-    n_train = data[data["random"] == "train"].shape[0]
-    val_ind = data[data["random"] == "train"].sample(round(n_train*0.1),replace = False).index
-    data.loc[val_ind,"random"] = "validation"
-    
-    # Export to csv
-    data.to_csv("plmfit/data/rbd/rbd_data_full.csv",index = False)
+            # Load CSV
+            df = pd.read_csv(file_path)
+
+            # Get rid of noise (low Total_sum) and irrelevant antibodies
+            df = df[(df['Total_sum'] >= 2) & (df['Target'].isin(antibody_dict['Name']))]
+
+            temp_df['aa_seq'] = df['aa']
+            temp_df['len'] = [len(seq) for seq in df['aa']]
+            temp_df['antibody'] = df['Target']
+            temp_df['label'] = df['Label']
+
+            data = pd.concat([data, temp_df], ignore_index=True)
+
+    data = data.groupby(['aa_seq', 'antibody']).filter(lambda x: x['label'].nunique() == 1)
+    data.drop_duplicates(subset=['aa_seq', 'antibody'], keep='first', inplace=True)
+
+    data.to_csv("rbd_data_full.csv", index=False)
