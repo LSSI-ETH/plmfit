@@ -46,4 +46,3 @@ fine_tuning	feature_extraction	meltome	proteinbert	mlp	regression	mlp_head_confi
 fine_tuning	feature_extraction	meltome	proteinbert	mlp	regression	mlp_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	10g	10g
 fine_tuning	feature_extraction	meltome	proteinbert	mlp	regression	mlp_head_config.json	first	bos	/cluster/scratch/estamkopoulo	1	10g	10g
 function	ft_method	data_type	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir	gpus	gres	mem-per-cpu
-fine_tuning	feature_extraction	aav	progen2-small	linear	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	1	10g	10g

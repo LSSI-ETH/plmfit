@@ -9,8 +9,11 @@ import plmfit.models.downstream_heads as heads
 import traceback
 import torch.multiprocessing as mp
 from ray import tune
+from ray.tune import CLIReporter
+from ray.train import RunConfig
 from ray.tune.search.bayesopt import BayesOptSearch
 from ray.tune.schedulers import ASHAScheduler
+import ray
 from functools import partial
 
 parser = argparse.ArgumentParser(description='plmfit_args')
@@ -219,18 +222,25 @@ def ray_tuning(head_config, args, logger):
         reduction_factor=2
     )
 
+    reporter = CLIReporter(max_progress_rows=10)
+
     logger.log("Initializing ray tuning...")
+    ray.init(address='auto')
 
     logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
     tuner = tune.Tuner(
         tune.with_resources(
             tune.with_parameters(feature_extraction, args=args, logger=logger, on_ray_tuning=True),
-            resources={"cpu": 2, "gpu": 0}
+            resources={"cpu": 4, "gpu": 1}
         ),
         tune_config=tune.TuneConfig(
             scheduler=scheduler,
             num_samples=1000,
         ),
+        run_config=RunConfig(
+            progress_reporter=reporter, 
+            log_to_file=(f"ray_stdout.log", "ray_stderr.log"),
+            storage_path=f'{experiment_dir}/raytune_results'),
         param_space=head_config,
     )
     results = tuner.fit()
