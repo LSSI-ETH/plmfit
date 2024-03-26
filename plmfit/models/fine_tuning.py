@@ -153,9 +153,9 @@ class FullRetrainFineTuner(FineTuner):
                         input = input.to(device)
                         labels = labels.to(device)
                         if self.model_output == 'default':
-                            outputs = model(input).squeeze()
+                            outputs = model(input).squeeze(dim=1)
                         elif self.model_output == 'logits':
-                            outputs = model(input).logits.squeeze()
+                            outputs = model(input).logits.squeeze(dim=1)
                         else:
                             raise f'Model output "{self.model_output}" not defined'
                         loss = loss_function(outputs, labels)
