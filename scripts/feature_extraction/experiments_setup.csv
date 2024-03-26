@@ -1,2 +1,2 @@
 function	ft_method	data_type	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir	gpus	gres	mem-per-cpu
-fine_tuning	feature_extraction	aav	progen2-small	linear	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	10g	2g
+fine_tuning	feature_extraction	aav	progen2-small	linear	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	4	6g	4g
