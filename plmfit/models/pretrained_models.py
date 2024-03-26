@@ -197,8 +197,8 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             fp16 = False
             device_ids = []
             if torch.cuda.is_available():
-                torch.cuda.set_per_process_memory_fraction(1/1)
-                torch.cuda.memory._record_memory_history(enabled='all', max_entries=100000)
+                #torch.cuda.set_per_process_memory_fraction(1/1)
+                #torch.cuda.memory._record_memory_history(enabled='all', max_entries=100000)
                 device = "cuda:0"
                 fp16 = True
                 self.logger.log(f'Available GPUs : {torch.cuda.device_count()}')
@@ -339,12 +339,12 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             self.logger.log(
                 f'Saved embeddings ({t.shape[1]}-d) as "{self.logger.experiment_name}.pt" ({time.time() - start_enc_time:.2f}s)')
             
-            torch.cuda.memory._dump_snapshot(f'{self.logger.base_dir}/memory_profiler.pickle')
-            torch.cuda.memory._record_memory_history(enabled=None)
+            #torch.cuda.memory._dump_snapshot(f'{self.logger.base_dir}/memory_profiler.pickle')
+            #torch.cuda.memory._record_memory_history(enabled=None)
             return
         except:
-            torch.cuda.memory._dump_snapshot(f'{self.logger.base_dir}/memory_profiler.pickle')
-            torch.cuda.memory._record_memory_history(enabled=None)
+            #torch.cuda.memory._dump_snapshot(f'{self.logger.base_dir}/memory_profiler.pickle')
+           # torch.cuda.memory._record_memory_history(enabled=None)
             stack_trace = traceback.format_exc()
             self.logger.log(stack_trace)
 
