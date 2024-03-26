@@ -16,8 +16,7 @@ do
          --error="$experiment_dir/euler_error.err" \
          --mem-per-cpu="$mem_per_cpu" \
          --gpus="$gpus"  \
-         --gpus-per-node="$gpus" \
          --gres="gpumem:$gres" \
-         scripts/feature_extraction/feature_extraction_mass.sh \
+         scripts/feature_extraction/ray_tuning_mass.sh \
          "$function" "$ft_method" "$head_config" "$ray_tuning" "$data_type" "$plm" "$layer" "$reduction" "$output_dir" "$experiment_dir" "$experiment_name"
 done

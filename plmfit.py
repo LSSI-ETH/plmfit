@@ -13,8 +13,7 @@ from ray.tune.search.bayesopt import BayesOptSearch
 from ray.tune.schedulers import ASHAScheduler
 from functools import partial
 import ray
-
-
+import pathlib
 
 parser = argparse.ArgumentParser(description='plmfit_args')
 # options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
@@ -57,6 +56,8 @@ logger = Logger(
     log_to_server=args.logger!='local', 
     server_path=f'{trimmed_experiment_dir}'
 )
+
+logger.log(utils.path)
 
 def init_plm(model_name, logger):
     model = None
@@ -219,11 +220,10 @@ def ray_tuning(head_config, args, logger):
         mode="min",
         max_t=20,
         grace_period=1,
-        reduction_factor=2,
-        resources_per_trial={"cpu": 1, "gpu": 1}
+        reduction_factor=2
     )
 
-    ray.init()
+    logger.log("Initializing ray tuning...")
 
     logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
     result = tune.run(
@@ -231,7 +231,7 @@ def ray_tuning(head_config, args, logger):
         config=head_config,
         num_samples=1000,
         scheduler=scheduler,
-        verbose=0
+        resources_per_trial={"cpu": 1, "gpu": 1}
     )
     logger.mute = False # Ok, logger can be normal now
 
