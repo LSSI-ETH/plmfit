@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=ray_workload    # create a short name for your job
-#SBATCH --nodes=16           # node count
-#SBATCH --ntasks=16
+#SBATCH --nodes=2           # node count
+#SBATCH --ntasks=2
 #SBATCH --cpus-per-task=8
 #SBATCH --tasks-per-node=1
 #SBATCH --gpus-per-node=2
 #SBATCH --time=5:00:00          # total run time limit (HH:MM:SS)
-#SBATCH --gpus=32
+#SBATCH --gpus=4
 
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2

@@ -214,12 +214,10 @@ def ray_tuning(head_config, args, logger):
     head_config['training_parameters']['batch_size'] = tune.choice([8, 16, 32, 64, 128, 256])
     head_config['training_parameters']['weight_decay'] = tune.loguniform(1e-3, 1e-1)
 
-    scheduler = ASHAScheduler(
-        metric="loss",
-        mode="min",
-        max_t=10,
-        grace_period=1,
-        reduction_factor=2
+    # Initialize BayesOptSearch
+    searcher = BayesOptSearch(
+        metric="loss", 
+        mode="min"
     )
 
     reporter = CLIReporter(max_progress_rows=10)
@@ -231,11 +229,11 @@ def ray_tuning(head_config, args, logger):
     tuner = tune.Tuner(
         tune.with_resources(
             tune.with_parameters(feature_extraction, args=args, logger=logger, on_ray_tuning=True),
-            resources={"cpu": 4, "gpu": 1}
+            resources={"cpu": 8, "gpu": 2}
         ),
         tune_config=tune.TuneConfig(
-            scheduler=scheduler,
-            num_samples=1000,
+            search_alg=searcher,
+            num_samples=100,
         ),
         run_config=RunConfig(
             progress_reporter=reporter, 
@@ -248,8 +246,7 @@ def ray_tuning(head_config, args, logger):
 
     best_result = results.get_best_result("loss", "min")
     logger.log(f"Best trial config: {best_result.config}")
-    logger.log(f"Best trial final validation loss: {best_result.last_result['loss']}")
-    logger.log(f"Best trial final validation metric: {best_result.last_result['metric']}")
+    logger.log(f"Best trial metrics: {best_result.metrics}")
 
     return best_result.config
 
