@@ -14,12 +14,11 @@ import time
 from abc import abstractmethod
 from plmfit.models.fine_tuning import *
 from tokenizers import Tokenizer
-from transformers import AutoTokenizer, AutoModel, EsmForMaskedLM
+from transformers import AutoTokenizer, AutoModel, EsmForMaskedLM,  EsmForSequenceClassification
 from antiberty import AntiBERTyRunner
 from numpy import array
 import psutil
 import traceback
-
 
 class IPretrainedProteinLanguageModel(nn.Module):
 
@@ -428,18 +427,21 @@ class ProGenClassifier(ProGenFamily):
 class ESMFamily(IPretrainedProteinLanguageModel):
     tokenizer : AutoTokenizer
     
-    def __init__(self , esm_version : str, logger : l.Logger):
+    def __init__(self , esm_version : str, logger : l.Logger, task_type = "extract_embeddings", ):
         super().__init__()
-        self.version = esm_version 
-        self.py_model = EsmForMaskedLM.from_pretrained(f'facebook/{esm_version}' , output_hidden_states = True)
+        self.version = esm_version
+        model_type = EsmForMaskedLM
+        if task_type != "extract_embeddings":
+            model_type = EsmForSequenceClassification
+        self.py_model = model_type.from_pretrained(f'facebook/{esm_version}' , output_hidden_states = True)
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.esm.encoder.layer)
-        self.output_dim = self.py_model.lm_head.decoder.out_features
+        self.output_dim = self.py_model.config.vocab_size
         self.emb_layers_dim =  self.py_model.esm.encoder.layer[0].attention.self.query.in_features
         self.tokenizer = AutoTokenizer.from_pretrained(f'facebook/{esm_version}')
+        self.adapters = []
         self.logger = logger
-   
-    
+        
     def extract_embeddings(self , data_type , batch_size = 4 , layer = 48, reduction = 'mean',mut_pos = None):
         
         device = 'cpu'
@@ -555,7 +557,6 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         logger.log(' Finetuning  ({}) on {} data completed after {:.4f}s '.format(fine_tuner.method , data_type , time.time() - training_start_time))
         self.fine_tuned = fine_tuner.method
         return
-
     
     def evaluate(self, data_type ):
         pass
@@ -603,6 +604,7 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
         self.output_dim = self.py_model.config.vocab_size
         self.emb_layers_dim =  self.py_model.config.hidden_size
         self.tokenizer = AutoTokenizer.from_pretrained(f'ElnaggarLab/{ankh_version}')
+        self.adapters = []
         
     def extract_embeddings(self , data_type , batch_size = 4 , layer = 48, reduction = 'mean', mut_pos= None):
         logger = l.Logger(f'logger_extract_embeddings_{data_type}_{self.version}_layer{layer}_{reduction}')
@@ -687,7 +689,6 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
             tok_seq = torch.tensor(tokenizer.encode(seq))
             seq_tokens[itr][:tok_seq.shape[0]] = tok_seq
         return seq_tokens
-
 
 class SapiesFamily():
     pass

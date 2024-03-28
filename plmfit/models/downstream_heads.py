@@ -56,7 +56,7 @@ class MLP(nn.Module):
         self.task = config['task']
 
         self.layers = nn.ModuleList()
-
+        self.reduction_method = None
         # Hidden Layer
         self.layers.append(nn.Linear(config['input_dim'], config['hidden_dim']))
         self.layers.append(nn.Dropout(config['hidden_dropout']))
@@ -71,9 +71,15 @@ class MLP(nn.Module):
         if 'classification' in self.task:
             self.layers.append(get_activation_function(config['output_activation']))
         
+        if 'reduction_method' in config:
+            self.reduction_method = config['reduction_method']
+
         self.init_weights()
 
-    def forward(self, x):
+    def forward(self, features):
+        x = features
+        if self.reduction_method == "bos":
+            x = features[:, 0, :]
         for layer in self.layers:
             x = layer(x)
         return x
@@ -85,12 +91,52 @@ class MLP(nn.Module):
                 nn.init.xavier_uniform_(layer.weight)
                 if layer.bias is not None:
                     nn.init.constant_(layer.bias, 0)
+
+class EsmClassifier(nn.Module):
+    def __init__(self,esm_model,pred_head):
+        super().__init__()
+        self.esm = esm_model
+        self.classifier = pred_head
+
+    def forward(self, input_ids):
+        outputs = self.esm(input_ids)
+        return self.classifier[outputs[0]]
     
+class EsmAdapterOutput(nn.Module):
+    def __init__(self, adapter, output_layer):
+        super().__init__()
+        self.dense = output_layer.dense
+        self.dropout = output_layer.dropout
+        self.adapter = adapter
+
+    def forward(self, hidden_states, input_tensor):
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dropout(hidden_states)
+        hidden_states = hidden_states + input_tensor
+        hidden_states = self.adapter(hidden_states)
+
+        return hidden_states
+    
+class T5AdapterLayerFF(nn.Module):
+    def __init__(self, adapter,ff_layer):
+        super().__init__()
+        self.DenseReluDense = ff_layer.DenseReluDense
+        self.layer_norm = ff_layer.layer_norm
+        self.dropout = ff_layer.dropout
+        self.adapter = adapter
+
+    def forward(self, hidden_states):
+        forwarded_states = self.layer_norm(hidden_states)
+        forwarded_states = self.DenseReluDense(forwarded_states)
+        hidden_states = hidden_states + self.dropout(forwarded_states)
+        return self.adapter(hidden_states)
+        
 class AdapterLayer(nn.Module):
     def __init__(self, in_features, bottleneck_dim ,dropout= 0.25 , eps = 1e-5):
         super().__init__()
         self.ln = nn.LayerNorm(in_features, eps= eps ,elementwise_affine=True)
         self.fc_down = nn.Linear(in_features, bottleneck_dim)
+        self.relu = nn.ReLU()
         self.fc_up = nn.Linear(bottleneck_dim, in_features)
         self.dropout = nn.Dropout(dropout)
         self.init_weights()
@@ -104,7 +150,7 @@ class AdapterLayer(nn.Module):
         
     def forward(self, src):
         src = self.ln(src)
-        src = nn.relu(self.fc_down(src))
+        src = self.relu(self.fc_down(src))
         src = self.fc_up(src)
         return self.dropout(src)
     

@@ -1,3 +1,7 @@
 function	ft_method	data_type	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu
-fine_tuning	feature_extraction	rbd	ankh-large	mlp	multilabel_classification	ankh_mlp_classification_head_config.json	48	eos	/cluster/scratch/bsahin	1	40g	64g
-fine_tuning	feature_extraction	rbd	ankh-large	mlp	multilabel_classification	ankh_mlp_classification_head_config.json	48	mean	/cluster/scratch/bsahin	1	40g	64g
+fine_tuning	feature_extraction	rbd	esm2_t33_650M_UR50D	mlp	multilabel_classification	mlp_classification_head_config.json	1	bos	/cluster/scratch/bsahin	1	24g	32g
+fine_tuning	feature_extraction	rbd	esm2_t33_650M_UR50D	mlp	multilabel_classification	mlp_classification_head_config.json	1	mean	/cluster/scratch/bsahin	1	24g	32g
+fine_tuning	feature_extraction	rbd	esm2_t33_650M_UR50D	mlp	multilabel_classification	mlp_classification_head_config.json	17	bos	/cluster/scratch/bsahin	1	24g	32g
+fine_tuning	feature_extraction	rbd	esm2_t33_650M_UR50D	mlp	multilabel_classification	mlp_classification_head_config.json	17	bos	/cluster/scratch/bsahin	1	24g	32g
+fine_tuning	feature_extraction	rbd	esm2_t33_650M_UR50D	mlp	multilabel_classification	mlp_classification_head_config.json	17	bos	/cluster/scratch/bsahin	1	24g	32g
+fine_tuning	feature_extraction	rbd	esm2_t33_650M_UR50D	mlp	multilabel_classification	mlp_classification_head_config.json	17	bos	/cluster/scratch/bsahin	1	24g	32g

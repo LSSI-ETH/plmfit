@@ -46,7 +46,7 @@ logger = l.Logger(
     log_to_server=args.logger!='local', 
     server_path=f'{args.function}/{args.experiment_name}')
 
-def init_plm(model_name, logger):
+def init_plm(model_name, logger, finetuning_method):
     model = None
     supported_progen2 = ['progen2-small', 'progen2-medium', 'progen2-xlarge']
     supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
@@ -60,7 +60,7 @@ def init_plm(model_name, logger):
 
     elif 'esm' in model_name:
         assert model_name in supported_ESM, 'ESM version is not supported'
-        model = ESMFamily(model_name, logger)
+        model = ESMFamily(model_name,logger,args.function)
 
     elif 'ankh' in model_name:
         assert model_name in supported_Ankh, 'Ankh version is not supported'
@@ -162,6 +162,52 @@ if __name__ == '__main__':
                         encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
                 
                 fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, logger=logger)
+                model = fine_tuner.set_trainable_parameters(model)
+                model.task = pred_model.task
+                fine_tuner.train(model, dataloaders_dict=data_loaders)
+            
+            elif args.ft_method == 'adapter':
+                model = init_plm(args.plm, logger)
+                assert model != None, 'Model is not initialized'
+
+                head_config = utils.load_config(args.head_config)
+                training_params = head_config['training_parameters']
+                fine_tuner = AdapterFineTuner(training_config=training_params, logger=logger)
+
+                logger.save_data(vars(args), 'arguments')
+                logger.save_data(head_config, 'head_config')
+
+                network_type = head_config['architecture_parameters']['network_type']
+                if network_type == 'linear':
+                    head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
+                    pred_model = heads.LinearHead(head_config['architecture_parameters'])
+                elif network_type == 'mlp':
+                    head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
+                    pred_model = heads.MLP(head_config['architecture_parameters'])
+                else:
+                    raise ValueError('Head type not supported')
+                
+                model = fine_tuner.set_trainable_parameters(model)
+                model.task = pred_model.task
+                fine_tuner.set_head(model,pred_model)
+                encs = model.categorical_encode(data['aa_seq'].values, model.tokenizer,max(data['len'].values))
+                
+                split = None
+                training_params = head_config['training_parameters']
+                if "multilabel" in head_config['architecture_parameters']['task']:
+                    # TODO : Make multilabel task agnostic
+                    scores = data[["mouse","cattle","bat"]].values
+                    # TODO : Do something with the scores_dict
+                    scores_dict = {0:"mouse",1:"cattle",2:"bat"}
+                    split = data["random"].values
+                else:
+                    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
+                    scores = torch.tensor(scores, dtype=torch.float32)
+
+                data_loaders = utils.create_data_loaders(
+                        encs, scores, split = split, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
+                
+                # TODO : Implement the AdapterFineTuner class
                 model = fine_tuner.set_trainable_parameters(model)
                 model.task = pred_model.task
                 fine_tuner.train(model, dataloaders_dict=data_loaders)
