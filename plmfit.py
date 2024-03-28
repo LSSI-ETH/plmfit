@@ -205,7 +205,7 @@ if __name__ == '__main__':
                     scores = torch.tensor(scores, dtype=torch.float32)
 
                 data_loaders = utils.create_data_loaders(
-                        encs, scores, split = split, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
+                        encs, scores, split = split, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'],dtype = torch.int64)
                 
                 # TODO : Implement the AdapterFineTuner class
                 model = fine_tuner.set_trainable_parameters(model)
