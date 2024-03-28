@@ -3,7 +3,7 @@
   {
     "network_type": "mlp",
     "output_dim": 3,
-    "hidden_dim": 1280,
+    "hidden_dim": 2560,
     "task": "multilabel_classification",
     "hidden_activation": "relu",
     "hidden_dropout": 0.20,
@@ -13,7 +13,7 @@
   {
     "learning_rate": 0.0001,
     "epochs": 200,
-    "batch_size": 1000,
+    "batch_size": 128,
     "loss_f": "weighted_bce",
     "optimizer": "adam",
     "val_split": 0.2,

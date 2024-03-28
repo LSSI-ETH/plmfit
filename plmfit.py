@@ -60,7 +60,7 @@ def init_plm(model_name, logger):
 
     elif 'esm' in model_name:
         assert model_name in supported_ESM, 'ESM version is not supported'
-        model = ESMFamily(model_name)
+        model = ESMFamily(model_name, logger)
 
     elif 'ankh' in model_name:
         assert model_name in supported_Ankh, 'Ankh version is not supported'
@@ -150,8 +150,11 @@ if __name__ == '__main__':
                     raise ValueError('Head type not supported')
                 
                 model.py_model.set_head(pred_model)
-
+                model.py_model.reduction = args.reduction
+                model.set_layer_to_use(args.layer)
+                model.py_model.layer_to_use = model.layer_to_use
                 encs = model.categorical_encode(data)
+
 
                 scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
                 training_params = head_config['training_parameters']
@@ -171,3 +174,4 @@ if __name__ == '__main__':
     except:
         stack_trace = traceback.format_exc()
         logger.log(stack_trace, force_send=True)
+        

@@ -16,6 +16,7 @@ import plmfit.shared_utils.custom_loss_functions as custom_loss_functions
 import os
 import json
 import plmfit.shared_utils.custom_loss_functions as custom_loss_functions
+from torchmetrics.classification import BinaryRecall
 
 class FineTuner(ABC):
     logger: l.Logger
@@ -134,6 +135,7 @@ class FullRetrainFineTuner(FineTuner):
         best_model_state = None  # To store the state of the best model
         best_epoch = 0
         epochs_no_improve = 0  # Counter for epochs with no improvement
+        if self.task_type == "multilabel_classification": epoch_recalls = {"train":[], "val":[]}
         start_time = time.time()
 
         for epoch in range(self.epochs):
@@ -154,6 +156,8 @@ class FullRetrainFineTuner(FineTuner):
                 batch_loss = 0
                 all_preds = []
                 all_labels = []
+                if self.task_type == "multilabel_classification":
+                    recall = BinaryRecall().to(device)
 
                 for itr, training_data in enumerate(dataloaders_dict[phase], 0):
                     batch_start_time = time.time()
@@ -179,7 +183,9 @@ class FullRetrainFineTuner(FineTuner):
                         preds = torch.round(outputs)
                     elif self.task_type == 'regression':
                         preds = outputs.squeeze()
-            
+                    elif self.task_type == "multilabel_classification":
+                        recall.update(outputs[mask],labels[mask])
+
                     if self.task_type != "multilabel_classification":
                         all_preds.extend(preds.detach().cpu().numpy())
                         all_labels.extend(labels.detach().cpu().numpy())
@@ -199,7 +205,10 @@ class FullRetrainFineTuner(FineTuner):
                     epoch_rmse = np.sqrt(
                         mean_squared_error(all_labels, all_preds))
                     self.logger.log(f'{phase} RMSE: {epoch_rmse:.4f}')
-
+                elif self.task_type == "multilabel_classification":
+                    epoch_recall = recall.compute().cpu().item()
+                    self.logger.log(f'({phase}) Recall: {epoch_recall:.4f}')
+                    epoch_recalls[phase].append(epoch_recall)
                 if phase == 'train':
                     epoch_train_loss.append(epoch_loss)
                 else:
@@ -265,10 +274,13 @@ class FullRetrainFineTuner(FineTuner):
             with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_pred_vs_true.json', 'w', encoding='utf-8') as f:
                 json.dump(testing_data, f, indent=4)
         elif self.task_type == "multilabel_classification":
+            recall_plot = data_explore.create_recall_plot(epoch_recalls["train"], epoch_recalls["val"])
+            self.logger.save_plot(recall_plot, "training_validation_recall")
             metrics, pooled_metrics, plots = data_explore.evaluate_multi_label_classification(model, dataloaders_dict, device)
             self.logger.save_data(metrics, 'metrics')
             self.logger.save_data(pooled_metrics, 'pooled_metrics')
-            for (name,plot) in plots.items(): self.logger.save_plot(plot, name)
+            for (name,plot) in plots.items(): self.logger.save_plot(plot,name)
+            
 
 class LowRankAdaptationFineTuner(FineTuner):
     def __init__(self, training_config, logger = None):

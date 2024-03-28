@@ -12,6 +12,8 @@ import numpy as np
 from scipy.stats import spearmanr
 import torchmetrics.functional as functional
 import itertools
+from matplotlib.colors import ListedColormap
+from matplotlib.patches import Patch
 
 
 def plot_label_distribution(data, label="binary_score", path=None, text="Keep"):
@@ -553,6 +555,48 @@ def plot_exact_accuracy(y_pred,y_test,best_tre):
     # Show plot
     return fig
 
+def plot_mixedlabel_heatmap(y_pred,best_tre,case_mask,title):
+        y_pred_tre = torch.floor(y_pred + 1 - best_tre)
+        data = y_pred_tre[case_mask]
+        
+        fig = plt.figure(figsize=(6, 15))
+        colors = ['white', 'steelblue']
+        cmap = ListedColormap(colors)
+        plt.imshow(data, cmap=cmap, interpolation='nearest', aspect='auto')
+        plt.xlabel('Species')
+        plt.ylabel('Sequences')
+        plt.xticks(ticks = [0,1,2], labels = ["Mouse Pred","Cattle Pred","Bat Pred"])
+        legend = plt.legend(handles=[Patch(facecolor=colors[0], edgecolor='k', label='Non-bind'),
+                                    Patch(facecolor=colors[1], edgecolor='k', label='Bind')],
+                            loc='upper center', title="", bbox_to_anchor=(0.5, -0.05), handlelength=4, handleheight=4)
+
+        plt.setp(legend.get_title(), fontsize='large')
+
+        # Add vertical lines between different x ticks
+        for i in range(data.shape[1] - 1):
+            plt.axvline(x=i + 0.5, color='black', linestyle='-', linewidth=1)
+
+        # Add horizontal lines
+        for i in range(data.shape[0] - 1):
+            plt.axhline(y=i + 0.5, color='black', linestyle='-', linewidth=1)
+
+        # Customize ticks and labels for x-axis on top
+        plt.tick_params(axis='x', top=True, bottom=False, labeltop=True, labelbottom=False,labelsize="large")
+        plt.tight_layout()
+        plt.title(title)
+        return fig
+
+def mixed_labels_heatmaps(y_pred,y_test,best_tre):
+    h_maps = {}
+    mixed_labels, inverse_ind = np.unique(y_test, axis = 0,return_inverse = True)
+    for i in range(np.max(len(mixed_labels))):
+        case = mixed_labels[i]
+        if (case.tolist() == [0,0,0]) or (case.tolist() == [1,1,1]):
+            continue
+        case_ind = np.where(inverse_ind == i)
+        h_maps[str(case)] = plot_mixedlabel_heatmap(y_pred,best_tre,case_ind,str(case))
+    return h_maps
+
 def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
     # Initialize dictionaries to save results, and initialize the metrics
     results = {}
@@ -584,7 +628,7 @@ def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
 
     # Calculate scores for "pooled metrics"
     for (name,metric) in pooled_metrics.items():
-        result = metric(y_pred,y_test,c_type, threshold = best_tre, num_labels = n_class).tolist()
+        result = metric(y_pred,y_test,c_type, threshold = best_tre, num_labels = n_class)
         pooled_results[name] = result.item()
 
     # Plot confusion matrix
@@ -606,6 +650,11 @@ def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
     # Plot exact accuracy
     exact_acc_fig = plot_exact_accuracy(y_pred,y_test,best_tre)
     figures["correct_guesses"] = exact_acc_fig
+
+    # Plot heatmap for mixed labels
+    mixed_label_heatmap = mixed_labels_heatmaps(y_pred,y_test,best_tre)
+    for (name,hmap) in mixed_label_heatmap.items():
+        figures[name] = hmap
 
     return (results,pooled_results,figures)
 
