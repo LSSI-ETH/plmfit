@@ -10,7 +10,7 @@
   {
     "learning_rate": 0.00005,
     "epochs": 200,
-    "batch_size": 64,
+    "batch_size": 82,
     "loss_f": "mse",
     "optimizer": "adam",
     "val_split": 0.2,

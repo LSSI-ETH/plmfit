@@ -178,8 +178,8 @@ class FullRetrainFineTuner(FineTuner):
                         elif self.task_type == 'regression':
                             preds = outputs.squeeze()
                         
-                        all_preds.extend(preds.detach().cpu().numpy())
-                        all_labels.extend(labels.detach().cpu().numpy())
+                        all_preds.extend(np.atleast_1d(preds.detach().cpu().numpy()))
+                        all_labels.extend(np.atleast_1d(labels.detach().cpu().numpy()))
 
                         if log_interval != -1 and itr % log_interval == 0:
                             self.logger.log(
