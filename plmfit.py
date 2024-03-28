@@ -97,7 +97,8 @@ def extract_embeddings(args, logger):
 def feature_extraction(config, args, logger, on_ray_tuning=False):
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    head_config = config
+    head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
+    
     # Load embeddings and scores
     ### TODO : Load embeddings if do not exist
     embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings', data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
@@ -208,11 +209,11 @@ def full_retrain(args, logger):
 def ray_tuning(head_config, args, logger):
     network_type = head_config['architecture_parameters']['network_type']
     if network_type == 'mlp': 
-        head_config['architecture_parameters']['hidden_dim'] = tune.choice([256, 512, 1024, 1536, 2048, 4096])
-        head_config['architecture_parameters']['hidden_dropout'] = tune.choice([0.1, 0.25, 0.5, 0.9])
-    head_config['training_parameters']['learning_rate'] = tune.loguniform(1e-6, 1e-3)
-    head_config['training_parameters']['batch_size'] = tune.choice([8, 16, 32, 64, 128, 256])
-    head_config['training_parameters']['weight_decay'] = tune.loguniform(1e-3, 1e-1)
+        head_config['architecture_parameters']['hidden_dim'] = tune.uniform(256, 4096)
+        head_config['architecture_parameters']['hidden_dropout'] = tune.uniform(0, 0.9)
+    head_config['training_parameters']['learning_rate'] = tune.uniform(1e-6, 1e-3)
+    head_config['training_parameters']['batch_size'] = tune.uniform(8, 256)
+    head_config['training_parameters']['weight_decay'] = tune.uniform(1e-4, 1e-1)
 
     # Initialize BayesOptSearch
     searcher = BayesOptSearch(
@@ -220,19 +221,28 @@ def ray_tuning(head_config, args, logger):
         mode="min"
     )
 
+    scheduler = ASHAScheduler(
+        metric="loss",
+        mode="min",
+        max_t=10,
+        grace_period=1,
+        reduction_factor=2
+    )
+
     reporter = CLIReporter(max_progress_rows=10)
 
     logger.log("Initializing ray tuning...")
-    ray.init(address='auto')
+    ray.init()
 
     logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
     tuner = tune.Tuner(
         tune.with_resources(
             tune.with_parameters(feature_extraction, args=args, logger=logger, on_ray_tuning=True),
-            resources={"cpu": 8, "gpu": 2}
+            resources={"cpu": 8, "gpu": 0}
         ),
         tune_config=tune.TuneConfig(
             search_alg=searcher,
+            scheduler=scheduler,
             num_samples=100,
         ),
         run_config=RunConfig(

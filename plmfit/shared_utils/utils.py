@@ -400,3 +400,29 @@ def print_cpu_utilization():
     print(f"Total Memory: {memory_total} MB")
 
     return cpu_percent, memory_used
+
+def adjust_config_to_int(config, int_keys=[('training_parameters', 'batch_size'), ('architecture_parameters', 'hidden_dim')]):
+    """
+    Adjusts specific keys in a nested config dictionary to have integer values.
+
+    Parameters:
+    - config (dict): The nested configuration dictionary produced by the optimization algorithm.
+    - int_keys (list of tuples): A list of tuples where each tuple contains the path to a key within the config that should have its value rounded to the nearest integer.
+
+    Returns:
+    - dict: The adjusted configuration dictionary with specified keys rounded to integers.
+    """
+    adjusted_config = config.copy()  # Make a copy to avoid modifying the original config
+
+    for path in int_keys:
+        # Navigate through the path to get to the desired key
+        current_dict = adjusted_config
+        for key in path[:-1]:  # Traverse to the parent dictionary of the target key
+            current_dict = current_dict.get(key, {})
+        
+        # Adjust the final key in the path
+        final_key = path[-1]
+        if final_key in current_dict:
+            current_dict[final_key] = int(round(current_dict[final_key]))
+
+    return adjusted_config
