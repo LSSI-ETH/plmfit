@@ -10,12 +10,13 @@ tail -n +2 "$csv_file" | while IFS=$'\t' read -r function ft_method data_type pl
 do
   output_dir="$output_dir"
   experiment_name="${data_type}_${plm}_${ft_method}_${layer}_${reduction}_${head}_${task}"
-  experiment_dir="$output_dir/$function/$ft_method/$experiment_name/$uid"
+  experiment_dir="$output_dir/$function/${ft_method}/$experiment_name/$uid"
   sbatch --job-name="feature_extraction_${uid}" \
          --output="$experiment_dir/euler_output.out" \
          --error="$experiment_dir/euler_error.err" \
          --mem-per-cpu="$mem_per_cpu" \
          --gres="gpumem:$gres" \
+         --gpus=$gpus \
          scripts/feature_extraction/ray_tuning_mass.sh \
          "$function" "$ft_method" "$head_config" "$ray_tuning" "$data_type" "$plm" "$layer" "$reduction" "$output_dir" "$experiment_dir" "$experiment_name"
 done

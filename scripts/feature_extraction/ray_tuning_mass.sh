@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=ray_workload    # create a short name for your job
-#SBATCH --nodes=2           # node count
-#SBATCH --ntasks=2
-#SBATCH --cpus-per-task=8
+#SBATCH --nodes=4           # node count
+#SBATCH --ntasks=4
+#SBATCH --cpus-per-task=6
 #SBATCH --tasks-per-node=1
-#SBATCH --gpus-per-node=2
-#SBATCH --time=5:00:00          # total run time limit (HH:MM:SS)
+#SBATCH --gpus-per-node=1
+#SBATCH --time=8:00:00          # total run time limit (HH:MM:SS)
 #SBATCH --gpus=4
 
 module load eth_proxy
@@ -42,7 +42,7 @@ ray start --head --node-ip-address="$head_node_ip" --port=$port \
     --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_NODE}" --block &
 
 # optional, though may be useful in certain versions of Ray < 1.0.
-sleep 10
+sleep 5
 
 # number of nodes other than the head node
 worker_num=$((SLURM_JOB_NUM_NODES - 1))
@@ -51,10 +51,21 @@ for ((i = 1; i <= worker_num; i++)); do
     node_i=${nodes_array[$i]}
     echo "Starting WORKER $i at $node_i"
     ray start --address "$ip_head" \
-        --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_NODE}" --block &
+        --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_NODE}" --block --verbose &
     sleep 5
+
+    # Wait for the worker node to be up and ready
+    while true; do
+        if ray status | grep -q "1 node"; then
+            echo "Worker $i is up and ready."
+            break
+        else
+            echo "Waiting for worker $i to initialize..."
+            sleep 10
+        fi
+    done
 done
 
 python3 -u plmfit.py --function $1 --ft_method $2 --head_config $3 --ray_tuning $4 \
         --data_type $5 --plm $6 --layer $7 --reduction $8 \
-        --output_dir ${9} --experiment_dir ${10} --experiment_name ${11}
+        --output_dir ${9} --experiment_dir ${10} --experiment_name ${11} --ray_address $ip_head

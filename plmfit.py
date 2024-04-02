@@ -15,6 +15,7 @@ from ray.tune.search.bayesopt import BayesOptSearch
 from ray.tune.schedulers import ASHAScheduler
 import ray
 from functools import partial
+import time
 
 parser = argparse.ArgumentParser(description='plmfit_args')
 # options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
@@ -43,6 +44,7 @@ parser.add_argument('--experiment_dir', type=str, default='default',
 
 parser.add_argument('--logger', type=str, default='remote')
 
+parser.add_argument('--ray_address', default=None)
 args = parser.parse_args()
 
 experiment_dir = args.experiment_dir
@@ -208,12 +210,17 @@ def full_retrain(args, logger):
 
 def ray_tuning(head_config, args, logger):
     network_type = head_config['architecture_parameters']['network_type']
+    trials = 200
     if network_type == 'mlp': 
         head_config['architecture_parameters']['hidden_dim'] = tune.uniform(256, 4096)
         head_config['architecture_parameters']['hidden_dropout'] = tune.uniform(0, 0.9)
+        trials = 800
     head_config['training_parameters']['learning_rate'] = tune.uniform(1e-6, 1e-3)
     head_config['training_parameters']['batch_size'] = tune.uniform(8, 256)
     head_config['training_parameters']['weight_decay'] = tune.uniform(1e-4, 1e-1)
+
+    initial_epoch_sizing = head_config['training_parameters']['epoch_sizing']
+    head_config['training_parameters']['epoch_sizing'] = 0.25 # Sample data to make procedure faster
 
     # Initialize BayesOptSearch
     searcher = BayesOptSearch(
@@ -232,18 +239,34 @@ def ray_tuning(head_config, args, logger):
     reporter = CLIReporter(max_progress_rows=10)
 
     logger.log("Initializing ray tuning...")
-    ray.init()
+
+    max_attempts = 1
+    attempt = 0
+    success = False
+    while attempt < max_attempts and not success:
+        try:
+            ray.init(address='auto')
+            logger.log("Successfully connected to Ray cluster.")
+            success = True
+        except Exception as e:
+            attempt += 1
+            logger.log(f"Attempt {attempt} failed with error: {e}")
+            if attempt < max_attempts:
+                logger.log("Retrying...")
+                time.sleep(5)  # wait for 5 seconds before retrying
+    if not success:
+        raise 'Error with connecting to ray cluster'
 
     logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
     tuner = tune.Tuner(
         tune.with_resources(
             tune.with_parameters(feature_extraction, args=args, logger=logger, on_ray_tuning=True),
-            resources={"cpu": 8, "gpu": 0}
+            resources={"cpu": 6, "gpu": 1}
         ),
         tune_config=tune.TuneConfig(
             search_alg=searcher,
             scheduler=scheduler,
-            num_samples=100,
+            num_samples=trials,
         ),
         run_config=RunConfig(
             progress_reporter=reporter, 
@@ -255,6 +278,7 @@ def ray_tuning(head_config, args, logger):
     logger.mute = False # Ok, logger can be normal now
 
     best_result = results.get_best_result("loss", "min")
+    best_result.config['training_parameters']['epoch_sizing'] = initial_epoch_sizing
     logger.log(f"Best trial config: {best_result.config}")
     logger.log(f"Best trial metrics: {best_result.metrics}")
 
