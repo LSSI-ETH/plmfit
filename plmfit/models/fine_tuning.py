@@ -17,7 +17,7 @@ import os
 import json
 import plmfit.shared_utils.custom_loss_functions as custom_loss_functions
 from torchmetrics.classification import BinaryRecall
-from plmfit.models.downstream_heads import EsmAdapterOutput, T5AdapterLayerFF
+from plmfit.models.downstream_heads import EsmAdapterOutput, T5AdapterLayerFF, AdapterLayer
 
 class FineTuner(ABC):
     logger: l.Logger
@@ -286,13 +286,14 @@ class FullRetrainFineTuner(FineTuner):
 class AdapterFineTuner(FineTuner):
     def __init__(self, training_config, logger = None):
         super().__init__(training_config, logger)
-        
+        self.adapter = None
 
-    def add_adapter(self,model,adapter):
+    def add_adapter(self,model,bn_dim = 10, dropout = 0.20):
+        self.adapter = AdapterLayer(model.emb_layers_dim, bn_dim, dropout)
         if "esm" in model.version:
             for layer in model.py_model.esm.encoder.layer:
                 # We instantiate a new output layer class with an adapter
-                new_output_layer = EsmAdapterOutput(adapter,layer.output)
+                new_output_layer = EsmAdapterOutput(self.adapter,layer.output)
                 # We replace the output layer with the new output_layer
                 layer.output = new_output_layer
                 model.adapters.append(layer.output.adapter)
@@ -300,7 +301,7 @@ class AdapterFineTuner(FineTuner):
         elif "ankh" in model.version:
             for block in model.py_model.encoder.block:
                 # We instantiate a new output layer class with an adapter
-                new_ff_layer = T5AdapterLayerFF(adapter,block.layer[1])
+                new_ff_layer = T5AdapterLayerFF(self.adapter,block.layer[1])
                 # We replace the output layer with the new output_layer
                 block.layer[1] = new_ff_layer
                 model.adapters.append(new_ff_layer.adapter)
@@ -311,9 +312,8 @@ class AdapterFineTuner(FineTuner):
         for param in model.py_model.parameters():
             param.requires_grad = False
         
-        for adapter in model.adapters:
-            for param in adapter.parameters():
-                param.requires_grad = True
+        for param in model.adapters.parameters():
+            param.requires_grad = True
 
         return model
 
@@ -501,13 +501,13 @@ class AdapterFineTuner(FineTuner):
 class AdapterFineTuner(FineTuner):
     def __init__(self, training_config, logger = None):
         super().__init__(training_config, logger)
-        
+        self.adapter = AdapterLayer(320,10,dropout = 0.20)
 
-    def add_adapter(self,model,adapter):
+    def add_adapter(self,model):
         if "esm" in model.version:
             for layer in model.py_model.esm.encoder.layer:
                 # We instantiate a new output layer class with an adapter
-                new_output_layer = EsmAdapterOutput(adapter,layer.output)
+                new_output_layer = EsmAdapterOutput(self.adapter,layer.output)
                 # We replace the output layer with the new output_layer
                 layer.output = new_output_layer
                 model.adapters.append(layer.output.adapter)
@@ -515,7 +515,7 @@ class AdapterFineTuner(FineTuner):
         elif "ankh" in model.version:
             for block in model.py_model.encoder.block:
                 # We instantiate a new output layer class with an adapter
-                new_ff_layer = T5AdapterLayerFF(adapter,block.layer[1])
+                new_ff_layer = T5AdapterLayerFF(self.adapter,block.layer[1])
                 # We replace the output layer with the new output_layer
                 block.layer[1] = new_ff_layer
                 model.adapters.append(new_ff_layer.adapter)
