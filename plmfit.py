@@ -176,10 +176,12 @@ if __name__ == '__main__':
                 fine_tuner = AdapterFineTuner(training_config=training_params, logger=logger)
                 logger.log("Finetuner class is initialized")
 
-                logger.save_data(vars(args), 'arguments')
-                logger.save_data(head_config, 'head_config')
+                
 
                 network_type = head_config['architecture_parameters']['network_type']
+                # Set the hidden dimension of the prediction head to the embedding dimension of the model
+                head_config['architecture_parameters']['hidden_dim'] = model.emb_layers_dim
+
                 if network_type == 'linear':
                     head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
                     pred_model = heads.LinearHead(head_config['architecture_parameters'])
@@ -189,6 +191,9 @@ if __name__ == '__main__':
                 else:
                     raise ValueError('Head type not supported')
                 logger.log("Prediction head is initialized")
+
+                logger.save_data(vars(args), 'arguments')
+                logger.save_data(head_config, 'head_config')
 
                 model = fine_tuner.add_adapter(model)
                 logger.log("Adapters are added.")
@@ -217,7 +222,7 @@ if __name__ == '__main__':
                         encs, scores, split = split, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'],dtype = torch.int64)
                 
                 logger.log("Dataloaders are created. Starting training...")
-                fine_tuner.train(model, dataloaders_dict=data_loaders)
+                fine_tuner.train(model, dataloaders_dict=data_loaders,log_interval = 2500)
             else:
                 raise ValueError('Fine Tuning method not supported')
         else:
