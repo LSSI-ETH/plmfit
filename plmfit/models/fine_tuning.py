@@ -286,22 +286,22 @@ class FullRetrainFineTuner(FineTuner):
 class AdapterFineTuner(FineTuner):
     def __init__(self, training_config, logger = None):
         super().__init__(training_config, logger)
-        self.adapter = None
 
     def add_adapter(self,model,bn_dim = 10, dropout = 0.20):
-        self.adapter = AdapterLayer(model.emb_layers_dim, bn_dim, dropout)
         if "esm" in model.version:
             for layer in model.py_model.esm.encoder.layer:
+                adapter = AdapterLayer(model.emb_layers_dim, bn_dim, dropout)
                 # We instantiate a new output layer class with an adapter
-                new_output_layer = EsmAdapterOutput(self.adapter,layer.output)
+                new_output_layer = EsmAdapterOutput(adapter,layer.output)
                 # We replace the output layer with the new output_layer
                 layer.output = new_output_layer
                 model.adapters.append(layer.output.adapter)
 
         elif "ankh" in model.version:
             for block in model.py_model.encoder.block:
+                adapter = AdapterLayer(model.emb_layers_dim, bn_dim, dropout)
                 # We instantiate a new output layer class with an adapter
-                new_ff_layer = T5AdapterLayerFF(self.adapter,block.layer[1])
+                new_ff_layer = T5AdapterLayerFF(adapter,block.layer[1])
                 # We replace the output layer with the new output_layer
                 block.layer[1] = new_ff_layer
                 model.adapters.append(new_ff_layer.adapter)
