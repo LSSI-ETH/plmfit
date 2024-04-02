@@ -439,7 +439,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         self.output_dim = self.py_model.config.vocab_size
         self.emb_layers_dim =  self.py_model.esm.encoder.layer[0].attention.self.query.in_features
         self.tokenizer = AutoTokenizer.from_pretrained(f'facebook/{esm_version}')
-        self.adapters = []
+        self.adapters = nn.ModuleList()
         self.logger = logger
         
     def extract_embeddings(self , data_type , batch_size = 4 , layer = 48, reduction = 'mean',mut_pos = None):
@@ -604,7 +604,7 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
         self.output_dim = self.py_model.config.vocab_size
         self.emb_layers_dim =  self.py_model.config.hidden_size
         self.tokenizer = AutoTokenizer.from_pretrained(f'ElnaggarLab/{ankh_version}')
-        self.adapters = []
+        self.adapters = nn.ModuleList()
         
     def extract_embeddings(self , data_type , batch_size = 4 , layer = 48, reduction = 'mean', mut_pos= None):
         logger = l.Logger(f'logger_extract_embeddings_{data_type}_{self.version}_layer{layer}_{reduction}')
