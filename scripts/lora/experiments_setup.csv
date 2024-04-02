@@ -1,2 +1,2 @@
 function	ft_method	data_type	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu
-fine_tuning	lora	aav	progen2-small	linear	classification	linear_classification_head_config.json	last	eos	/cluster/scratch/estamkopoulo	1	80g	32g
+fine_tuning	adapter	rbd	esm2_t6_8M_UR50D	mlp	multilabel_classification	mlp_classification_head_config.json	4	bos	/cluster/scratch/bsahin	1	24g	32g
