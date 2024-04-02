@@ -46,7 +46,7 @@ logger = l.Logger(
     log_to_server=args.logger!='local', 
     server_path=f'{args.function}/{args.experiment_name}')
 
-def init_plm(model_name, logger, finetuning_method):
+def init_plm(model_name, logger):
     model = None
     supported_progen2 = ['progen2-small', 'progen2-medium', 'progen2-xlarge']
     supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
@@ -167,12 +167,14 @@ if __name__ == '__main__':
                 fine_tuner.train(model, dataloaders_dict=data_loaders)
             
             elif args.ft_method == 'adapter':
+                logger.log("Finetuning method is adapters")
                 model = init_plm(args.plm, logger)
                 assert model != None, 'Model is not initialized'
 
                 head_config = utils.load_config(args.head_config)
                 training_params = head_config['training_parameters']
                 fine_tuner = AdapterFineTuner(training_config=training_params, logger=logger)
+                logger.log("Finetuner class is initialized")
 
                 logger.save_data(vars(args), 'arguments')
                 logger.save_data(head_config, 'head_config')
@@ -186,12 +188,19 @@ if __name__ == '__main__':
                     pred_model = heads.MLP(head_config['architecture_parameters'])
                 else:
                     raise ValueError('Head type not supported')
-                
+                logger.log("Prediction head is initialized")
+
+                model = fine_tuner.add_adapter(model)
+                logger.log("Adapters are added.")
+                logger.log(model.adapters)
                 model = fine_tuner.set_trainable_parameters(model)
+                logger.log("Base model is frozen, only adapters are trainable...")
                 model.task = pred_model.task
                 fine_tuner.set_head(model,pred_model)
+                logger.log("Prediction head of the model is set.")
                 encs = model.categorical_encode(data['aa_seq'].values, model.tokenizer,max(data['len'].values))
-                
+                logger.log("Encoding of the sequences is complete!")
+
                 split = None
                 training_params = head_config['training_parameters']
                 if "multilabel" in head_config['architecture_parameters']['task']:
@@ -207,9 +216,7 @@ if __name__ == '__main__':
                 data_loaders = utils.create_data_loaders(
                         encs, scores, split = split, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'],dtype = torch.int64)
                 
-                # TODO : Implement the AdapterFineTuner class
-                model = fine_tuner.set_trainable_parameters(model)
-                model.task = pred_model.task
+                logger.log("Dataloaders are created. Starting training...")
                 fine_tuner.train(model, dataloaders_dict=data_loaders)
             else:
                 raise ValueError('Fine Tuning method not supported')
