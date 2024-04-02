@@ -153,37 +153,4 @@ class AdapterLayer(nn.Module):
         src = self.relu(self.fc_down(src))
         src = self.fc_up(src)
         return self.dropout(src)
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+     
