@@ -13,6 +13,7 @@ from ray.tune import CLIReporter
 from ray.train import RunConfig
 from ray.tune.search.bayesopt import BayesOptSearch
 from ray.tune.schedulers import ASHAScheduler
+from ray.tune.search import ConcurrencyLimiter
 import ray
 from functools import partial
 import time
@@ -44,7 +45,6 @@ parser.add_argument('--experiment_dir', type=str, default='default',
 
 parser.add_argument('--logger', type=str, default='remote')
 
-parser.add_argument('--ray_address', default=None)
 args = parser.parse_args()
 
 experiment_dir = args.experiment_dir
@@ -219,20 +219,20 @@ def ray_tuning(head_config, args, logger):
     head_config['training_parameters']['batch_size'] = tune.uniform(8, 256)
     head_config['training_parameters']['weight_decay'] = tune.uniform(1e-4, 1e-1)
 
+    initial_epochs = head_config['training_parameters']['epochs']
+    head_config['training_parameters']['epochs'] = 10
     initial_epoch_sizing = head_config['training_parameters']['epoch_sizing']
     head_config['training_parameters']['epoch_sizing'] = 0.25 # Sample data to make procedure faster
 
     # Initialize BayesOptSearch
     searcher = BayesOptSearch(
-        metric="loss", 
-        mode="min"
+        utility_kwargs={"kind": "ucb", "kappa": 2.5, "xi": 0.0}
     )
+    searcher = ConcurrencyLimiter(searcher, max_concurrent=4)
 
     scheduler = ASHAScheduler(
-        metric="loss",
-        mode="min",
         max_t=10,
-        grace_period=1,
+        grace_period=2,
         reduction_factor=2
     )
 
@@ -245,7 +245,7 @@ def ray_tuning(head_config, args, logger):
     success = False
     while attempt < max_attempts and not success:
         try:
-            ray.init(address='auto')
+            ray.init()
             logger.log("Successfully connected to Ray cluster.")
             success = True
         except Exception as e:
@@ -261,9 +261,11 @@ def ray_tuning(head_config, args, logger):
     tuner = tune.Tuner(
         tune.with_resources(
             tune.with_parameters(feature_extraction, args=args, logger=logger, on_ray_tuning=True),
-            resources={"cpu": 6, "gpu": 1}
+            resources={"cpu": 2, "gpu": 0}
         ),
         tune_config=tune.TuneConfig(
+            metric="loss", 
+            mode="min",
             search_alg=searcher,
             scheduler=scheduler,
             num_samples=trials,
@@ -278,6 +280,7 @@ def ray_tuning(head_config, args, logger):
     logger.mute = False # Ok, logger can be normal now
 
     best_result = results.get_best_result("loss", "min")
+    best_result.config['training_parameters']['epochs'] = initial_epochs
     best_result.config['training_parameters']['epoch_sizing'] = initial_epoch_sizing
     logger.log(f"Best trial config: {best_result.config}")
     logger.log(f"Best trial metrics: {best_result.metrics}")
