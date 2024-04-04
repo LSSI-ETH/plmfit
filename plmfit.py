@@ -4,7 +4,9 @@ import os
 import argparse
 from plmfit.models.pretrained_models import *
 from plmfit.models.fine_tuning import FullRetrainFineTuner, LowRankAdaptationFineTuner
+from plmfit.models.lightning_model import LightningModel
 import plmfit.shared_utils.utils as utils
+import plmfit.shared_utils.data_explore as data_explore
 import plmfit.models.downstream_heads as heads
 import traceback
 import torch.multiprocessing as mp
@@ -17,6 +19,8 @@ from ray.tune.search import ConcurrencyLimiter
 import ray
 from functools import partial
 import time
+import lightning as L
+from lightning.pytorch.loggers import TensorBoardLogger
 
 parser = argparse.ArgumentParser(description='plmfit_args')
 # options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
@@ -46,6 +50,8 @@ parser.add_argument('--experiment_dir', type=str, default='default',
 parser.add_argument('--logger', type=str, default='remote')
 parser.add_argument('--cpus', default=1)
 parser.add_argument('--gpus', default=0)
+
+parser.add_argument('--beta', default=False)
 
 args = parser.parse_args()
 
@@ -167,11 +173,83 @@ def lora(args, logger):
             batch_size=training_params['batch_size'], 
             validation_size=training_params['val_split'], 
             dtype=torch.int8, 
-            num_workers=2)
+            num_workers=0)
     fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, model_name=args.plm, logger=logger)
     model = fine_tuner.set_trainable_parameters(model)
     model.task = pred_model.task
     fine_tuner.train(model, dataloaders_dict=data_loaders)
+
+def lora_beta(args, logger):
+    # Load dataset
+    data = utils.load_dataset(args.data_type)
+
+    model = init_plm(args.plm, logger)
+    assert model != None, 'Model is not initialized'
+
+    head_config = utils.load_config(args.head_config)
+    
+    logger.save_data(vars(args), 'arguments')
+    logger.save_data(head_config, 'head_config')
+
+    data = data.sample(1000)
+    network_type = head_config['architecture_parameters']['network_type']
+    if network_type == 'linear':
+        head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
+        pred_model = heads.LinearHead(head_config['architecture_parameters'])
+    elif network_type == 'mlp':
+        head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
+        pred_model = heads.MLP(head_config['architecture_parameters'])
+    else:
+        raise ValueError('Head type not supported')
+
+    model.py_model.set_head(pred_model)
+    model.py_model.reduction = args.reduction
+    model.set_layer_to_use(args.layer)
+    model.py_model.layer_to_use = model.layer_to_use
+    encs = model.categorical_encode(data)
+
+    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
+    training_params = head_config['training_parameters']
+    data_loaders = utils.create_data_loaders(
+            encs, scores, scaler=training_params['scaler'], 
+            batch_size=training_params['batch_size'], 
+            validation_size=training_params['val_split'], 
+            dtype=torch.int8, 
+            num_workers=0)
+    
+    fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, model_name=args.plm, logger=logger)
+    model = fine_tuner.set_trainable_parameters(model)
+    model.py_model.task = pred_model.task
+    
+    model = LightningModel(model.py_model, head_config['training_parameters'], plmfit_logger=logger)
+    lightning_logger = TensorBoardLogger(save_dir=logger.base_dir, version=1, name="lightning_logs")
+    
+    trainer = L.Trainer(
+        logger=lightning_logger, 
+        max_epochs=model.hparams.epochs, 
+        enable_progress_bar=False, 
+        callbacks=model.early_stopping(), 
+        accumulate_grad_batches=model.gradient_accumulation_steps(),
+        gradient_clip_val=model.gradient_clipping(),
+        limit_train_batches=model.epoch_sizing(),
+        limit_val_batches=model.epoch_sizing()
+    )
+
+    trainer.fit(model, data_loaders['train'], data_loaders['val'])
+
+    trainer.test(ckpt_path="best", dataloaders=data_loaders['test'])
+
+    loss_plot = data_explore.create_loss_plot(json_path=f'{logger.base_dir}/{logger.experiment_name}_loss.json')
+    logger.save_plot(loss_plot, "training_validation_loss")
+
+    if pred_model.task == 'classification':
+        fig, _ = data_explore.plot_roc_curve(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
+        logger.save_plot(fig, 'roc_curve')
+        fig = data_explore.plot_confusion_matrix_heatmap(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
+        logger.save_plot(fig, 'confusion_matrix')
+    elif pred_model.task == 'regression':
+        fig = data_explore.plot_actual_vs_predicted(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
+        logger.save_plot(fig, 'actual_vs_predicted')
 
 def full_retrain(args, logger):
     # Load dataset
@@ -286,6 +364,66 @@ def ray_tuning(head_config, args, logger):
 
     return best_result.config
 
+def feature_extraction_beta(head_config, args, logger):
+    # Load dataset
+    data = utils.load_dataset(args.data_type)
+    
+    # Load embeddings and scores
+    ### TODO : Load embeddings if do not exist
+    embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings', data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
+    assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
+
+    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
+    scores = torch.tensor(scores, dtype=torch.float32)
+
+    training_params = head_config['training_parameters']
+    data_loaders = utils.create_data_loaders(
+            embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], num_workers=0)
+    
+    logger.save_data(vars(args), 'arguments')
+    logger.save_data(head_config, 'head_config')
+
+    network_type = head_config['architecture_parameters']['network_type']
+    if network_type == 'linear':
+        head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
+        pred_model = heads.LinearHead(head_config['architecture_parameters'])
+    elif network_type == 'mlp':
+        head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
+        pred_model = heads.MLP(head_config['architecture_parameters'])
+    else:
+        raise ValueError('Head type not supported')
+    
+    utils.set_trainable_parameters(pred_model)
+    
+    model = LightningModel(pred_model, head_config['training_parameters'], plmfit_logger=logger)
+    lightning_logger = TensorBoardLogger(save_dir=logger.base_dir, version=1, name="lightning_logs")
+    
+    trainer = L.Trainer(
+        logger=lightning_logger, 
+        max_epochs=model.hparams.epochs, 
+        enable_progress_bar=False, 
+        callbacks=model.early_stopping(), 
+        accumulate_grad_batches=model.gradient_accumulation_steps(),
+        gradient_clip_val=model.gradient_clipping(),
+        limit_train_batches=model.epoch_sizing(),
+        limit_val_batches=model.epoch_sizing()
+    )
+
+    trainer.fit(model, data_loaders['train'], data_loaders['val'])
+
+    trainer.test(ckpt_path="best", dataloaders=data_loaders['test'])
+
+    loss_plot = data_explore.create_loss_plot(json_path=f'{logger.base_dir}/{logger.experiment_name}_loss.json')
+    logger.save_plot(loss_plot, "training_validation_loss")
+
+    if pred_model.task == 'classification':
+        fig, _ = data_explore.plot_roc_curve(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
+        logger.save_plot(fig, 'roc_curve')
+        fig = data_explore.plot_confusion_matrix_heatmap(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
+        logger.save_plot(fig, 'confusion_matrix')
+    elif pred_model.task == 'regression':
+        fig = data_explore.plot_actual_vs_predicted(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
+        logger.save_plot(fig, 'actual_vs_predicted')
 
 if __name__ == '__main__':
 
@@ -325,19 +463,20 @@ if __name__ == '__main__':
                 fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
                 fine_tuner.train(pred_model, dataloaders_dict=data_loaders)
                 
-                if args.ray_tuning:
-                    head_config = ray_tuning(head_config, args, logger)
-                feature_extraction(head_config, args, logger)
+                if args.beta: feature_extraction_beta(head_config, args, logger)
+                else:
+                    if args.ray_tuning:
+                        head_config = ray_tuning(head_config, args, logger)
+                    feature_extraction(head_config, args, logger)
             elif args.ft_method == 'lora':
-                lora(args, logger)
+                lora(args, logger) if not args.beta else lora_beta(args, logger)
             elif args.ft_method == 'full':
                 full_retrain(args, logger)
             else:
                 raise ValueError('Fine Tuning method not supported')
         else:
-
             raise ValueError('Function is not supported')
-        logger.log("End of process", force_send=True)
+        logger.log("\n\nEnd of process", force_send=True)
     except:
         logger.mute = False
         stack_trace = traceback.format_exc()
