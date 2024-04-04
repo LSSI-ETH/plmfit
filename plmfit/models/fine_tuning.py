@@ -76,6 +76,9 @@ class FineTuner(ABC):
             return torch.optim.Adam(model_parameters, betas=(0.9, 0.99), lr=self.lr, weight_decay=self.weight_decay)
         else:
             raise ValueError(f"Optimizer '{self.optimizer}' not supported.")
+        
+    def initialize_lr_scheduler(self, optimizer):
+        return torch.optim.lr_scheduler.StepLR(optimizer, step_size=1)
 
     def initialize_loss_function(self, class_weights = None):
         """
@@ -102,7 +105,7 @@ class FullRetrainFineTuner(FineTuner):
         utils.get_parameters(model.py_model, True)
         utils.get_parameters(model.head, True)
 
-    def train(self, model, dataloaders_dict, patience=10, log_interval = -1, on_ray_tuning=False):
+    def train(self, model, dataloaders_dict, log_interval = -1, on_ray_tuning=False):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         memory_usage = psutil.virtual_memory()
         max_mem_usage = utils.print_gpu_utilization(memory_usage, device)
