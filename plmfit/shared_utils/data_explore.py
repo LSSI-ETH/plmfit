@@ -10,6 +10,7 @@ import torch
 from sklearn.metrics import matthews_corrcoef, confusion_matrix, roc_auc_score, mean_squared_error, mean_absolute_error, r2_score
 import numpy as np
 from scipy.stats import spearmanr
+import json
 
 
 def plot_label_distribution(data, label="binary_score", path=None, text="Keep"):
@@ -229,7 +230,12 @@ def PCA_2d(data_type, model, layers, reduction, output_path='default', labels_co
         plt.close()
 
 
-def create_loss_plot(training_losses, validation_losses):
+def create_loss_plot(training_losses=None, validation_losses=None, json_path=None):
+    if json_path:
+        with open(json_path, 'r') as file:
+            json_data = json.load(file)
+            training_losses = json_data['epoch_train_loss']
+            validation_losses = json_data['epoch_val_loss']
     fig = plt.figure(figsize=(10, 5))
     plt.plot(training_losses, label='Training Loss')
     plt.plot(validation_losses, label='Validation Loss')
@@ -240,9 +246,18 @@ def create_loss_plot(training_losses, validation_losses):
     return fig
 
 
-def plot_roc_curve(y_test_list, y_pred_list):
-    fpr, tpr, thresholds = roc_curve(y_test_list, y_pred_list)
-    roc_auc_val = auc(fpr, tpr)
+def plot_roc_curve(y_test_list=None, y_pred_list=None, json_path=None):
+    if json_path:
+        with open(json_path, 'r') as file:
+            json_data = json.load(file)
+            fpr = json_data['roc_auc_data']['fpr']
+            tpr = json_data['roc_auc_data']['tpr']
+            roc_auc_val = json_data['roc_auc_data']['roc_auc_val']
+    else:
+        fpr, tpr, thresholds = roc_curve(y_test_list, y_pred_list)
+        roc_auc_val = auc(fpr, tpr)
+        tpr = tpr.tolist()
+        fpr = fpr.tolist()
 
     fig = plt.figure(figsize=(10, 5))
     plt.plot(fpr, tpr, color='darkorange', lw=2,
@@ -256,14 +271,20 @@ def plot_roc_curve(y_test_list, y_pred_list):
     plt.legend(loc="lower right")
 
     roc_auc_data = {
-        "fpr": fpr.tolist(),
-        "tpr": tpr.tolist(),
+        "fpr": fpr,
+        "tpr": tpr,
         "roc_auc_val": roc_auc_val
     }
     return fig, roc_auc_data
 
 
-def plot_actual_vs_predicted(y_test_list, y_pred_list, axis_range=[0, 1], eval_metrics=None):
+def plot_actual_vs_predicted(y_test_list=None, y_pred_list=None, axis_range=[0, 1], eval_metrics=None, json_path=None):
+    if json_path:
+        with open(json_path, 'r') as file:
+            json_data = json.load(file)
+            y_test_list = json_data['pred_data']['actual']
+            y_pred_list = json_data['pred_data']['preds']
+            eval_metrics = json_data['main']
     fig, ax = plt.subplots(figsize=(8, 8))
     ax.scatter(y_test_list, y_pred_list, color='darkorange', alpha=0.1, label='Predicted vs Actual')
     
@@ -286,12 +307,15 @@ def plot_actual_vs_predicted(y_test_list, y_pred_list, axis_range=[0, 1], eval_m
     plt.tight_layout()
     return fig
 
-def plot_confusion_matrix_heatmap(cm):
+def plot_confusion_matrix_heatmap(cm=None, json_path=None):
     """
     Plots a confusion matrix heatmap.
     """
-    
-    # Convert to percentage
+    if json_path:
+        with open(json_path, 'r') as file:
+            json_data = json.load(file)
+            cm = json_data['main']['confusion_matrix']
+            cm = np.array(cm)
     cm_percentage = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
     class_names = [0, 1]
     fig, ax = plt.subplots(figsize=(6, 6))
