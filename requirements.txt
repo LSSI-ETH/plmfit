@@ -24,3 +24,4 @@ boto3
 paramiko
 ray[tune]
 bayesian-optimization
+lightning
