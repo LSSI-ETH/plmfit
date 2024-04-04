@@ -44,6 +44,8 @@ parser.add_argument('--experiment_dir', type=str, default='default',
                     help='Output directory for created files')
 
 parser.add_argument('--logger', type=str, default='remote')
+parser.add_argument('--cpus', default=1)
+parser.add_argument('--gpus', default=0)
 
 args = parser.parse_args()
 
@@ -210,28 +212,26 @@ def full_retrain(args, logger):
 
 def ray_tuning(head_config, args, logger):
     network_type = head_config['architecture_parameters']['network_type']
-    trials = 200
+    trials = 100
     if network_type == 'mlp': 
-        head_config['architecture_parameters']['hidden_dim'] = tune.uniform(256, 4096)
+        head_config['architecture_parameters']['hidden_dim'] = tune.uniform(64, 4096)
         head_config['architecture_parameters']['hidden_dropout'] = tune.uniform(0, 0.9)
-        trials = 800
-    head_config['training_parameters']['learning_rate'] = tune.uniform(1e-6, 1e-3)
+        trials = 300
+    head_config['training_parameters']['learning_rate'] = tune.uniform(1e-6, 1e-4)
     head_config['training_parameters']['batch_size'] = tune.uniform(8, 256)
-    head_config['training_parameters']['weight_decay'] = tune.uniform(1e-4, 1e-1)
+    head_config['training_parameters']['weight_decay'] = tune.uniform(1e-4, 1e-2)
 
-    initial_epochs = head_config['training_parameters']['epochs']
-    head_config['training_parameters']['epochs'] = 10
     initial_epoch_sizing = head_config['training_parameters']['epoch_sizing']
-    head_config['training_parameters']['epoch_sizing'] = 0.25 # Sample data to make procedure faster
+    head_config['training_parameters']['epoch_sizing'] = 0.2 # Sample data to make procedure faster
 
     # Initialize BayesOptSearch
     searcher = BayesOptSearch(
-        utility_kwargs={"kind": "ucb", "kappa": 2.5, "xi": 0.0}
+        utility_kwargs={"kind": "ucb", "kappa": 2.5, "xi": 0.0}, random_search_steps=12
     )
-    searcher = ConcurrencyLimiter(searcher, max_concurrent=4)
+    searcher = ConcurrencyLimiter(searcher, max_concurrent=12)
 
     scheduler = ASHAScheduler(
-        max_t=10,
+        max_t=3,
         grace_period=2,
         reduction_factor=2
     )
@@ -261,7 +261,7 @@ def ray_tuning(head_config, args, logger):
     tuner = tune.Tuner(
         tune.with_resources(
             tune.with_parameters(feature_extraction, args=args, logger=logger, on_ray_tuning=True),
-            resources={"cpu": 2, "gpu": 0}
+            resources={"cpu": 1}
         ),
         tune_config=tune.TuneConfig(
             metric="loss", 
@@ -280,7 +280,6 @@ def ray_tuning(head_config, args, logger):
     logger.mute = False # Ok, logger can be normal now
 
     best_result = results.get_best_result("loss", "min")
-    best_result.config['training_parameters']['epochs'] = initial_epochs
     best_result.config['training_parameters']['epoch_sizing'] = initial_epoch_sizing
     logger.log(f"Best trial config: {best_result.config}")
     logger.log(f"Best trial metrics: {best_result.metrics}")
