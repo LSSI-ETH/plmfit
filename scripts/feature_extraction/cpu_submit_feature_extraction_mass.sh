@@ -15,7 +15,7 @@ do
          --output="$experiment_dir/euler_output.out" \
          --error="$experiment_dir/euler_error.err" \
          --mem-per-cpu="$mem_per_cpu" \
-         scripts/feature_extraction/ray_tuning_mass.sh \
+         scripts/feature_extraction/cpu_ray_tuning_mass.sh \
          "$function" "$ft_method" "$head_config" "$ray_tuning" "$data_type" "$plm" "$layer" "$reduction" "$output_dir" "$experiment_dir" "$experiment_name"
   sleep 2
 done

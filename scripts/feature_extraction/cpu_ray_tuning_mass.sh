@@ -2,10 +2,9 @@
 #SBATCH --job-name=ray_workload    # create a short name for your job
 #SBATCH --nodes=1          # node count
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=12
 #SBATCH --tasks-per-node=1
-#SBATCH --time=8:00:00          # total run time limit (HH:MM:SS)
-#SBATCH --gpus-per-node=8
+#SBATCH --time=16:00:00          # total run time limit (HH:MM:SS)
 
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
@@ -38,7 +37,7 @@ echo "IP Head: $ip_head"
 
 echo "Starting HEAD at $head_node"
 ray start --head --node-ip-address="$head_node_ip" --port=$port \
-    --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_NODE}" --block &
+    --num-cpus "${SLURM_CPUS_PER_TASK}" --block &
 
 # optional, though may be useful in certain versions of Ray < 1.0.
 sleep 5
@@ -50,7 +49,7 @@ for ((i = 1; i <= worker_num; i++)); do
     node_i=${nodes_array[$i]}
     echo "Starting WORKER $i at $node_i"
     ray start --address "$ip_head" \
-        --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_NODE}" --block --verbose &
+        --num-cpus "${SLURM_CPUS_PER_TASK}" --block --verbose &
     sleep 5
 
     # Wait for the worker node to be up and ready
