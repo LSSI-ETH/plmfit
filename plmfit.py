@@ -24,6 +24,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 import threading
 from lightning.pytorch.utilities.deepspeed import convert_zero_checkpoint_to_fp32_state_dict
 from lightning.pytorch.callbacks import DeviceStatsMonitor
+import torch.nn.functional as F
 
 parser = argparse.ArgumentParser(description='plmfit_args')
 # options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
@@ -295,15 +296,14 @@ def full_retrain(args, logger):
     model.py_model.task = pred_model.task
     fine_tuner.train(model.py_model, dataloaders_dict=data_loaders)
 
-def ray_tuning(head_config, args, logger):
+def ray_tuning(function_to_run, head_config, args, logger):
     network_type = head_config['architecture_parameters']['network_type']
     trials = 100
     if network_type == 'mlp': 
         head_config['architecture_parameters']['hidden_dim'] = tune.uniform(64, 4096)
-        head_config['architecture_parameters']['hidden_dropout'] = tune.uniform(0, 0.9)
         trials = 300
-    head_config['training_parameters']['learning_rate'] = tune.uniform(1e-6, 1e-4)
-    head_config['training_parameters']['batch_size'] = tune.uniform(8, 256)
+    head_config['training_parameters']['learning_rate'] = tune.uniform(1e-6, 1e-3)
+    head_config['training_parameters']['batch_size'] = tune.uniform(4, 256)
     head_config['training_parameters']['weight_decay'] = tune.uniform(1e-4, 1e-2)
 
     initial_epoch_sizing = head_config['training_parameters']['epoch_sizing']
@@ -345,7 +345,7 @@ def ray_tuning(head_config, args, logger):
     logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
     tuner = tune.Tuner(
         tune.with_resources(
-            tune.with_parameters(feature_extraction, args=args, logger=logger, on_ray_tuning=True),
+            tune.with_parameters(function_to_run, args=args, logger=logger, on_ray_tuning=True),
             resources={"cpu": 1}
         ),
         tune_config=tune.TuneConfig(
@@ -432,6 +432,41 @@ def feature_extraction_beta(head_config, args, logger):
         fig = data_explore.plot_actual_vs_predicted(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
         logger.save_plot(fig, 'actual_vs_predicted')
 
+def onehot(config, args, logger, on_ray_tuning=False):
+    # Load dataset
+    data = utils.load_dataset(args.data_type)
+    head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
+    tokenizer = utils.load_tokenizer('proteinbert') # Use same tokenizer as proteinbert
+    encs = utils.categorical_encode(
+            data['aa_seq'].values, tokenizer, max(data['len'].values), add_eos=True, logger=logger, model_name='proteinbert')
+
+    encs = F.one_hot(encs, tokenizer.get_vocab_size())
+    encs = encs.reshape(30756, -1)
+
+    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
+    scores = torch.tensor(scores, dtype=torch.float32)
+
+    training_params = head_config['training_parameters']
+    data_loaders = utils.create_data_loaders(
+            encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], num_workers=0)
+    
+    logger.save_data(vars(args), 'arguments')
+    logger.save_data(head_config, 'head_config')
+
+    network_type = head_config['architecture_parameters']['network_type']
+    if network_type == 'linear':
+        head_config['architecture_parameters']['input_dim'] = encs.shape[1]
+        pred_model = heads.LinearHead(head_config['architecture_parameters'])
+    elif network_type == 'mlp':
+        head_config['architecture_parameters']['input_dim'] = encs.shape[1]
+        pred_model = heads.MLP(head_config['architecture_parameters'])
+    else:
+        raise ValueError('Head type not supported')
+    
+    utils.set_trainable_parameters(pred_model)
+    fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
+    fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning)
+
 if __name__ == '__main__':
     args = parser.parse_args()
     experiment_dir = args.experiment_dir
@@ -485,7 +520,7 @@ if __name__ == '__main__':
                 if args.beta: feature_extraction_beta(head_config, args, logger)
                 else:
                     if args.ray_tuning:
-                        head_config = ray_tuning(head_config, args, logger)
+                        head_config = ray_tuning(feature_extraction, head_config, args, logger)
                     feature_extraction(head_config, args, logger)
             elif args.ft_method == 'lora':
                 lora(args, logger) if not args.beta else lora_beta(args, logger)
@@ -493,6 +528,11 @@ if __name__ == '__main__':
                 full_retrain(args, logger)
             else:
                 raise ValueError('Fine Tuning method not supported')
+        elif args.function == 'one_hot':
+            head_config = utils.load_config(args.head_config)
+            if args.ray_tuning:
+                head_config = ray_tuning(onehot, head_config, args, logger)
+            onehot(head_config, args, logger)
         else:
             raise ValueError('Function is not supported')
         logger.log("\n\nEnd of process", force_send=True)
