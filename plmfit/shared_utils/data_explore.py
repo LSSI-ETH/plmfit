@@ -286,6 +286,8 @@ def plot_actual_vs_predicted(y_test_list=None, y_pred_list=None, axis_range=[0, 
             y_pred_list = json_data['pred_data']['preds']
             eval_metrics = json_data['main']
     fig, ax = plt.subplots(figsize=(8, 8))
+    y_test_list = np.asarray(y_test_list, dtype=np.float32).flatten()
+    y_pred_list = np.asarray(y_pred_list, dtype=np.float32).flatten()
     ax.scatter(y_test_list, y_pred_list, color='darkorange', alpha=0.1, label='Predicted vs Actual')
     
     min_val = min(min(y_test_list), min(y_pred_list), axis_range[0])
