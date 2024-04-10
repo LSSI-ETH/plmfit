@@ -3,18 +3,17 @@
   {
     "network_type": "mlp",
     "output_dim": 3,
-    "hidden_dim": 320,
+    "hidden_dim": 1280,
     "task": "multilabel_classification",
     "hidden_activation": "relu",
     "hidden_dropout": 0.20,
-    "output_activation": "sigmoid",
-    "reduction_method": "bos"
+    "output_activation": "sigmoid"
   },
   "training_parameters":
   {
-    "learning_rate": 0.0001,
-    "epochs": 2,
-    "batch_size": 4,
+    "learning_rate": 0.00001,
+    "epochs": 1000,
+    "batch_size": 64,
     "loss_f": "weighted_bce",
     "optimizer": "adam",
     "val_split": 0.2,
@@ -24,6 +23,8 @@
     "scheduler": false,
     "scaler": false,
     "gradient_accumulation": false,
-    "early_stopping": true
+    "early_stopping": 20,
+    "missing_values": 0.5,
+    "ignore_single": true
   }
 }

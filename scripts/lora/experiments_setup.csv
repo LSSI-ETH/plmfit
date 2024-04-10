@@ -1,2 +1,2 @@
 function	ft_method	data_type	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu
-fine_tuning	adapter	rbd	esm2_t33_650M_UR50D	mlp	multilabel_classification	mlp_classification_head_config.json	last	bos	/cluster/scratch/bsahin	1	80g	64g
+fine_tuning	adapter	rbd	esm2_t33_650M_UR50D	mlp	multilabel_classification	mlp_classification_head_config_lr5ep10.json	last	bos	/cluster/scratch/bsahin	1	40g	100g

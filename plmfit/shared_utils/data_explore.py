@@ -669,7 +669,13 @@ def evaluate_multi_label_classification(model, dataloaders_dict, device):
             labels = labels.to(device).int()
             output = model(embeddings)
             # TODO Actually find a good condition to account for output when doing finetuning
-            if hasattr(model.esm.encoder.layer[0].output,"adapter"):
+            is_fine_tuning = False
+            try:
+                is_fine_tuning = hasattr(model.esm.encoder.layer[-1].output,"adapter")
+            except:
+                is_fine_tuning = False
+
+            if is_fine_tuning:
                 output = output[0]
             y_pred.extend(output.cpu().detach().numpy())
             y_test.extend(labels.cpu().detach().numpy())

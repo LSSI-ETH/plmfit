@@ -6,6 +6,7 @@ from plmfit.models.pretrained_models import *
 import plmfit.shared_utils.utils as utils
 import plmfit.models.downstream_heads as heads
 import traceback
+from torchinfo import summary
 
 
 parser = argparse.ArgumentParser(description='plmfit_args')
@@ -102,10 +103,21 @@ if __name__ == '__main__':
                 split = None
                 training_params = head_config['training_parameters']
                 if "multilabel" in head_config['architecture_parameters']['task']:
+                    ignore_single_mask = ~data["ignore_single"].isna()
+                    if "missing_values" in training_params:
+                        fill = training_params["missing_values"]
+                        data.fillna(fill, inplace = True)
+                        logger.log(f"Missing labels are set to {fill}.")
                     # TODO : Make multilabel task agnostic
-                    scores = data[["mouse","cattle","bat"]].values
-                    scores_dict = {0:"mouse",1:"cattle",2:"bat"}
-                    split = data["random"].values
+                    if "ignore_single" in training_params and training_params["ignore_single"] == True:
+                        scores = data[["mouse","cattle","bat"]].values[ignore_single_mask]
+                    #scores_dict = {0:"mouse",1:"cattle",2:"bat"}
+                        split = data["ignore_single"].values[ignore_single_mask]
+                        embeddings = embeddings[ignore_single_mask]
+                        logger.log(f"Embeddings have shape {embeddings.shape}")
+                    else:
+                        scores = data[["mouse","cattle","bat"]].values
+                        split = data["random"].values
                 else:
                     scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
                     scores = torch.tensor(scores, dtype=torch.float32)
@@ -195,31 +207,36 @@ if __name__ == '__main__':
                 logger.save_data(vars(args), 'arguments')
                 logger.save_data(head_config, 'head_config')
 
-                model = fine_tuner.add_adapter(model)
+                model = fine_tuner.add_adapter(model,"third")
                 logger.log("Adapters are added.")
-                logger.log(model.adapters)
+                logger.log(model.trainables)
                 model = fine_tuner.set_trainable_parameters(model)
                 logger.log("Base model is frozen, only adapters are trainable...")
                 model.task = pred_model.task
                 fine_tuner.set_head(model,pred_model)
                 logger.log("Prediction head of the model is set.")
+                logger.log(summary(model.py_model))
                 encs = model.categorical_encode(data['aa_seq'].values, model.tokenizer,max(data['len'].values))
                 logger.log("Encoding of the sequences is complete!")
 
                 split = None
                 training_params = head_config['training_parameters']
                 if "multilabel" in head_config['architecture_parameters']['task']:
+                    if "missing_values" in training_params:
+                        fill = training_params["missing_values"]
+                        data.fillna(fill, inplace = True)
+                        logger.log(f"Missing labels are set to {fill}.")
                     # TODO : Make multilabel task agnostic
                     scores = data[["mouse","cattle","bat"]].values
                     # TODO : Do something with the scores_dict
                     scores_dict = {0:"mouse",1:"cattle",2:"bat"}
-                    split = data["random"].values
+                    split = data["ignore_single"].values
                 else:
                     scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
                     scores = torch.tensor(scores, dtype=torch.float32)
 
                 data_loaders = utils.create_data_loaders(
-                        encs, scores, split = split, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'],dtype = torch.int64)
+                        encs, scores, split = split, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'],dtype = torch.int32)
                 
                 logger.log("Dataloaders are created. Starting training...")
                 fine_tuner.train(model, dataloaders_dict=data_loaders,log_interval = 2500)

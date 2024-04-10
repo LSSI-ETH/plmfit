@@ -9,7 +9,7 @@ uid=$(date +%Y%m%d_%H%M%S)
 tail -n +2 "$csv_file" | while IFS=$'\t' read -r function ft_method data_type plm head task head_config layer reduction output_dir gpus gres mem_per_cpu
 do
   output_dir="$output_dir"
-  experiment_name="${data_type}_${plm}_${ft_method}_${layer}_${reduction}_${head}_${task}"
+  experiment_name="${uid}_${data_type}_${plm}_${ft_method}_${layer}_${reduction}_${head}_${task}"
   experiment_dir="$output_dir/$function/$experiment_name"
   sbatch --job-name="feature_extraction_${uid}" \
          --output="$experiment_dir/euler_output.out" \
