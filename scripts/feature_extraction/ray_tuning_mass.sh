@@ -1,16 +1,26 @@
 #!/bin/bash
 #SBATCH --job-name=ray_workload    # create a short name for your job
 #SBATCH --nodes=1          # node count
-#SBATCH --ntasks=1
+#SBATCH --ntasks=8
 #SBATCH --cpus-per-task=8
-#SBATCH --tasks-per-node=1
+#SBATCH --tasks-per-node=8
 #SBATCH --time=8:00:00          # total run time limit (HH:MM:SS)
 #SBATCH --gpus-per-node=8
 
+export DATA_DIR='/cluster/home/estamkopoulo/plmfit_workspace/plmfit/plmfit'
+export NCCL_DEBUG=WARN
+export NCCL_P2P_DISABLE=1
+export NCCL_IB_DISABLE=1
+export PYTHONFAULTHANDLER=1
+export MASTER_PORT=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4))
+export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+# Export the global rank using SLURM_PROCID
+export RANK=$SLURM_PROCID
+echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
+
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
-
-export DATA_DIR='/cluster/home/estamkopoulo/plmfit_workspace/plmfit/plmfit'
+module load cuda/12.1.1
 
 # Getting the node names
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
@@ -31,26 +41,26 @@ fi
 echo "IPV6 address detected. We split the IPV4 address as $head_node_ip"
 fi
 
-port=6379
+port=$MASTER_PORT
 ip_head=$head_node_ip:$port
 export ip_head
 echo "IP Head: $ip_head"
 
 echo "Starting HEAD at $head_node"
 ray start --head --node-ip-address="$head_node_ip" --port=$port \
-    --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_NODE}" --block &
+    --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_TASK}" --block &
 
 # optional, though may be useful in certain versions of Ray < 1.0.
 sleep 5
 
 # number of nodes other than the head node
-worker_num=$((SLURM_JOB_NUM_NODES - 1))
+worker_num=$((SLURM_JOB_NUM_TASKS - 1))
 
 for ((i = 1; i <= worker_num; i++)); do
     node_i=${nodes_array[$i]}
     echo "Starting WORKER $i at $node_i"
     ray start --address "$ip_head" \
-        --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_NODE}" --block --verbose &
+        --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_TASK}" --block --verbose &
     sleep 5
 
     # Wait for the worker node to be up and ready

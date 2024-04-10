@@ -16,6 +16,7 @@ from ray.train import RunConfig
 from ray.tune.search.bayesopt import BayesOptSearch
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.search import ConcurrencyLimiter
+from ray.tune.integration.pytorch_lightning import TuneReportCallback
 import ray
 from functools import partial
 import time
@@ -172,7 +173,7 @@ def lora(args, logger):
     model.task = pred_model.task
     fine_tuner.train(model, dataloaders_dict=data_loaders)
 
-def lora_beta(args, logger):
+def lora_lightning(args, logger):
     # Load dataset
     data = utils.load_dataset(args.data_type)
 
@@ -371,7 +372,7 @@ def ray_tuning(function_to_run, head_config, args, logger):
 
     return best_result.config
 
-def feature_extraction_beta(head_config, args, logger):
+def feature_extraction_lightning(head_config, args, logger):
     # Load dataset
     data = utils.load_dataset(args.data_type)
     
@@ -402,23 +403,39 @@ def feature_extraction_beta(head_config, args, logger):
     
     utils.set_trainable_parameters(pred_model)
     
-    model = LightningModel(pred_model, head_config['training_parameters'], plmfit_logger=logger)
-    lightning_logger = TensorBoardLogger(save_dir=logger.base_dir, version=1, name="lightning_logs")
+    model = LightningModel(model.py_model, head_config['training_parameters'], plmfit_logger=logger, log_interval=100)
+    lightning_logger = TensorBoardLogger(save_dir=logger.base_dir, version=0, name="lightning_logs")
     
+    ray_callback = TuneReportCallback(
+        {
+            "loss": "val_loss"
+        },
+        on="validation_end"
+    )
+
     trainer = L.Trainer(
+        default_root_dir=logger.base_dir,
         logger=lightning_logger, 
         max_epochs=model.hparams.epochs, 
         enable_progress_bar=False, 
-        callbacks=model.early_stopping(), 
         accumulate_grad_batches=model.gradient_accumulation_steps(),
         gradient_clip_val=model.gradient_clipping(),
         limit_train_batches=model.epoch_sizing(),
-        limit_val_batches=model.epoch_sizing()
+        limit_val_batches=model.epoch_sizing(),
+        num_nodes=args.nodes,
+        devices=args.gpus,
+        strategy='deepspeed_stage_3_offload',
+        precision=16,
+        callbacks=[DeviceStatsMonitor(True), model.early_stopping(), ray_callback]
     )
+
+    trainer.strategy.load_full_weights = True
 
     trainer.fit(model, data_loaders['train'], data_loaders['val'])
 
-    trainer.test(ckpt_path="best", dataloaders=data_loaders['test'])
+    model = convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
+    
+    trainer.test(model=model, ckpt_path=f'{logger.base_dir}/best_model.ckpt', dataloaders=data_loaders['test'])
 
     loss_plot = data_explore.create_loss_plot(json_path=f'{logger.base_dir}/{logger.experiment_name}_loss.json')
     logger.save_plot(loss_plot, "training_validation_loss")
@@ -517,13 +534,13 @@ if __name__ == '__main__':
                 fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
                 fine_tuner.train(pred_model, dataloaders_dict=data_loaders)
                 
-                if args.beta: feature_extraction_beta(head_config, args, logger)
+                if args.beta: feature_extraction_lightning(head_config, args, logger)
                 else:
                     if args.ray_tuning:
                         head_config = ray_tuning(feature_extraction, head_config, args, logger)
                     feature_extraction(head_config, args, logger)
             elif args.ft_method == 'lora':
-                lora(args, logger) if not args.beta else lora_beta(args, logger)
+                lora_lightning(args, logger)
             elif args.ft_method == 'full':
                 full_retrain(args, logger)
             else:
