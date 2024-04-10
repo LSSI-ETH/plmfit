@@ -441,7 +441,7 @@ def onehot(config, args, logger, on_ray_tuning=False):
             data['aa_seq'].values, tokenizer, max(data['len'].values), add_eos=True, logger=logger, model_name='proteinbert')
 
     encs = F.one_hot(encs, tokenizer.get_vocab_size())
-    encs = encs.reshape(30756, -1)
+    encs = encs.reshape(encs.shape[0], -1)
 
     scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
     scores = torch.tensor(scores, dtype=torch.float32)
