@@ -1,42 +1,12 @@
-function	ft_method	data_type	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu
-fine_tuning	lora	aav	proteinbert	mlp	regression	lora_mlp_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	aav	progen2-small	linear	regression	lora_linear_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	aav	progen2-small	mlp	regression	lora_mlp_head_config.json	last	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	aav	progen2-small	mlp	regression	lora_mlp_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	aav	progen2-small	mlp	regression	lora_mlp_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	proteinbert	linear	regression	lora_linear_head_config.json	last	bos	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	proteinbert	linear	regression	lora_linear_head_config.json	middle	bos	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	proteinbert	linear	regression	lora_linear_head_config.json	first	bos	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	proteinbert	linear	regression	lora_linear_head_config.json	last	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	proteinbert	linear	regression	lora_linear_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	proteinbert	linear	regression	lora_linear_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	proteinbert	mlp	regression	lora_mlp_head_config.json	last	bos	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	proteinbert	mlp	regression	lora_mlp_head_config.json	middle	bos	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	proteinbert	mlp	regression	lora_mlp_head_config.json	first	bos	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	proteinbert	mlp	regression	lora_mlp_head_config.json	last	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	proteinbert	mlp	regression	lora_mlp_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	proteinbert	mlp	regression	lora_mlp_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	progen2-small	linear	regression	lora_linear_head_config.json	last	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	progen2-small	linear	regression	lora_linear_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	progen2-small	linear	regression	lora_linear_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	progen2-small	mlp	regression	lora_mlp_head_config.json	last	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	progen2-small	mlp	regression	lora_mlp_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	gb1	progen2-small	mlp	regression	lora_mlp_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	proteinbert	linear	regression	lora_linear_head_config.json	last	bos	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	proteinbert	linear	regression	lora_linear_head_config.json	middle	bos	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	proteinbert	linear	regression	lora_linear_head_config.json	first	bos	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	proteinbert	linear	regression	lora_linear_head_config.json	last	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	proteinbert	linear	regression	lora_linear_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	proteinbert	linear	regression	lora_linear_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	proteinbert	mlp	regression	lora_mlp_head_config.json	last	bos	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	proteinbert	mlp	regression	lora_mlp_head_config.json	middle	bos	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	proteinbert	mlp	regression	lora_mlp_head_config.json	first	bos	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	proteinbert	mlp	regression	lora_mlp_head_config.json	last	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	proteinbert	mlp	regression	lora_mlp_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	proteinbert	mlp	regression	lora_mlp_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	progen2-small	linear	regression	lora_linear_head_config.json	last	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	progen2-small	linear	regression	lora_linear_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	progen2-small	linear	regression	lora_linear_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	progen2-small	mlp	regression	lora_mlp_head_config.json	last	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	progen2-small	mlp	regression	lora_mlp_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	1	40g	12g
-fine_tuning	lora	meltome	progen2-small	mlp	regression	lora_mlp_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	40g	12g
+function	ft_method	data_type	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes
+fine_tuning	lora	meltome	progen2-medium	linear	regression	lora_linear_head_config.json	last	eos	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	20g	1
+fine_tuning	lora	meltome	progen2-medium	linear	regression	lora_linear_head_config.json	middle	eos	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	20g	1
+fine_tuning	lora	meltome	progen2-medium	linear	regression	lora_linear_head_config.json	first	eos	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	20g	1
+fine_tuning	lora	meltome	progen2-medium	linear	regression	lora_linear_head_config.json	last	mean	/cluster/scratch/estamkopoulo	4	titan_rtx	20g	1
+fine_tuning	lora	meltome	progen2-medium	linear	regression	lora_linear_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	4	titan_rtx	20g	1
+fine_tuning	lora	meltome	progen2-medium	linear	regression	lora_linear_head_config.json	first	mean	/cluster/scratch/estamkopoulo	4	titan_rtx	20g	1
+fine_tuning	lora	meltome	progen2-medium	mlp	regression	lora_mlp_head_config.json	middle	eos	/cluster/scratch/estamkopoulo	4	rtx_4090	20g	1
+fine_tuning	lora	meltome	progen2-medium	mlp	regression	lora_mlp_head_config.json	first	eos	/cluster/scratch/estamkopoulo	4	rtx_4090	20g	1
+fine_tuning	lora	meltome	progen2-medium	mlp	regression	lora_mlp_head_config.json	last	mean	/cluster/scratch/estamkopoulo	4	rtx_3090	20g	1
+fine_tuning	lora	meltome	progen2-medium	mlp	regression	lora_mlp_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	4	rtx_3090	20g	1
+fine_tuning	lora	meltome	progen2-medium	mlp	regression	lora_mlp_head_config.json	first	mean	/cluster/scratch/estamkopoulo	4	rtx_3090	20g	1
