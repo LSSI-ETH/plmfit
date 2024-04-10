@@ -11,6 +11,7 @@ import os
 import torch.nn as nn
 import psutil
 import importlib.util
+from plmfit.logger import Logger
 
 path = os.getenv('DATA_DIR')
 data_dir = f'{path}/data'
@@ -105,7 +106,7 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     test_dataset = TensorDataset(X_test, y_test)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=num_workers>0)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=num_workers>0)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=num_workers>0)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=num_workers>0)
 
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
@@ -280,6 +281,16 @@ def get_parameters(model, print_w_mat=False, logger=None):
 
     return s
 
+def check_module_states(model, logger=None):
+    for name, module in model.named_modules():
+        state = "Train" if module.training else "Eval"
+        message = f'Module: {name} State: {state}'
+        
+        if logger is not None:
+            logger.log(message)
+        else:
+            print(message)
+
 def trainable_parameters_summary(model, logger=None):
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -302,6 +313,16 @@ def freeze_parameters(model):
         p.requires_grad = False
 
     return
+
+def disable_dropout(model):
+    """
+    Recursively set dropout probability to 0 for all Dropout layers.
+    """
+    for child in model.children():
+        if isinstance(child, (nn.Dropout, nn.Dropout2d, nn.Dropout3d)):
+            child.p = 0.0  # Set dropout probability to 0
+        else:
+            disable_dropout(child)
 
 def set_modules_to_train_mode(model, module_name):
     """
