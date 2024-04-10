@@ -25,3 +25,4 @@ paramiko
 ray[tune]
 bayesian-optimization
 lightning
+deepspeed
