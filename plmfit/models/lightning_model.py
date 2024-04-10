@@ -4,15 +4,19 @@ import torch
 from torchmetrics import classification, regression
 import time
 import json
+from deepspeed.ops.adam import DeepSpeedCPUAdam
+from plmfit.shared_utils import utils
 
 class LightningModel(L.LightningModule):
-    def __init__(self,  model, training_config, plmfit_logger = None, log_interval=-1):
+    def __init__(self,  model, training_config, plmfit_logger = None, log_interval=-1, method='lora'):
+        torch.set_float32_matmul_precision('medium')
         super().__init__()
         self.model = model
         self.save_hyperparameters(training_config)
         self.loss_function = self.initialize_loss_function()
         self.plmfit_logger = plmfit_logger
         self.log_interval = log_interval
+        self.method = method
         
         if self.model.task == 'classification':
             self.train_metric = classification.BinaryAccuracy()
@@ -36,28 +40,42 @@ class LightningModel(L.LightningModule):
         self.start_time = time.time()
         self.epoch_train_loss = []
         self.epoch_val_loss = []
+        self.plmfit_logger.log(self.model)
+        utils.get_parameters(self.model, self.plmfit_logger)
+        self.plmfit_logger.current_global_rank = self.trainer.global_rank
+
+        self.best_val_loss = float('inf')
+        self.best_epoch = 0
+        self.epochs_no_improve = 0
 
     def on_fit_end(self) -> None:
         total_time = time.time() - self.start_time
-        self.plmfit_logger.log(f'\nMean time per epoch: {total_time/(self.current_epoch+1):.4f}s')
+        self.plmfit_logger.log(f'\nMean time per epoch: {total_time/(self.current_epoch):.4f}s')
         self.plmfit_logger.log(f'Total training time: {total_time:.1f}s')
         loss_data = {
             "epoch_train_loss": self.epoch_train_loss,
             "epoch_val_loss": self.epoch_val_loss
         }
-        with open(f'{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}_loss.json', 'w', encoding='utf-8') as f:
-            json.dump(loss_data, f, indent=4)
-        report = {
-            "training_time": f'{total_time:.1f}',
-            "avg_time_per_epoch": f'{total_time/(self.current_epoch+1):.4f}'
-        }
-        self.plmfit_logger.save_data(report, 'report')
+        if self.trainer.global_rank == 0:
+            with open(f'{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}_loss.json', 'w', encoding='utf-8') as f:
+                json.dump(loss_data, f, indent=4)
+            report = {
+                "training_time": f'{total_time:.1f}',
+                "avg_time_per_epoch": f'{total_time/(self.current_epoch+1):.4f}'
+            }
+            self.plmfit_logger.save_data(report, 'report')
 
     ### TRAINING STEPS ###
     def on_train_epoch_start(self):
         self.epoch_start_time = time.time()
         self.plmfit_logger.log('\nEpoch {}/{}'.format(self.current_epoch + 1, self.trainer.max_epochs))
         self.plmfit_logger.log('-' * 10)
+
+        # self.train()
+        # if self.method == 'lora':
+        #     self.model.base_model.model.eval()
+        #     self.model.base_model.model.classifier.train()
+        #     utils.set_modules_to_train_mode(self.model, 'lora')
 
     def training_step(self, batch, batch_idx):
         batch_start_time = time.time()
@@ -66,10 +84,10 @@ class LightningModel(L.LightningModule):
         outputs = self(input).squeeze(dim=1)
 
         loss = self.loss_function(outputs, labels)
-        self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False)
+        self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
         self.train_metric.update(outputs, labels)
-        self.log(f'train_{self.metric_label}_step', self.train_metric, on_step=False, on_epoch=True, logger=True, prog_bar=False)
+        self.log(f'train_{self.metric_label}_step', self.train_metric, on_step=False, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(f'(train) batch : {batch_idx + 1}  / {len(self.trainer.train_dataloader)} | running_loss : {loss / (batch_idx + 1)} (batch time : {time.time() - batch_start_time:.4f})')
@@ -77,18 +95,16 @@ class LightningModel(L.LightningModule):
         return loss
     
     def on_train_epoch_end(self):
-        self.log(f'train_{self.metric_label}_epoch', self.train_metric)
+        self.log(f'train_{self.metric_label}_epoch', self.train_metric, sync_dist=True)
         self.epoch_train_loss.append(self.trainer.logged_metrics["train_loss_epoch"].item())
         if self.plmfit_logger: 
             self.plmfit_logger.log(f'(train) loss: {self.trainer.logged_metrics["train_loss_epoch"]:.4f} {time.time() - self.epoch_start_time:.4f}s')
             self.plmfit_logger.log(f'(train) {self.metric_label}: {self.trainer.logged_metrics[f"train_{self.metric_label}_epoch"]:.4f}')
-
-
+        
     ### VALIDATION STEPS ###
     def on_validation_epoch_start(self):
         if self.trainer.sanity_checking:
             if self.plmfit_logger: self.plmfit_logger.log(f'Sanity checking...')
-        self.epoch_start_time = time.time()
 
     def validation_step(self, batch, batch_idx):
         batch_start_time = time.time()
@@ -97,10 +113,10 @@ class LightningModel(L.LightningModule):
         outputs = self(input).squeeze(dim=1)
 
         loss = self.loss_function(outputs, labels)
-        self.log('val_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False)
+        self.log('val_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
         self.val_metric.update(outputs, labels)
-        self.log(f'val_{self.metric_label}_step', self.val_metric, on_step=False, on_epoch=True, logger=True, prog_bar=False)
+        self.log(f'val_{self.metric_label}_step', self.val_metric, on_step=False, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(f'(val) batch : {batch_idx + 1}  / {len(self.trainer.val_dataloaders)} | running_loss : {loss / (batch_idx + 1)} (batch time : {time.time() - batch_start_time:.4f})')
@@ -108,12 +124,19 @@ class LightningModel(L.LightningModule):
         return loss
     
     def on_validation_epoch_end(self):
-        self.log(f'val_{self.metric_label}_epoch', self.val_metric)
+        self.log(f'val_{self.metric_label}_epoch', self.val_metric, sync_dist=True)
         if not self.trainer.sanity_checking: self.epoch_val_loss.append(self.trainer.logged_metrics["val_loss_epoch"].item())
         if self.plmfit_logger: 
-            self.plmfit_logger.log(f'(val) loss: {self.trainer.logged_metrics["val_loss_epoch"]:.4f} {time.time() - self.epoch_start_time:.4f}s')
+            self.plmfit_logger.log(f'(val) loss: {self.trainer.logged_metrics["val_loss_epoch"]:.4f}')
             self.plmfit_logger.log(f'(val) {self.metric_label}: {self.trainer.logged_metrics[f"val_{self.metric_label}_epoch"]:.4f}')
 
+        if self.trainer.logged_metrics["val_loss_epoch"] < self.best_val_loss:
+            self.best_val_loss = self.trainer.logged_metrics["val_loss_epoch"]
+            self.trainer.save_checkpoint(f'{self.plmfit_logger.base_dir}/lightning_logs/best_model.ckpt')
+            self.best_epoch = self.current_epoch
+            self.epochs_no_improve = 0
+        else:
+            self.epochs_no_improve += 1
 
     ### TESTING STEPS ###
     def on_test_start(self) -> None:
@@ -128,23 +151,23 @@ class LightningModel(L.LightningModule):
         loss = self.loss_function(outputs, labels)
         self.log('test_loss', loss, on_step=False, on_epoch=True, logger=True, prog_bar=False)
 
-        self.metrics.calculate(outputs, labels)
+        self.metrics.add(outputs, labels)
         
         return loss
     
     def on_test_end(self) -> None:
-        metrics = self.metrics.get_metrics()
-        if self.plmfit_logger: 
+            metrics = self.metrics.get_metrics(device=self.device)
             self.plmfit_logger.log(f'loss: {self.trainer.logged_metrics["test_loss"]:.4f} {time.time() - self.epoch_start_time:.4f}s')
             for key, value in metrics['main'].items():
                 self.plmfit_logger.log(f'{key}: {value}')
-            self.plmfit_logger.save_data(metrics['main'], 'metrics')
-        self.metrics.save_metrics(path=f'{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}')
+            if self.trainer.global_rank == 0:
+                self.plmfit_logger.save_data(metrics['main'], 'metrics')
+                self.metrics.save_metrics(path=f'{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}')
 
 
     
     def configure_optimizers(self):
-        optimizer = self.initialize_optimizer(self.model.parameters())
+        optimizer = self.initialize_optimizer(self.trainer.model.parameters())
         lr_scheduler = self.initialize_lr_scheduler(optimizer)
         return [optimizer], [lr_scheduler]
     
@@ -152,7 +175,7 @@ class LightningModel(L.LightningModule):
         if self.hparams.optimizer == 'sgd':
             return torch.optim.SGD(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
         elif self.hparams.optimizer == 'adam':
-            return torch.optim.Adam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+            return DeepSpeedCPUAdam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
         else:
             raise ValueError(f"Unsupported optimizer: {self.hparams.optimizer}")
         
@@ -183,7 +206,7 @@ class LightningModel(L.LightningModule):
     def early_stopping(self):
         patience = self.handle_bool_float_config_param(self.hparams.early_stopping, false_value=-1, true_value=10)
         if patience == -1: return None
-        return EarlyStopping(monitor="val_loss", min_delta=0.00, patience=patience, verbose=False, mode="min")
+        return EarlyStopping(monitor="val_loss", min_delta=0.00, patience=patience, verbose=True, mode="min")
     
     def gradient_accumulation_steps(self):
         return self.handle_bool_float_config_param(self.hparams.gradient_accumulation, false_value=1, true_value=8)
@@ -214,9 +237,11 @@ class Metrics(torch.nn.Module):
             self.r2 = regression.R2Score()
             self.spearman = regression.SpearmanCorrCoef()
 
+    def add(self, preds, actual):
+        self.preds_list.extend(preds.tolist()) if len(preds.tolist()) > 1 else self.preds_list.append(preds.item())
+        self.actual_list.extend(actual.tolist()) if len(actual.tolist()) > 1 else self.actual_list.append(actual.item())
+
     def calculate(self, preds, actual):
-        self.preds_list.extend(preds.tolist()) if len(preds.tolist()) > 1 else self.preds_list.append(preds.tolist())
-        self.actual_list.extend(actual.tolist()) if len(actual.tolist()) > 1 else self.actual_list.append(actual.tolist())
         if self.task == 'classification':
             self.calc_classification_metrics(preds, actual)
         elif self.task == 'regression':
@@ -236,7 +261,8 @@ class Metrics(torch.nn.Module):
         self.r2.update(preds, actual)
         self.spearman.update(preds, actual)
 
-    def get_metrics(self):
+    def get_metrics(self, device='cpu'):
+        self.calculate(torch.tensor(self.preds_list, device=device), torch.tensor(self.actual_list, device=device))
         if self.task == 'classification':
             return self.get_classification_metrics()
         elif self.task == 'regression':

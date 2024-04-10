@@ -302,6 +302,11 @@ class LowRankAdaptationFineTuner(FineTuner):
         model.py_model = get_peft_model(model.py_model, self.peft_config)
         model.py_model.print_trainable_parameters()
         model.py_model.base_model.model.unset_trainable_parameters_after_layer_to_use()
+
+        model.py_model.train()
+        model.py_model.base_model.model.eval()
+        model.py_model.base_model.model.classifier.train()
+        utils.set_modules_to_train_mode(model.py_model, 'lora')
         return model
 
     def train(self, model, dataloaders_dict, log_interval = -1):

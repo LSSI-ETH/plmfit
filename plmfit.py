@@ -21,6 +21,9 @@ from functools import partial
 import time
 import lightning as L
 from lightning.pytorch.loggers import TensorBoardLogger
+import threading
+from lightning.pytorch.utilities.deepspeed import convert_zero_checkpoint_to_fp32_state_dict
+from lightning.pytorch.callbacks import DeviceStatsMonitor
 
 parser = argparse.ArgumentParser(description='plmfit_args')
 # options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
@@ -48,25 +51,14 @@ parser.add_argument('--experiment_dir', type=str, default='default',
                     help='Output directory for created files')
 
 parser.add_argument('--logger', type=str, default='remote')
+
 parser.add_argument('--cpus', default=1)
 parser.add_argument('--gpus', default=0)
+parser.add_argument('--nodes', default=1)
 
 parser.add_argument('--beta', default=False)
 
-args = parser.parse_args()
-
-experiment_dir = args.experiment_dir
-if not os.path.exists(experiment_dir):
-    os.makedirs(experiment_dir, exist_ok=True)
-
-# Removing the output_dir prefix from experiment_dir
-trimmed_experiment_dir = experiment_dir.removeprefix(f"{args.output_dir}/")
-logger = Logger(
-    experiment_name = args.experiment_name, 
-    base_dir= args.experiment_dir, 
-    log_to_server=args.logger!='local', 
-    server_path=f'{trimmed_experiment_dir}'
-)
+NUM_WORKERS = int(os.cpu_count() / 4)
 
 def init_plm(model_name, logger):
     model = None
@@ -185,13 +177,15 @@ def lora_beta(args, logger):
 
     model = init_plm(args.plm, logger)
     assert model != None, 'Model is not initialized'
+    utils.disable_dropout(model)
 
     head_config = utils.load_config(args.head_config)
     
     logger.save_data(vars(args), 'arguments')
     logger.save_data(head_config, 'head_config')
 
-    data = data.sample(1000)
+    # data = data.sample(1000)
+    
     network_type = head_config['architecture_parameters']['network_type']
     if network_type == 'linear':
         head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
@@ -215,29 +209,42 @@ def lora_beta(args, logger):
             batch_size=training_params['batch_size'], 
             validation_size=training_params['val_split'], 
             dtype=torch.int8, 
-            num_workers=0)
+            num_workers=NUM_WORKERS
+        )
     
     fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, model_name=args.plm, logger=logger)
     model = fine_tuner.set_trainable_parameters(model)
+ 
+    utils.trainable_parameters_summary(model, logger)
     model.py_model.task = pred_model.task
     
-    model = LightningModel(model.py_model, head_config['training_parameters'], plmfit_logger=logger)
-    lightning_logger = TensorBoardLogger(save_dir=logger.base_dir, version=1, name="lightning_logs")
+    model = LightningModel(model.py_model, head_config['training_parameters'], plmfit_logger=logger, log_interval=100)
+    lightning_logger = TensorBoardLogger(save_dir=logger.base_dir, version=0, name="lightning_logs")
     
+
     trainer = L.Trainer(
+        default_root_dir=logger.base_dir,
         logger=lightning_logger, 
         max_epochs=model.hparams.epochs, 
         enable_progress_bar=False, 
-        callbacks=model.early_stopping(), 
         accumulate_grad_batches=model.gradient_accumulation_steps(),
         gradient_clip_val=model.gradient_clipping(),
         limit_train_batches=model.epoch_sizing(),
-        limit_val_batches=model.epoch_sizing()
+        limit_val_batches=model.epoch_sizing(),
+        num_nodes=args.nodes,
+        devices=args.gpus,
+        strategy='deepspeed_stage_3_offload',
+        precision=16,
+        callbacks=[DeviceStatsMonitor(True), model.early_stopping()]
     )
+
+    trainer.strategy.load_full_weights = True
 
     trainer.fit(model, data_loaders['train'], data_loaders['val'])
 
-    trainer.test(ckpt_path="best", dataloaders=data_loaders['test'])
+    model = convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
+    
+    trainer.test(model=model, ckpt_path=f'{logger.base_dir}/best_model.ckpt', dataloaders=data_loaders['test'])
 
     loss_plot = data_explore.create_loss_plot(json_path=f'{logger.base_dir}/{logger.experiment_name}_loss.json')
     logger.save_plot(loss_plot, "training_validation_loss")
@@ -426,7 +433,19 @@ def feature_extraction_beta(head_config, args, logger):
         logger.save_plot(fig, 'actual_vs_predicted')
 
 if __name__ == '__main__':
-
+    args = parser.parse_args()
+    experiment_dir = args.experiment_dir
+    if not os.path.exists(experiment_dir):
+        os.makedirs(experiment_dir, exist_ok=True)
+        
+    # Removing the output_dir prefix from experiment_dir
+    trimmed_experiment_dir = experiment_dir.removeprefix(f"{args.output_dir}/")
+    logger = Logger(
+        experiment_name = args.experiment_name, 
+        base_dir= args.experiment_dir, 
+        log_to_server=args.logger!='local', 
+        server_path=f'{trimmed_experiment_dir}'
+    )
     try:
         if args.function == 'extract_embeddings':
             extract_embeddings(args, logger)
