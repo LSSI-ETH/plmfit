@@ -1,5 +1,6 @@
 import datetime
 import os
+import threading
 import json
 import matplotlib.pyplot as plt
 import torch
@@ -13,7 +14,19 @@ except:
     print(f"No environment file 'env.py' detected, reverting back to local logger")
 
 class Logger():
-    def __init__(self, experiment_name: str, base_dir='loggers', log_to_server=False, server_path=''): 
+    _instance = None  # Private class variable to hold the instance
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(Logger, cls).__new__(cls)
+            # Put any initialization here that you want to execute only once
+        return cls._instance
+    
+    def __init__(self, experiment_name: str, base_dir='loggers', log_to_server=False, server_path='', main_pid=None, main_tid=None): 
+        if hasattr(self, 'initialized'):  # Prevent re-initialization
+            return
+        self.initialized = True
+        self.current_global_rank = 0
         if not env_exists:
             log_to_server = False
         self.created_at = datetime.datetime.now()
@@ -38,6 +51,8 @@ class Logger():
 
     def log(self, text: str, force_send=False, force_dont_send=False):
         if self.mute: return
+        if self.current_global_rank != 0:
+            return
         
         with open(os.path.join(self.base_dir, self.file_name), 'a') as f:
             f.write(f'{text}\n')
