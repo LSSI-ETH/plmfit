@@ -18,7 +18,7 @@
     "gradient_clipping": 0.5,
     "scheduler": false,
     "scaler": false,
-    "gradient_accumulation": 2,
+    "gradient_accumulation": 1,
     "early_stopping": 3,
     "epoch_sizing": 1.0,
     "model_output": "logits"
