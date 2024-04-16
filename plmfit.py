@@ -38,7 +38,7 @@ parser.add_argument('--data_file_name', type=str, default='data_train')
 parser.add_argument('--head_config', type=str, default='linear_head_config.json')
 parser.add_argument('--ray_tuning', type=bool, default=False)
 
-parser.add_argument('--split', type=str, default='') #TODO implement split logic as well
+parser.add_argument('--split', default=None)
 
 parser.add_argument('--function', type=str, default='extract_embeddings')
 parser.add_argument('--reduction', type=str, default='mean',
@@ -60,7 +60,7 @@ parser.add_argument('--nodes', default=1)
 
 parser.add_argument('--beta', default=False)
 
-NUM_WORKERS = int(os.cpu_count() / 4)
+NUM_WORKERS = 0
 
 def init_plm(model_name, logger):
     model = None
@@ -101,6 +101,7 @@ def extract_embeddings(args, logger):
 def feature_extraction(config, args, logger, on_ray_tuning=False):
     # Load dataset
     data = utils.load_dataset(args.data_type)
+    split = None if args.split is None else data[args.split]
     head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
     
     # Load embeddings and scores
@@ -113,7 +114,7 @@ def feature_extraction(config, args, logger, on_ray_tuning=False):
 
     training_params = head_config['training_parameters']
     data_loaders = utils.create_data_loaders(
-            embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], num_workers=0)
+            embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=NUM_WORKERS)
     
     logger.save_data(vars(args), 'arguments')
     logger.save_data(head_config, 'head_config')
@@ -135,6 +136,7 @@ def feature_extraction(config, args, logger, on_ray_tuning=False):
 def lora(args, logger):
     # Load dataset
     data = utils.load_dataset(args.data_type)
+    split = None if args.split is None else data[args.split]
     
     model = init_plm(args.plm, logger)
     assert model != None, 'Model is not initialized'
@@ -167,7 +169,8 @@ def lora(args, logger):
             batch_size=training_params['batch_size'], 
             validation_size=training_params['val_split'], 
             dtype=torch.int8, 
-            num_workers=0)
+            split=split,
+            num_workers=NUM_WORKERS)
     fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, model_name=args.plm, logger=logger)
     model = fine_tuner.set_trainable_parameters(model)
     model.task = pred_model.task
@@ -176,6 +179,7 @@ def lora(args, logger):
 def lora_lightning(args, logger):
     # Load dataset
     data = utils.load_dataset(args.data_type)
+    split = None if args.split is None else data[args.split]
 
     model = init_plm(args.plm, logger)
     assert model != None, 'Model is not initialized'
@@ -211,6 +215,7 @@ def lora_lightning(args, logger):
             batch_size=training_params['batch_size'], 
             validation_size=training_params['val_split'], 
             dtype=torch.int8, 
+            split=split,
             num_workers=NUM_WORKERS
         )
     
@@ -263,6 +268,7 @@ def lora_lightning(args, logger):
 def full_retrain(args, logger):
     # Load dataset
     data = utils.load_dataset(args.data_type)
+    split = None if args.split is None else data[args.split]
 
     model = init_plm(args.plm, logger)
     assert model != None, 'Model is not initialized'
@@ -292,7 +298,7 @@ def full_retrain(args, logger):
     scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
     training_params = head_config['training_parameters']
     data_loaders = utils.create_data_loaders(
-            encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], dtype=torch.int8)
+            encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], dtype=torch.int8, split=split)
     fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
     model.py_model.task = pred_model.task
     fine_tuner.train(model.py_model, dataloaders_dict=data_loaders)
@@ -365,6 +371,7 @@ def feature_extraction_lightning(config, args, logger, on_ray_tuning=False):
     # Load dataset
     data = utils.load_dataset(args.data_type)
     head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
+    split = None if args.split is None else data[args.split]
     
     # Load embeddings and scores
     ### TODO : Load embeddings if do not exist
@@ -376,7 +383,7 @@ def feature_extraction_lightning(config, args, logger, on_ray_tuning=False):
 
     training_params = head_config['training_parameters']
     data_loaders = utils.create_data_loaders(
-            embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], num_workers=0)
+            embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=NUM_WORKERS)
     
     logger.save_data(vars(args), 'arguments')
     logger.save_data(head_config, 'head_config')
@@ -445,6 +452,8 @@ def feature_extraction_lightning(config, args, logger, on_ray_tuning=False):
 def onehot(config, args, logger, on_ray_tuning=False):
     # Load dataset
     data = utils.load_dataset(args.data_type)
+    split = None if args.split is None else data[args.split]
+
     head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
 
     if args.encs is None:
@@ -461,7 +470,7 @@ def onehot(config, args, logger, on_ray_tuning=False):
 
     training_params = head_config['training_parameters']
     data_loaders = utils.create_data_loaders(
-            encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], num_workers=0)
+            encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=NUM_WORKERS)
     
     if not on_ray_tuning: 
         logger.save_data(vars(args), 'arguments')

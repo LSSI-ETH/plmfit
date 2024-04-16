@@ -34,6 +34,12 @@ if __name__ == "__main__":
     data["normalized_score"] = data_explore.normalized_score(
         data, column="Fitness"
     )  # Normalize score first
+    
+    data["two_vs_many"] = data["HD"].apply(lambda x: 'train' if int(x) <= 2 else 'test')
+    validation_fraction = 0.15
+    num_validation = int(data[data["two_vs_many"] == 'test'].shape[0] * validation_fraction)
+    validation_indices = data[data["two_vs_many"] == 'test'].sample(n=num_validation, random_state=42).index
+    data.loc[validation_indices, "two_vs_many"] = 'validation'
 
     # Create a new DataFrame with specified columns and save it as a CSV file
     new_data = pd.DataFrame(
@@ -42,6 +48,7 @@ if __name__ == "__main__":
             "len": data["sequence_length"],
             "no_mut": data["HD"],
             "score": data["normalized_score"],
+            "two_vs_many": data["two_vs_many"]
         }
     )
 
