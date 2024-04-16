@@ -1,2 +1,2 @@
-function	ft_method	data_type	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir	gpus	gres	mem-per-cpu
-fine_tuning	feature_extraction	gb1	progen2-xlarge	mlp	regression	mlp_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	8	14g	14g
+function	ft_method	data_type	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes
+fine_tuning	feature_extraction	meltome	proteinbert	mlp	regression	mlp_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	gtx_1080_ti	10g	1
