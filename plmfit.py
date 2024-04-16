@@ -301,7 +301,7 @@ def ray_tuning(function_to_run, head_config, args, logger):
     network_type = head_config['architecture_parameters']['network_type']
     trials = 100
     if network_type == 'mlp': 
-        head_config['architecture_parameters']['hidden_dim'] = tune.uniform(64, 4096)
+        head_config['architecture_parameters']['hidden_dim'] = tune.uniform(64, 2048)
         trials = 300
     head_config['training_parameters']['learning_rate'] = tune.uniform(1e-6, 1e-3)
     head_config['training_parameters']['batch_size'] = tune.uniform(4, 256)
@@ -312,43 +312,32 @@ def ray_tuning(function_to_run, head_config, args, logger):
 
     # Initialize BayesOptSearch
     searcher = BayesOptSearch(
-        utility_kwargs={"kind": "ucb", "kappa": 2.5, "xi": 0.0}, random_search_steps=12
+        utility_kwargs={"kind": "ucb", "kappa": 2.5, "xi": 0.0}, random_search_steps=10
     )
-    searcher = ConcurrencyLimiter(searcher, max_concurrent=12)
 
     scheduler = ASHAScheduler(
-        max_t=3,
+        max_t=10,
         grace_period=2,
         reduction_factor=2
     )
 
     reporter = CLIReporter(max_progress_rows=10)
 
-    logger.log("Initializing ray tuning...")
+    if args.function == 'one_hot':
+        data = utils.load_dataset(args.data_type)
+        tokenizer = utils.load_tokenizer('proteinbert') # Use same tokenizer as proteinbert
+        encs = utils.categorical_encode(
+            data['aa_seq'].values, tokenizer, max(data['len'].values), add_eos=True, logger=logger, model_name='proteinbert')
+        encs = F.one_hot(encs, tokenizer.get_vocab_size())
+        encs = encs.reshape(encs.shape[0], -1)
+        args.encs = encs
 
-    max_attempts = 1
-    attempt = 0
-    success = False
-    while attempt < max_attempts and not success:
-        try:
-            ray.init()
-            logger.log("Successfully connected to Ray cluster.")
-            success = True
-        except Exception as e:
-            attempt += 1
-            logger.log(f"Attempt {attempt} failed with error: {e}")
-            if attempt < max_attempts:
-                logger.log("Retrying...")
-                time.sleep(5)  # wait for 5 seconds before retrying
-    if not success:
-        raise 'Error with connecting to ray cluster'
+    logger.log("Initializing ray tuning...")
+    ray.init(include_dashboard=True)
 
     logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
     tuner = tune.Tuner(
-        tune.with_resources(
-            tune.with_parameters(function_to_run, args=args, logger=logger, on_ray_tuning=True),
-            resources={"cpu": 1}
-        ),
+        tune.with_parameters(function_to_run, args=args, logger=logger, on_ray_tuning=True),
         tune_config=tune.TuneConfig(
             metric="loss", 
             mode="min",
@@ -372,9 +361,10 @@ def ray_tuning(function_to_run, head_config, args, logger):
 
     return best_result.config
 
-def feature_extraction_lightning(head_config, args, logger):
+def feature_extraction_lightning(config, args, logger, on_ray_tuning=False):
     # Load dataset
     data = utils.load_dataset(args.data_type)
+    head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
     
     # Load embeddings and scores
     ### TODO : Load embeddings if do not exist
@@ -403,15 +393,20 @@ def feature_extraction_lightning(head_config, args, logger):
     
     utils.set_trainable_parameters(pred_model)
     
-    model = LightningModel(model.py_model, head_config['training_parameters'], plmfit_logger=logger, log_interval=100)
+    model = LightningModel(pred_model, head_config['training_parameters'], plmfit_logger=logger, log_interval=100)
     lightning_logger = TensorBoardLogger(save_dir=logger.base_dir, version=0, name="lightning_logs")
-    
-    ray_callback = TuneReportCallback(
-        {
-            "loss": "val_loss"
-        },
-        on="validation_end"
-    )
+
+    callbacks = [DeviceStatsMonitor(True)]
+    if model.early_stopping is not None: callbacks.append(model.early_stopping)
+    if on_ray_tuning:
+        ray_callback = TuneReportCallback(
+            {
+                "loss": "val_loss"
+            },
+            on="validation_end"
+        )
+        callbacks.append(ray_callback)
+
 
     trainer = L.Trainer(
         default_root_dir=logger.base_dir,
@@ -422,11 +417,9 @@ def feature_extraction_lightning(head_config, args, logger):
         gradient_clip_val=model.gradient_clipping(),
         limit_train_batches=model.epoch_sizing(),
         limit_val_batches=model.epoch_sizing(),
-        num_nodes=args.nodes,
-        devices=args.gpus,
         strategy='deepspeed_stage_3_offload',
         precision=16,
-        callbacks=[DeviceStatsMonitor(True), model.early_stopping(), ray_callback]
+        callbacks=callbacks
     )
 
     trainer.strategy.load_full_weights = True
@@ -453,12 +446,15 @@ def onehot(config, args, logger, on_ray_tuning=False):
     # Load dataset
     data = utils.load_dataset(args.data_type)
     head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
-    tokenizer = utils.load_tokenizer('proteinbert') # Use same tokenizer as proteinbert
-    encs = utils.categorical_encode(
-            data['aa_seq'].values, tokenizer, max(data['len'].values), add_eos=True, logger=logger, model_name='proteinbert')
 
-    encs = F.one_hot(encs, tokenizer.get_vocab_size())
-    encs = encs.reshape(encs.shape[0], -1)
+    if args.encs is None:
+        tokenizer = utils.load_tokenizer('proteinbert') # Use same tokenizer as proteinbert
+        encs = utils.categorical_encode(
+            data['aa_seq'].values, tokenizer, max(data['len'].values), add_eos=True, logger=logger, model_name='proteinbert')
+        encs = F.one_hot(encs, tokenizer.get_vocab_size())
+        encs = encs.reshape(encs.shape[0], -1)
+    else:
+        encs = args.encs
 
     scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
     scores = torch.tensor(scores, dtype=torch.float32)
@@ -467,8 +463,9 @@ def onehot(config, args, logger, on_ray_tuning=False):
     data_loaders = utils.create_data_loaders(
             encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], num_workers=0)
     
-    logger.save_data(vars(args), 'arguments')
-    logger.save_data(head_config, 'head_config')
+    if not on_ray_tuning: 
+        logger.save_data(vars(args), 'arguments')
+        logger.save_data(head_config, 'head_config')
 
     network_type = head_config['architecture_parameters']['network_type']
     if network_type == 'linear':
@@ -483,6 +480,8 @@ def onehot(config, args, logger, on_ray_tuning=False):
     utils.set_trainable_parameters(pred_model)
     fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
     fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning)
+
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -534,7 +533,10 @@ if __name__ == '__main__':
                 fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
                 fine_tuner.train(pred_model, dataloaders_dict=data_loaders)
                 
-                if args.beta: feature_extraction_lightning(head_config, args, logger)
+                if args.beta: 
+                    if args.ray_tuning:
+                        head_config = ray_tuning(feature_extraction_lightning, head_config, args, logger)
+                    feature_extraction_lightning(head_config, args, logger)
                 else:
                     if args.ray_tuning:
                         head_config = ray_tuning(feature_extraction, head_config, args, logger)
@@ -546,6 +548,7 @@ if __name__ == '__main__':
             else:
                 raise ValueError('Fine Tuning method not supported')
         elif args.function == 'one_hot':
+            args.encs = None
             head_config = utils.load_config(args.head_config)
             if args.ray_tuning:
                 head_config = ray_tuning(onehot, head_config, args, logger)
