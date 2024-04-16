@@ -320,6 +320,7 @@ def ray_tuning(function_to_run, head_config, args, logger):
     searcher = BayesOptSearch(
         utility_kwargs={"kind": "ucb", "kappa": 2.5, "xi": 0.0}, random_search_steps=10
     )
+    # searcher = ConcurrencyLimiter(searcher, max_concurrent=4)
 
     scheduler = ASHAScheduler(
         max_t=10,
@@ -473,6 +474,7 @@ def onehot(config, args, logger, on_ray_tuning=False):
             encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=NUM_WORKERS)
     
     if not on_ray_tuning: 
+        args.encs = None
         logger.save_data(vars(args), 'arguments')
         logger.save_data(head_config, 'head_config')
 
