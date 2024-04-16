@@ -20,9 +20,9 @@
     "gradient_clipping": 0.5,
     "scheduler": false,
     "scaler": false,
-    "gradient_accumulation": 1,
+    "gradient_accumulation": 2,
     "early_stopping": 3,
-    "epoch_sizing": 1.0,
+    "epoch_sizing": 0.5,
     "model_output": "logits"
   }
 }
