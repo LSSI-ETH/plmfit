@@ -15,6 +15,7 @@ do
          --output="$experiment_dir/euler_output.out" \
          --error="$experiment_dir/euler_error.err" \
          --mem-per-cpu="$mem_per_cpu" \
+         --nice=1 \
          scripts/one_hot/ray_tuning_mass.sh \
          "$function" "$head_config" "$ray_tuning" "$data_type" "$output_dir" "$experiment_dir" "$experiment_name"
   sleep 2

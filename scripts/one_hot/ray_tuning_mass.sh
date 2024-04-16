@@ -1,16 +1,25 @@
 #!/bin/bash
 #SBATCH --job-name=ray_workload    # create a short name for your job
-#SBATCH --nodes=1          # node count
-#SBATCH --ntasks=1
+#SBATCH --nodes=8          # node count
+#SBATCH --ntasks=8
 #SBATCH --cpus-per-task=8
 #SBATCH --tasks-per-node=1
 #SBATCH --time=8:00:00          # total run time limit (HH:MM:SS)
-#SBATCH --gpus-per-node=8
+#SBATCH --gpus-per-node=1
 
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
 
 export DATA_DIR='/cluster/home/estamkopoulo/plmfit_workspace/plmfit/plmfit'
+export NCCL_DEBUG=WARN
+export NCCL_P2P_DISABLE=1
+export NCCL_IB_DISABLE=1
+export PYTHONFAULTHANDLER=1
+export MASTER_PORT=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4))
+export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+# Export the global rank using SLURM_PROCID
+export RANK=$SLURM_PROCID
+echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
 
 # Getting the node names
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
@@ -31,7 +40,7 @@ fi
 echo "IPV6 address detected. We split the IPV4 address as $head_node_ip"
 fi
 
-port=6379
+port=$(expr 10000 - $(echo -n $SLURM_JOBID | tail -c 3))
 ip_head=$head_node_ip:$port
 export ip_head
 echo "IP Head: $ip_head"
@@ -65,6 +74,6 @@ for ((i = 1; i <= worker_num; i++)); do
     done
 done
 
-python3 -u plmfit.py --function $1 --head_config $2 --ray_tuning $3 \
+srun python3 -u plmfit.py --function $1 --head_config $2 --ray_tuning $3 \
         --data_type $4 \
         --output_dir ${5} --experiment_dir ${6} --experiment_name ${7}
