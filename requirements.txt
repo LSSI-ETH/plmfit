@@ -22,7 +22,7 @@ einops
 botocore
 boto3
 paramiko
-ray[tune]
+ray[default,tune]
 bayesian-optimization
 lightning
 deepspeed
