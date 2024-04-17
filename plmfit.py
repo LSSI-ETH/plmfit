@@ -26,6 +26,7 @@ import threading
 from lightning.pytorch.utilities.deepspeed import convert_zero_checkpoint_to_fp32_state_dict
 from lightning.pytorch.callbacks import DeviceStatsMonitor
 import torch.nn.functional as F
+import pandas as pd
 
 parser = argparse.ArgumentParser(description='plmfit_args')
 # options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
@@ -76,7 +77,7 @@ def init_plm(model_name, logger):
 
     elif 'esm' in model_name:
         assert model_name in supported_ESM, 'ESM version is not supported'
-        model = ESMFamily(model_name)
+        model = BetaESMFamily(model_name, logger)
 
     elif 'ankh' in model_name:
         assert model_name in supported_Ankh, 'Ankh version is not supported'
@@ -86,8 +87,6 @@ def init_plm(model_name, logger):
     elif 'proteinbert' in model_name:
         assert model_name in supported_Proteinbert, 'ProteinBERT version is not supported'
         model = ProteinBERTFamily(logger)
-    elif 'beta' in model_name:
-        model = BetaESMFamily('esm2_t6_8M_UR50D', logger)
     else:
         raise 'PLM not supported'
 
@@ -203,8 +202,15 @@ def lora_lightning(args, logger):
         pred_model = heads.MLP(head_config['architecture_parameters'])
     else:
         raise ValueError('Head type not supported')
-
+    
     model.py_model.set_head(pred_model)
+    if args.reduction == 'mut_mean': 
+        wildtype = {
+            'aa_seq': [utils.get_wild_type(args.data_type)],
+            'len': [len(utils.get_wild_type(args.data_type))]
+        }
+        model.py_model.wildtype = model.categorical_encode(pd.DataFrame(wildtype), max_length=max(data['len'].values))
+        model.py_model.find_mutation_positions = utils.find_mutation_positions # We do it like that to not import plmfit utils into language models code
     model.py_model.reduction = args.reduction
     model.set_layer_to_use(args.layer)
     model.py_model.layer_to_use = model.layer_to_use
@@ -240,9 +246,9 @@ def lora_lightning(args, logger):
         gradient_clip_val=model.gradient_clipping(),
         limit_train_batches=model.epoch_sizing(),
         limit_val_batches=model.epoch_sizing(),
-        num_nodes=args.nodes,
-        devices=args.gpus,
-        strategy='deepspeed_stage_3_offload',
+        # num_nodes=args.nodes,
+        # devices=args.gpus,
+        # strategy='deepspeed_stage_3_offload',
         precision=16,
         callbacks=[DeviceStatsMonitor(True), model.early_stopping()]
     )
