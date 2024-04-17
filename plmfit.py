@@ -246,6 +246,7 @@ def lora_lightning(args, logger):
     )
 
     trainer.strategy.load_full_weights = True
+    trainer.strategy.min_loss_scale = 0.25
 
     trainer.fit(model, data_loaders['train'], data_loaders['val'])
 
