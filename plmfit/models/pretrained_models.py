@@ -172,9 +172,9 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.layer_to_use = -1
         self.config = self.py_model.config
     
-    def categorical_encode(self, data):
+    def categorical_encode(self, data, max_length='default'):
         encs = utils.categorical_encode(
-            data['aa_seq'].values, self.tokenizer, max(data['len'].values), add_bos=True, add_eos=True, logger=self.logger)
+            data['aa_seq'].values, self.tokenizer, max(data['len'].values) if max_length=='default' else max_length, add_bos=True, add_eos=True, logger=self.logger)
         return encs
 
     def extract_embeddings(self, data_type, batch_size = 1, layer=11, reduction='mean', log_interval=1000):
@@ -611,9 +611,9 @@ class BetaESMFamily(IPretrainedProteinLanguageModel):
         pass
     
     
-    def categorical_encode(self, data):
+    def categorical_encode(self, data, max_length='default'):
         encs = utils.categorical_encode(
-            data['aa_seq'].values, self.tokenizer, max(data['len'].values), logger=self.logger, model_name='esm')
+            data['aa_seq'].values, self.tokenizer, max(data['len'].values) if max_length=='default' else max_length, logger=self.logger, model_name='esm')
         return encs
 
 
@@ -632,9 +632,9 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
         self.layer_to_use = -1
         self.config = self.py_model.config
 
-    def categorical_encode(self, data):
+    def categorical_encode(self, data, max_length='default'):
         encs = utils.categorical_encode(
-            data['aa_seq'].values, self.tokenizer, max(data['len'].values), add_bos=True, add_eos=True, logger=self.logger, model_name=self.name)
+            data['aa_seq'].values, self.tokenizer, max(data['len'].values) if max_length=='default' else max_length, add_bos=True, add_eos=True, logger=self.logger, model_name=self.name)
         return encs
 
     def set_layer_to_use(self, layer):

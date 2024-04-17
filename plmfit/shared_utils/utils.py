@@ -454,7 +454,7 @@ def adjust_config_to_int(config, int_keys=[('training_parameters', 'batch_size')
     return adjusted_config
 
 
-def find_mutation_positions(seq, ref):
+def find_mutation_positions(seq, ref, padding_id=None):
     """
     Returns a list of positions where the sequence differs from the reference.
     """
