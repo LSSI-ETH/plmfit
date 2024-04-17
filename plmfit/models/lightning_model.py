@@ -61,7 +61,7 @@ class LightningModel(L.LightningModule):
                 json.dump(loss_data, f, indent=4)
             report = {
                 "training_time": f'{total_time:.1f}',
-                "avg_time_per_epoch": f'{total_time/(self.current_epoch+1):.4f}'
+                "avg_time_per_epoch": f'{total_time/(self.current_epoch):.4f}'
             }
             self.plmfit_logger.save_data(report, 'report')
 
@@ -84,7 +84,8 @@ class LightningModel(L.LightningModule):
         outputs = self(input).squeeze(dim=1)
 
         loss = self.loss_function(outputs, labels)
-        if self.trainer.precision == 16 and loss < 6e-8: loss = 6e-8
+        print(f"Loss value: {loss}", flush=True)
+        if self.trainer.precision == 16 and loss < 6.10e-5: loss = 6.10e-5 # Theoretical min loss value for float-16
         self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
         self.train_metric.update(outputs, labels)

@@ -11,7 +11,7 @@ do
   output_dir="$output_dir"
   experiment_name="${data_type}_${head}_${task}"
   experiment_dir="$output_dir/$function/$experiment_name/$uid"
-  sbatch --job-name="one_hot_${uid}" \
+  sbatch --job-name="one_hot" \
          --output="$experiment_dir/euler_output.out" \
          --error="$experiment_dir/euler_error.err" \
          --mem-per-cpu="$mem_per_cpu" \

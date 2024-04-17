@@ -19,7 +19,7 @@
     "val_split": 0.2,
     "weight_decay": 0.01,
     "warmup_steps": 0,
-    "gradient_clipping": 0.5,
+    "gradient_clipping": 1.0,
     "scheduler": false,
     "scaler": false,
     "gradient_accumulation": 2,

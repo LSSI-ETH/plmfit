@@ -1,10 +1,5 @@
 function	ft_method	data_type	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time
-fine_tuning	lora	meltome	progen2-xlarge	linear	regression	lora_linear_head_config.json	last	eos	/cluster/scratch/estamkopoulo	6	a100-pcie-40gb	50g	1	14
-fine_tuning	lora	meltome	progen2-xlarge	linear	regression	lora_linear_head_config.json	middle	eos	/cluster/scratch/estamkopoulo	6	a100-pcie-40gb	50g	1	12
-fine_tuning	lora	meltome	progen2-xlarge	linear	regression	lora_linear_head_config.json	last	mean	/cluster/scratch/estamkopoulo	6	a100-pcie-40gb	50g	1	14
-fine_tuning	lora	meltome	progen2-xlarge	linear	regression	lora_linear_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	6	a100-pcie-40gb	50g	1	12
-fine_tuning	lora	meltome	progen2-xlarge	mlp	regression	lora_mlp_head_config.json	middle	eos	/cluster/scratch/estamkopoulo	6	a100-pcie-40gb	50g	1	12
-fine_tuning	lora	meltome	progen2-xlarge	mlp	regression	lora_mlp_head_config.json	first	eos	/cluster/scratch/estamkopoulo	6	a100-pcie-40gb	50g	1	10
-fine_tuning	lora	meltome	progen2-xlarge	mlp	regression	lora_mlp_head_config.json	last	mean	/cluster/scratch/estamkopoulo	6	a100-pcie-40gb	50g	1	14
-fine_tuning	lora	meltome	progen2-xlarge	mlp	regression	lora_mlp_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	6	a100-pcie-40gb	50g	1	12
-fine_tuning	lora	meltome	progen2-xlarge	mlp	regression	lora_mlp_head_config.json	first	mean	/cluster/scratch/estamkopoulo	6	a100-pcie-40gb	50g	1	10
+fine_tuning	lora	aav	progen2-medium	linear	classification	lora_linear_classification_head_config.json	middle	eos	/cluster/scratch/estamkopoulo	6	quadro_rtx_6000	14g	1	8
+fine_tuning	lora	aav	progen2-medium	mlp	classification	lora_mlp_classification_head_config.json	last	eos	/cluster/scratch/estamkopoulo	6	rtx_4090	14g	1	8
+fine_tuning	lora	aav	progen2-medium	mlp	classification	lora_mlp_classification_head_config.json	first	eos	/cluster/scratch/estamkopoulo	6	rtx_4090	14g	1	8
+fine_tuning	lora	aav	progen2-medium	mlp	classification	lora_mlp_classification_head_config.json	last	mean	/cluster/scratch/estamkopoulo	6	titan_rtx	14g	1	8

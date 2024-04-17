@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=ray_workload    # create a short name for your job
-#SBATCH --nodes=8          # node count
-#SBATCH --ntasks=8
-#SBATCH --cpus-per-task=8
+#SBATCH --nodes=1          # node count
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
 #SBATCH --tasks-per-node=1
-#SBATCH --time=8:00:00          # total run time limit (HH:MM:SS)
-#SBATCH --gpus-per-node=1
+#SBATCH --gpus-per-node=4
+#SBATCH --time=24:00:00          # total run time limit (HH:MM:SS)
 
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
@@ -40,13 +40,13 @@ fi
 echo "IPV6 address detected. We split the IPV4 address as $head_node_ip"
 fi
 
-port=$(expr 10000 - $(echo -n $SLURM_JOBID | tail -c 3))
+port=$(expr 6379 + $(echo -n $SLURM_JOBID | tail -c 1))
 ip_head=$head_node_ip:$port
 export ip_head
 echo "IP Head: $ip_head"
 
 echo "Starting HEAD at $head_node"
-ray start --head --node-ip-address="$head_node_ip" --port=$port \
+ray start --head --node-ip-address="$head_node_ip" --port=$port --dashboard-host "0.0.0.0" \
     --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_NODE}" --block &
 
 # optional, though may be useful in certain versions of Ray < 1.0.
@@ -74,6 +74,6 @@ for ((i = 1; i <= worker_num; i++)); do
     done
 done
 
-srun python3 -u plmfit.py --function $1 --head_config $2 --ray_tuning $3 \
+python3 -u plmfit.py --function $1 --head_config $2 --ray_tuning $3 \
         --data_type $4 \
         --output_dir ${5} --experiment_dir ${6} --experiment_name ${7}
