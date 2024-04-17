@@ -808,6 +808,9 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
             hidden_states = hidden_states[torch.arange(batch_size, device=hidden_states.device), sequence_lengths]
         elif self.reduction == 'mean':
             hidden_states = torch.mean(hidden_states, dim=1)
+        elif self.reduction == 'mut_mean':
+            positions = self.find_mutation_positions(input_ids, self.wildtype)
+            print(positions)
 
         pooled_logits = self.classifier(hidden_states)
 
