@@ -1,6 +1,7 @@
 import os
 from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForSequenceClassification
 from plmfit.language_models.proteinbert.modeling_bert import ProteinBertForSequenceClassification
+from plmfit.language_models.esm.modeling_esm import PlmfitEsmForSequenceClassification
 
 
 import plmfit.shared_utils.utils as utils
@@ -12,7 +13,7 @@ from torch.utils.data import DataLoader
 import time
 from abc import abstractmethod
 from tokenizers import Tokenizer
-from transformers import AutoTokenizer, AutoModel, EsmForMaskedLM
+from transformers import AutoTokenizer, AutoModel, EsmForMaskedLM, EsmForSequenceClassification
 from antiberty import AntiBERTyRunner
 from numpy import array
 import psutil
@@ -496,6 +497,125 @@ class ESMFamily(IPretrainedProteinLanguageModel):
             tok_seq = torch.tensor(tokenizer.encode(seq))
             seq_tokens[itr][:tok_seq.shape[0]] = tok_seq
         return seq_tokens
+
+class BetaESMFamily(IPretrainedProteinLanguageModel):
+    tokenizer : AutoTokenizer
+    
+    def __init__(self , esm_version : str, logger : l.Logger):
+        super().__init__(logger)
+        self.version = esm_version 
+        self.py_model = PlmfitEsmForSequenceClassification.from_pretrained(f'facebook/{esm_version}' , output_hidden_states = True)
+        print(self.py_model)
+        self.no_parameters = utils.get_parameters(self.py_model)
+        self.no_layers = len(self.py_model.esm.encoder.layer)
+        self.output_dim = self.py_model.classifier.out_features
+        self.emb_layers_dim =  self.py_model.esm.encoder.layer[0].attention.self.query.in_features
+        self.tokenizer = AutoTokenizer.from_pretrained(f'facebook/{esm_version}') 
+   
+    
+    def extract_embeddings(self , data_type , batch_size = 4 , layer = 48, reduction = 'mean',mut_pos = None):
+        logger = l.Logger(f'logger_extract_embeddings_{data_type}_{self.version}_layer{layer}_{reduction}')
+        device = 'cpu'
+        fp16 = False
+        device_ids = []
+        if torch.cuda.is_available():
+            device = "cuda:0"
+            fp16 = True
+            logger.log(f'Available GPUs : {torch.cuda.device_count()}')
+            for i in range(torch.cuda.device_count()):
+                logger.log(f' Running on {torch.cuda.get_device_properties(i).name}')
+                device_ids.append(i)
+
+        else:
+            logger.log(f' No gpu found rolling device back to {device}')
+        data = utils.load_dataset(data_type)
+        start_enc_time = time.time()
+        logger.log(f' Encoding {data.shape[0]} sequences....')
+        encs = self.categorical_encode(data['aa_seq'].values, self.tokenizer,max(data['len'].values)) 
+        logger.log(f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
+        encs = encs.to(device)
+        
+        seq_dataset = data_utils.TensorDataset(encs)
+        seq_loader =  data_utils.DataLoader(seq_dataset, batch_size= batch_size, shuffle=False)
+        logger.log(f'Extracting embeddings for {len(seq_dataset)} sequences...')
+        
+        if type(layer) == int:
+            layer = [layer]
+        
+        if type(reduction) == str:
+            reduction = [reduction]
+        
+        embs = torch.zeros(len(layer),len(reduction),len(seq_dataset), self.emb_layers_dim).to(device) ### FIX: Find embeddings dimension either hard coded for model or real the pytorch model of ProGen. Maybe add reduction dimension as well
+        
+        self.py_model = self.py_model.to(device)
+        self.py_model.eval()
+        
+        i = 0
+        with torch.no_grad():
+            with torch.cuda.amp.autocast(enabled= fp16):
+                for batch in seq_loader:
+                    start = time.time()
+                    out = self.py_model(batch[0]).hidden_states
+                    for j in range(len(layer)):
+                        lay = layer[j]
+                        for k in range(len(reduction)):
+                            if reduction[k] == 'mean':
+                                embs[j,k,i : i+ batch_size, : ] = torch.mean(out[lay] , dim = 1)
+                            elif reduction[k] == 'sum':
+                                embs[j,k,i : i+ batch_size, : ] = torch.sum(out[lay] , dim = 1)
+                            elif reduction[k] == 'eos':
+                                embs[j,k,i : i+ batch_size, : ] = out[lay][:,-1]
+                            elif reduction[k] == 'bos':
+                                embs[j,k,i : i+ batch_size, : ] = out[lay][:,0]
+                            elif reduction[k].startswith('pos'):
+                                embs[j,k,i : i+ batch_size, : ] = out[lay][:,int(reduction[k][3:])]
+                            elif reduction[k] == 'mut_mean':
+                                n_pos = len(mut_pos)
+                                f_pos = mut_pos[0]
+                                for pos in mut_pos[1:]:
+                                    out[lay][:,f_pos] = torch.add(out[lay][:,f_pos],out[lay][:,pos])
+                                embs[j,k,i : i+ batch_size, : ] = torch.div(out[lay][:,f_pos],n_pos)
+                            else:
+                                raise 'Unsupported reduction option'
+                    del out
+                    i = i + batch_size
+                    logger.log(f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ') # | memory usage : {100 - memory_usage.percent:.2f}%
+
+           
+        os.makedirs(f'./plmfit/data/{data_type}/embeddings', exist_ok = True)
+        for j in range(len(layer)):
+            lay = layer[j]
+            for k in range(len(reduction)):
+                tmp = embs[j,k].detach().clone()
+                torch.save(tmp,f'./plmfit/data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt')
+                logger.log(f'Saved embeddings ({tmp.shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt" ({time.time() - start_enc_time:.2f}s)')
+                del tmp
+        return
+
+    def set_layer_to_use(self, layer):
+        if layer == 'last':
+            # The last hidden layer
+            self.layer_to_use = -1
+        elif layer == 'middle':
+            # Adjusted to consider the first transformer block as the "first" layer
+            self.layer_to_use = 1 + (self.no_layers - 1) // 2
+        elif layer == 'first':
+            # The first transformer block after the input embeddings
+            self.layer_to_use = 1  # Adjusted to 1 to skip the input embeddings
+        else:
+            # Fallback for numeric layer specification or unexpected strings
+            self.layer_to_use = int(layer) if layer.isdigit() else self.no_layers - 1
+
+    
+    def evaluate(self, data_type ):
+        pass
+    
+    
+    def categorical_encode(self, data):
+        encs = utils.categorical_encode(
+            data['aa_seq'].values, self.tokenizer, max(data['len'].values), logger=self.logger, model_name='esm')
+        return encs
+
 
 class ProteinBERTFamily(IPretrainedProteinLanguageModel):
     tokenizer: Tokenizer

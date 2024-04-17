@@ -86,6 +86,8 @@ def init_plm(model_name, logger):
     elif 'proteinbert' in model_name:
         assert model_name in supported_Proteinbert, 'ProteinBERT version is not supported'
         model = ProteinBERTFamily(logger)
+    elif 'beta' in model_name:
+        model = BetaESMFamily('esm2_t6_8M_UR50D', logger)
     else:
         raise 'PLM not supported'
 

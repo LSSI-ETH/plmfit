@@ -287,6 +287,8 @@ class LowRankAdaptationFineTuner(FineTuner):
             lora_config = f'lora_config_progen.json'
         elif 'proteinbert' in model_name:
             lora_config = f'lora_config_proteinbert.json'
+        elif 'esm' in model_name or 'beta' in model_name:
+            lora_config = f'lora_config_esm.json'
         peft_config = utils.load_config(lora_config)
         self.logger.save_data(peft_config, 'lora_config')
         self.peft_config = LoraConfig(
