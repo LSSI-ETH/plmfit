@@ -504,24 +504,18 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                             elif reduction[k].startswith('pos'):
                                 embs[j,k,i : i+ batch_size, : ] = out[lay][:,int(reduction[k][3:])]
                             elif reduction[k] == 'mutmean':
-                                ### wt_enc = ... Categorically encode wt hint:there is a function in utils
                                 wt_seq = utils.get_wild_type(data_type)
                                 wt_enc = self.categorical_encode([wt_seq], self.tokenizer, len(wt_seq))
                                 wt_enc = wt_enc.to(device)
-                                #### For each sequence in batch[0] find the indices that they differ from wt_enc
                                 differing_indices = []
                                 for seq in batch[0]:
                                     differing_indices.append(torch.nonzero(torch.eq(seq, wt_enc.squeeze(0)).logical_not(), as_tuple=False).squeeze(1))
-                                ### For each embedding from the out get only the vectors in the indices positions you found before
                                 pooled_batch = []
                                 
                                 for seq, indices in enumerate(differing_indices):
                                     pooled_emb = torch.mean(out[lay][seq, list(indices)], dim=0)
-                                    pooled_batch.append(pooled_emb) #TODO: Check what happens when there ARE NO MUTATIONS!!!
+                                    pooled_batch.append(pooled_emb) #TODO: Check what happens when there are no mutations
                                 embs[j,k,i : i+ batch_size, : ] = torch.stack(pooled_batch, dim=0)
-                                #### average the vectors in indices position so each sequence in out is represented by 1-d vec (the average of the mutation positon)
-                                #### pooled_batch = ......    calculating the batch_size X emb_dim var
-                                #embs[j, k,i : i+ batch_size, : ] = ... Batch_size X emb_dim (after pooling)
                                     
                             else:
                                 raise 'Unsupported reduction option'
