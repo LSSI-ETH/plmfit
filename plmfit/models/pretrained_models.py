@@ -513,20 +513,11 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                                 for seq in batch[0]:
                                     differing_indices.append(torch.nonzero(torch.eq(seq, wt_enc.squeeze(0)).logical_not(), as_tuple=False).squeeze(1))
                                 ### For each embedding from the out get only the vectors in the indices positions you found before
-                                # self.logger.log(f"This is differing_indices: {differing_indices}")
                                 pooled_batch = []
-                                #self.logger.log(f"The out layer as a whole has shape {out[lay].size()}")
                                 
                                 for seq, indices in enumerate(differing_indices):
-                                    #self.logger.log(f"Indices = {indices}")
-                                    #self.logger.log(f"The out indices layer has shape {out[lay][seq, indices].size()} and looks like this: {out[lay][seq, indices]}")
                                     pooled_emb = torch.mean(out[lay][seq, list(indices)], dim=0)
-                                    #self.logger.log(f"The pooled embedding has a shape of {pooled_emb.size()}")
-                                    #self.logger.log(f"The pooled embedding is {pooled_emb}")
                                     pooled_batch.append(pooled_emb) #TODO: Check what happens when there ARE NO MUTATIONS!!!
-                                #self.logger.log(f"pooled_batch has a shape of {len(pooled_batch)} and a type of {type(pooled_batch)}")
-                                #self.logger.log(f"The first tensor in pooled_batch has shape {pooled_batch[0].size()}{pooled_batch[1].size()}{pooled_batch[2].size()}{pooled_batch[3].size()}")
-                                #self.logger.log(f"The size of the final pooled_batch: {torch.stack(pooled_batch, dim=0).size()}")
                                 embs[j,k,i : i+ batch_size, : ] = torch.stack(pooled_batch, dim=0)
                                 #### average the vectors in indices position so each sequence in out is represented by 1-d vec (the average of the mutation positon)
                                 #### pooled_batch = ......    calculating the batch_size X emb_dim var
