@@ -92,7 +92,7 @@ class Antiberty(IPretrainedProteinLanguageModel):
         self.model = AntiBERTyRunner()
 
     def extract_embeddings(self, data_type, layer, reduction, output_dir = 'default'):
-        logger = self.logger
+        #logger = self.logger
         device = 'cpu'
         fp16 = False
         device_ids = []
@@ -119,12 +119,14 @@ class Antiberty(IPretrainedProteinLanguageModel):
         start_emb_time = time.time()
         data = utils.load_dataset(data_type)
             
-        self.logger = l.Logger(
-            f'extract_embeddings_{data_type}_{self.name}_{reduction}')
+        #self.logger = l.Logger(f'extract_embeddings_{data_type}_{self.name}_{reduction}')
+
+        self.logger.log(f'The logger is working')
         
         embs = torch.zeros((len(data), 1024)).to(device)
 
         for vh, vl in zip(data['V_h'], data['V_l']):
+            self.logger.log(f'Extracting antiberty embedding')
             start = time.time()
             out = self.model.embed([vh, vl])
             if reduction == 'mean':
@@ -145,7 +147,7 @@ class Antiberty(IPretrainedProteinLanguageModel):
                 raise ValueError('Unsupported reduction option')
             del out
             i = i + batch_size
-            logger.log(
+            self.logger.log(
                 f' {i} / {len(data)} | {time.time() - start:.2f}s ')
         
         torch.save(
@@ -490,7 +492,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                     out = self.py_model(batch[0]).hidden_states
                     for j in range(len(layer)):
                         lay = layer[j]
-                        for k in range(len(reduction)):
+                        for k in range(len(reduction)):                            
                             if reduction[k] == 'mean':
                                 embs[j,k,i : i+ batch_size, : ] = torch.mean(out[lay] , dim = 1)
                             elif reduction[k] == 'sum':
@@ -501,13 +503,35 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                                 embs[j,k,i : i+ batch_size, : ] = out[lay][:,0]
                             elif reduction[k].startswith('pos'):
                                 embs[j,k,i : i+ batch_size, : ] = out[lay][:,int(reduction[k][3:])]
-                            elif reduction[k] == 'mut_mean':
-                                n_pos = len(mut_pos)
-                                f_pos = mut_pos[0]
-                                for pos in mut_pos[1:]:
-                                    out[lay][:,f_pos] = torch.add(out[lay][:,f_pos],out[lay][:,pos])
-                                embs[j,k,i : i+ batch_size, : ] = torch.div(out[lay][:,f_pos],n_pos)
-                            # TODO: add mutation mean functionality for ESM Family (it's already added?)
+                            elif reduction[k] == 'mutmean':
+                                ### wt_enc = ... Categorically encode wt hint:there is a function in utils
+                                wt_seq = utils.get_wild_type(data_type)
+                                wt_enc = self.categorical_encode([wt_seq], self.tokenizer, len(wt_seq))
+                                wt_enc = wt_enc.to(device)
+                                #### For each sequence in batch[0] find the indices that they differ from wt_enc
+                                differing_indices = []
+                                for seq in batch[0]:
+                                    differing_indices.append(torch.nonzero(torch.eq(seq, wt_enc.squeeze(0)).logical_not(), as_tuple=False).squeeze(1))
+                                ### For each embedding from the out get only the vectors in the indices positions you found before
+                                # self.logger.log(f"This is differing_indices: {differing_indices}")
+                                pooled_batch = []
+                                #self.logger.log(f"The out layer as a whole has shape {out[lay].size()}")
+                                
+                                for seq, indices in enumerate(differing_indices):
+                                    #self.logger.log(f"Indices = {indices}")
+                                    #self.logger.log(f"The out indices layer has shape {out[lay][seq, indices].size()} and looks like this: {out[lay][seq, indices]}")
+                                    pooled_emb = torch.mean(out[lay][seq, list(indices)], dim=0)
+                                    #self.logger.log(f"The pooled embedding has a shape of {pooled_emb.size()}")
+                                    #self.logger.log(f"The pooled embedding is {pooled_emb}")
+                                    pooled_batch.append(pooled_emb) #TODO: Check what happens when there ARE NO MUTATIONS!!!
+                                #self.logger.log(f"pooled_batch has a shape of {len(pooled_batch)} and a type of {type(pooled_batch)}")
+                                #self.logger.log(f"The first tensor in pooled_batch has shape {pooled_batch[0].size()}{pooled_batch[1].size()}{pooled_batch[2].size()}{pooled_batch[3].size()}")
+                                #self.logger.log(f"The size of the final pooled_batch: {torch.stack(pooled_batch, dim=0).size()}")
+                                embs[j,k,i : i+ batch_size, : ] = torch.stack(pooled_batch, dim=0)
+                                #### average the vectors in indices position so each sequence in out is represented by 1-d vec (the average of the mutation positon)
+                                #### pooled_batch = ......    calculating the batch_size X emb_dim var
+                                #embs[j, k,i : i+ batch_size, : ] = ... Batch_size X emb_dim (after pooling)
+                                    
                             else:
                                 raise 'Unsupported reduction option'
                     del out
