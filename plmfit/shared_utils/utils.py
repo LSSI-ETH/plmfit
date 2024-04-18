@@ -337,3 +337,29 @@ def get_loss_weights(labels):
     neg = torch.sum(labels == 0)
     obs = pos + neg
     return (neg/obs, pos/obs)
+
+def create_kfold_dataloaders(embeddings,labels,indices,batch_size):
+    train_ind,test_ind = indices
+
+    X_train,X_valid,y_train,y_valid = train_test_split(embeddings[train_ind],labels[train_ind])
+    X_test = embeddings[test_ind]
+    
+    y_test = torch.tensor(labels[test_ind], dtype = float)
+    y_train = torch.tensor(y_train, dtype = float)
+    y_valid = torch.tensor(y_valid, dtype = float)
+
+    X_train = X_train.float()
+    X_valid = X_valid.float()
+    X_test = X_test.float()
+    
+    train_dataset = TensorDataset(X_train, y_train)
+    val_dataset = TensorDataset(X_valid, y_valid)
+    test_dataset = TensorDataset(X_test, y_test)
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(
+        test_dataset, batch_size=batch_size, shuffle=False)
+
+    return {'train': train_loader, 'val': val_loader, 'test': test_loader}

@@ -97,8 +97,10 @@ class FineTuner(ABC):
 
 
 class FullRetrainFineTuner(FineTuner):
-    def __init__(self, training_config, logger = None):
+    def __init__(self, training_config, logger = None, fold = ""):
         super().__init__(training_config, logger)
+        self.fold = fold
+        logger.experiment_name = logger.experiment_name +  self.fold
 
     def set_trainable_parameters(self, model):
         utils.set_trainable_parameters(model.py_model)
@@ -143,6 +145,8 @@ class FullRetrainFineTuner(FineTuner):
             #epoch_recalls = {"train":[], "val":[]}
         start_time = time.time()
         
+        if self.fold != None:
+            self.logger.log(f'Starting training for Fold:{self.fold}')
         for epoch in range(self.epochs):
 
             epoch_start_time = time.time()
@@ -172,6 +176,8 @@ class FullRetrainFineTuner(FineTuner):
                     input = input.to(device)
                     labels = labels.to(device)
                     
+                    self.logger.log(f'Labels have data type {labels.dtype}')
+                    self.logger.log(f'Inputs have data type {inputs.dtype}')
                     mask = ~torch.isnan(labels)
                     outputs = model(input).squeeze()
                     loss = loss_function(outputs[mask], labels[mask])

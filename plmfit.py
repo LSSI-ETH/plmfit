@@ -7,6 +7,7 @@ import plmfit.shared_utils.utils as utils
 import plmfit.models.downstream_heads as heads
 import traceback
 from torchinfo import summary
+from sklearn.model_selection import KFold
 
 
 parser = argparse.ArgumentParser(description='plmfit_args')
@@ -99,6 +100,19 @@ if __name__ == '__main__':
                 assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
                 
                 head_config = utils.load_config(args.head_config)
+                logger.save_data(vars(args), 'arguments')
+                logger.save_data(head_config, 'head_config')
+
+                network_type = head_config['architecture_parameters']['network_type']
+                if network_type == 'linear':
+                    head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
+                    pred_model = heads.LinearHead(head_config['architecture_parameters'])
+                elif network_type == 'mlp':
+                    head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
+                    pred_model = heads.MLP(head_config['architecture_parameters'])
+                else:
+                    raise ValueError('Head type not supported')
+                utils.set_trainable_parameters(pred_model)
 
                 split = None
                 training_params = head_config['training_parameters']
@@ -122,24 +136,21 @@ if __name__ == '__main__':
                     scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
                     scores = torch.tensor(scores, dtype=torch.float32)
 
-                data_loaders = utils.create_data_loaders(
-                        embeddings, scores, split = split, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
+                if "k_fold" in training_params and training_params["k_fold"] > 0:
+                    kf = KFold(n_splits=5)
+                    folds = kf.split(embeddings,scores)
 
-                logger.save_data(vars(args), 'arguments')
-                logger.save_data(head_config, 'head_config')
+                    for (i,fold) in enumerate(folds):
+                        data_loaders = utils.create_kfold_dataloaders(embeddings,scores,fold,training_params['batch_size'])
+                        fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger, fold = str(i))
+                        fine_tuner.train(pred_model, dataloaders_dict=data_loaders)
 
-                network_type = head_config['architecture_parameters']['network_type']
-                if network_type == 'linear':
-                    head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
-                    pred_model = heads.LinearHead(head_config['architecture_parameters'])
-                elif network_type == 'mlp':
-                    head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
-                    pred_model = heads.MLP(head_config['architecture_parameters'])
                 else:
-                    raise ValueError('Head type not supported')
-                utils.set_trainable_parameters(pred_model)
-                fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
-                fine_tuner.train(pred_model, dataloaders_dict=data_loaders)
+                    data_loaders = utils.create_data_loaders(
+                            embeddings, scores, split = split, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
+
+                    fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
+                    fine_tuner.train(pred_model, dataloaders_dict=data_loaders)
                 
             elif args.ft_method == 'lora':
 

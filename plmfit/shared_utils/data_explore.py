@@ -527,10 +527,11 @@ def get_threshold_MCC(y_pred, y_test, c_type):
     
     return (best_tre,fig)
 
-def plot_exact_accuracy(y_pred,y_test,best_tre):
-
+def plot_exact_accuracy(y_pred,y_test,best_tre,ignore_index = 0.5):
+    valid_index = (~y_test == ignore_index)
+    y_test = y_test[valid_index]
     # Calculates the number of correct predictions per sequence
-    y_pred_tre = torch.clone(y_pred)
+    y_pred_tre = torch.clone(y_pred[valid_index])
     y_pred_tre[y_pred >= best_tre] = 1
     y_pred_tre[y_pred < best_tre] = 0
 
@@ -586,18 +587,25 @@ def plot_mixedlabel_heatmap(y_pred,best_tre,case_mask,title):
         plt.title(title)
         return fig
 
-def mixed_labels_heatmaps(y_pred,y_test,best_tre):
+def mixed_labels_heatmaps(y_pred,y_test,best_tre,ignore_index = 0.5):
     h_maps = {}
+    valid_index = ~torch.any(y_test == ignore_index,axis = 1)
+    y_test = y_test[valid_index]
+    y_pred = y_pred[valid_index]
+    #mixed_cases = [[1,0,0],[0,1,0],[0,0,1],[1,1,0],[1,0,1],[0,1,1]]
     mixed_labels, inverse_ind = np.unique(y_test, axis = 0,return_inverse = True)
+    
     for i in range(np.max(len(mixed_labels))):
         case = mixed_labels[i]
         if (case.tolist() == [0,0,0]) or (case.tolist() == [1,1,1]):
             continue
         case_ind = np.where(inverse_ind == i)
         h_maps[str(case)] = plot_mixedlabel_heatmap(y_pred,best_tre,case_ind,str(case))
+        
+            
     return h_maps
 
-def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
+def evaluate_predictions(y_pred,y_test,c_type,n_class = 1, ignore = 0.5):
     # Initialize dictionaries to save results, and initialize the metrics
     results = {}
     pooled_results = {}
@@ -615,35 +623,35 @@ def evaluate_predictions(y_pred,y_test,c_type,n_class = 1):
 
     # Calculate scores for all metrics
     for (name,metric) in metrics.items():
-        result = metric(y_pred,y_test,c_type, threshold = best_tre, average = "none", num_labels = n_class)
+        result = metric(y_pred,y_test,c_type, threshold = best_tre, average = "none", num_labels = n_class,ignore_index =ignore)
         results[name] = result.tolist()
         pooled_results[name] = torch.mean(result).item()
 
     # Calculate binary MCC for all classes
     mcc_list = []
     for i in range(n_class):
-        mcc = functional.matthews_corrcoef(y_pred[:,i],y_test[:,i],"binary",threshold = best_tre)
+        mcc = functional.matthews_corrcoef(y_pred[:,i],y_test[:,i],"binary",threshold = best_tre,ignore_index = ignore )
         mcc_list.append(mcc)
     results["MCC"] = np.array(mcc_list).tolist()
 
     # Calculate scores for "pooled metrics"
     for (name,metric) in pooled_metrics.items():
-        result = metric(y_pred,y_test,c_type, threshold = best_tre, num_labels = n_class)
+        result = metric(y_pred,y_test,c_type, threshold = best_tre, num_labels = n_class,ignore_index = ignore)
         pooled_results[name] = result.item()
 
     # Plot confusion matrix
-    cm = functional.confusion_matrix(y_pred,y_test,c_type, threshold = best_tre, num_labels = n_class)
+    cm = functional.confusion_matrix(y_pred,y_test,c_type, threshold = best_tre, num_labels = n_class,ignore_index = ignore)
     cm_fig = plot_confusion_matrices(cm,["Non-bind","Bind"],titles = ["Mouse","Cattle","Bat"])
     figures["con_mat"] = cm_fig
 
     # Plot ROC curve
-    fpr, tpr, thresholds = functional.roc(y_pred,y_test,c_type, num_labels = n_class)
+    fpr, tpr, thresholds = functional.roc(y_pred,y_test,c_type, num_labels = n_class,ignore_index = ignore)
     auc = functional.auroc(y_pred,y_test,c_type, num_labels = n_class,average = 'none')
     roc_fig= plot_multilabel_ROC(fpr, tpr, auc)
     figures["ROC"] = roc_fig
 
     # Plot Precision Recall curve
-    precision, recall, thresholds = functional.precision_recall_curve(y_pred,y_test,c_type, num_labels = n_class)
+    precision, recall, thresholds = functional.precision_recall_curve(y_pred,y_test,c_type, num_labels = n_class,ignore_index = ignore)
     prec_rec_fig= plot_multilabel_prec_recall(precision, recall)
     figures["prec_recall_curve"] = prec_rec_fig
 

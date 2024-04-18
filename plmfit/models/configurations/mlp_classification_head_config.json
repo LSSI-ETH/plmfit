@@ -12,9 +12,9 @@
   "training_parameters":
   {
     "learning_rate": 0.00001,
-    "epochs": 1000,
+    "epochs": 20,
     "batch_size": 64,
-    "loss_f": "weighted_bce",
+    "loss_f": "bce",
     "optimizer": "adam",
     "val_split": 0.2,
     "weight_decay": 0.00,
@@ -25,6 +25,7 @@
     "gradient_accumulation": false,
     "early_stopping": 20,
     "missing_values": 0.5,
-    "ignore_single": true
+    "ignore_single": true,
+    "k_fold": 5
   }
 }
