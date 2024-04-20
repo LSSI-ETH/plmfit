@@ -10,6 +10,11 @@ class LinearHead(nn.Module):
         self.linear = nn.Linear(config['input_dim'], config['output_dim'])
         self.task = config['task']
         if self.task == 'classification':
+            # Initialize weights with a normal distribution around zero
+            init.normal_(self.linear.weight, mean=0.0, std=0.01)
+            # Initialize biases to zero
+            init.zeros_(self.linear.bias)
+
             self.activation = get_activation_function(config['output_activation'])
     
     def forward(self, x):
@@ -81,12 +86,20 @@ class MLP(nn.Module):
         return x
         
     def init_weights(self):
-        """Initialize weights using Xavier initialization."""
-        for layer in self.layers:
+        """Initialize weights using Xavier initialization for internal layers 
+        and near-zero initialization for the output layer."""
+        for i, layer in enumerate(self.layers):
             if isinstance(layer, nn.Linear):
-                nn.init.xavier_uniform_(layer.weight)
-                if layer.bias is not None:
-                    nn.init.constant_(layer.bias, 0)
+                if i == len(self.layers) - 2:  # Check if it's the output layer
+                    # Initialize output layer weights near zero for classification
+                    init.normal_(layer.weight, mean=0.0, std=0.01)
+                    init.constant_(layer.bias, 0)
+                else:
+                    # Xavier initialization for internal layers
+                    init.xavier_uniform_(layer.weight)
+                    if layer.bias is not None:
+                        init.constant_(layer.bias, 0)
+
     
 class AdapterLayer(nn.Module):
     def __init__(self, in_features, bottleneck_dim ,dropout= 0.25 , eps = 1e-5):
