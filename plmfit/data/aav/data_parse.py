@@ -15,6 +15,23 @@ data = pd.read_csv(
 )  # solves DtypeWarning: Columns have mixed types. Specify dtype option on import or set low_memory=False in Pandas
 
 
+# Function to update mutation counts based on the wild type sequence, mutation region, and mask
+def get_mutation_positions(wildtype_seq, region, mask):
+    start_pos = wildtype_seq.find(
+        region
+    )  # Find the starting position of the mutated region
+    end_pos = len(mask)  # Ending position of the mutated region
+    positions = []
+    deletions = 0 # Track deletions because we need to subtract one positions for each deletion
+    for i in range(end_pos):
+        mask_char = mask[i]
+        if mask_char != '_':
+            if mask_char == '*':
+                deletions = deletions + 1
+            else:
+                positions.append(i + start_pos - deletions)
+    return positions
+
 if __name__ == "__main__":
 
     # Calculate and add a new column for the length of each amino acid sequence
@@ -28,6 +45,7 @@ if __name__ == "__main__":
     # Normalize the scores and plot the distribution
     data["normalized_score"] = data_explore.normalized_score(data)
 
+
     # Creating a new DataFrame with the specified columns
     new_data = pd.DataFrame(
         {
@@ -35,9 +53,11 @@ if __name__ == "__main__":
             "len": data["sequence_length"],
             "no_mut": data["number_of_mutations"],
             "score": data["normalized_score"],
-            "binary_score": data["binary_score"]
+            "binary_score": data["binary_score"],
+            "mut_mask":  data.apply(lambda row: get_mutation_positions(sequence, row["reference_region"], row["mutation_mask"]),axis=1)
         }
     )
+    
     new_data = new_data[~new_data["aa_seq"].str.contains("\*")]
     new_data.drop_duplicates(subset="aa_seq", keep="first", inplace=True)
 
