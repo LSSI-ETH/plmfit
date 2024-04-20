@@ -12,7 +12,7 @@ do
   output_dir="$output_dir"
   experiment_name="${data_type}_${plm}_embs_${layer}_${reduction}"
   experiment_dir="$output_dir/$function/$experiment_name"
-  sbatch --job-name="extract_embs_${uid}" \
+  sbatch --job-name="extract_embs_${plm}" \
          --output="$experiment_dir/euler_output.out" \
          --error="$experiment_dir/euler_error.err" \
          --mem-per-cpu="$mem_per_cpu" \

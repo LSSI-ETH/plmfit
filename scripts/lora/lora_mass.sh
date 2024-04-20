@@ -29,6 +29,6 @@ CPU_FREE_PID=$!
 
 srun python3 plmfit.py --function $1 --ft_method $2 --head_config $3 \
         --data_type $4 --plm $5 --layer $6 --reduction $7 \
-        --output_dir ${8} --experiment_dir ${9} --experiment_name ${10} --gpus ${11} --nodes ${12} --beta True
+        --output_dir ${8} --experiment_dir ${9} --experiment_name ${10} --gpus ${11} --nodes ${12} --beta True --experimenting ${13}
 kill $NVIDIA_SMI_PID
 kill $CPU_FREE_PID
