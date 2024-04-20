@@ -10,7 +10,7 @@ csv_file="./scripts/lora/experiments_setup.csv"
 uid=$(date +%Y%m%d_%H%M%S)
 
 # Skip the header line
-tail -n +2 "$csv_file" | while IFS=$'\t' read -r function ft_method data_type plm head task head_config layer reduction output_dir gpus gres mem_per_cpu nodes run_time
+tail -n +2 "$csv_file" | while IFS=$'\t' read -r function ft_method data_type plm head task head_config layer reduction output_dir gpus gres mem_per_cpu nodes run_time experimenting
 do
   # read -r node_name gres gpus <<< "$(select_gpus)"
   # echo "$node_name $gres $gpus"
@@ -29,5 +29,5 @@ do
          --gpus-per-node=$gres:$gpus \
          --time=$run_time:00:00 \
          scripts/lora/lora_mass.sh \
-         "$function" "$ft_method" "$head_config" "$data_type" "$plm" "$layer" "$reduction" "$output_dir" "$experiment_dir" "$experiment_name" "$gpus" "$nodes"
+         "$function" "$ft_method" "$head_config" "$data_type" "$plm" "$layer" "$reduction" "$output_dir" "$experiment_dir" "$experiment_name" "$gpus" "$nodes" "$experimenting"
 done
