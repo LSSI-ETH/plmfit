@@ -179,6 +179,9 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 
     def extract_embeddings(self, data_type, batch_size = 1, layer=11, reduction='mean', log_interval=1000):
         try:
+            self.set_layer_to_use(layer)
+            layer = self.layer_to_use
+            self.logger.log(f"Extracting embeddings from layer: {layer}")
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             memory_usage = psutil.virtual_memory()
             max_mem_usage = utils.print_gpu_utilization(memory_usage, device)
@@ -240,23 +243,9 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                             # if i == 0:
                             #     for layer_index, layer_output in enumerate(hidden_states):
                             #         self.logger.log(f'Layer {layer_index} shape: {layer_output.shape}')
-                            
-                            # Determine the layer index based on the 'layer' description
-                            if layer == 'last':
-                                # The last hidden layer (not counting the logits layer)
-                                selected_layer_index = len(hidden_states) - 1
-                            elif layer == 'middle':
-                                # Adjusted to consider the first transformer block as the "first" layer
-                                selected_layer_index = 1 + (len(hidden_states) - 1) // 2
-                            elif layer == 'first':
-                                # The first transformer block after the input embeddings
-                                selected_layer_index = 1  # Adjusted to 1 to skip the input embeddings
-                            else:
-                                # Fallback for numeric layer specification or unexpected strings
-                                selected_layer_index = int(layer) if layer.isdigit() else 0
 
                             # Now select the specific layer's output
-                            out = hidden_states[selected_layer_index]
+                            out = hidden_states[layer]
                         if reduction == 'mean':
                             embs[i: i + current_batch_size, :] = torch.mean(out, dim=1)
                             if i == 0:
@@ -343,6 +332,10 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         elif layer == 'first':
             # The first transformer block after the input embeddings
             self.layer_to_use = 1  # Adjusted to 1 to skip the input embeddings
+        elif layer == 'quarter1':
+            self.layer_to_use = 1 + (self.no_layers - 1) // 4
+        elif layer == 'quarter3':
+            self.layer_to_use = 1 + (self.no_layers - 1) // 2 + (self.no_layers - 1) // 4
         else:
             # Fallback for numeric layer specification or unexpected strings
             self.layer_to_use = int(layer) if layer.isdigit() else self.no_layers - 1
@@ -647,12 +640,20 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
         elif layer == 'first':
             # The first transformer block after the input embeddings
             self.layer_to_use = 1  # Adjusted to 1 to skip the input embeddings
+        elif layer == 'quarter1':
+            self.layer_to_use = 1 + (self.no_layers - 1) // 4
+        elif layer == 'quarter3':
+            self.layer_to_use = 1 + (self.no_layers - 1) // 2 + (self.no_layers - 1) // 4
         else:
             # Fallback for numeric layer specification or unexpected strings
             self.layer_to_use = int(layer) if layer.isdigit() else self.no_layers - 1
+        print(f"Using layer: {self.layer_to_use}")
 
     def extract_embeddings(self, data_type, batch_size = 1, layer=11, reduction='mean', log_interval=1000):
         try:
+            self.set_layer_to_use(layer)
+            layer = self.layer_to_use
+            self.logger.log(f"Extracting embeddings from layer: {layer}")
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             memory_usage = psutil.virtual_memory()
             max_mem_usage = utils.print_gpu_utilization(memory_usage, device)
@@ -710,23 +711,9 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
                             # if i == 0:
                             #     for layer_index, layer_output in enumerate(hidden_states):
                             #         self.logger.log(f'Layer {layer_index} shape: {layer_output.shape}')
-                            
-                            # Determine the layer index based on the 'layer' description
-                            if layer == 'last':
-                                # The last hidden layer (not counting the logits layer)
-                                selected_layer_index = len(hidden_states) - 1
-                            elif layer == 'middle':
-                                # Adjusted to consider the first transformer block as the "first" layer
-                                selected_layer_index = 1 + (len(hidden_states) - 1) // 2
-                            elif layer == 'first':
-                                # The first transformer block after the input embeddings
-                                selected_layer_index = 1  # Adjusted to 1 to skip the input embeddings
-                            else:
-                                # Fallback for numeric layer specification or unexpected strings
-                                selected_layer_index = int(layer) if layer.isdigit() else 0
 
                             # Now select the specific layer's output
-                            out = hidden_states[selected_layer_index]
+                            out = hidden_states[layer]
                         if reduction == 'mean':
                             embs[i: i + current_batch_size, :] = torch.mean(out, dim=1)
                             if i == 0:
