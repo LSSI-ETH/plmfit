@@ -756,7 +756,8 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         use_cache=None,
         output_attentions=True,
         output_hidden_states=True,
-        return_dict=None
+        return_dict=None,
+        meta=None,
     ):
         r"""
         labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
@@ -809,8 +810,7 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         elif self.reduction == 'mean':
             hidden_states = torch.mean(hidden_states, dim=1)
         elif self.reduction == 'mut_mean':
-            positions = self.find_mutation_positions(input_ids, self.wildtype)
-            print(positions)
+            print(meta)
 
         pooled_logits = self.classifier(hidden_states)
 

@@ -49,7 +49,7 @@ def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2
         return None
 
 
-def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32, num_workers=0):
+def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32, num_workers=0, meta_data=None):
     """
     Create DataLoader objects for training, validation, and testing.
 
@@ -66,24 +66,30 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     Returns:
         dict: Dictionary containing DataLoader objects for train, validation, and test.
     """
+    if meta_data is None:
+        # Return an empty array if meta_data is None
+        meta_data = [np.array([], dtype=np.int8) for _ in range(len(dataset))]
+    else:
+        # Process each list within the list of lists
+        processed_data = []
+        for sub_list in meta_data:
+            if sub_list:  # Check if the sub_list is not empty
+                processed_data.append(np.array(sub_list, dtype=np.int8))
+            else:
+                processed_data.append(np.array([], dtype=np.int8))
+        meta_data = processed_data
+
     if split is None:
-        # Split data into training and testing sets
-        X_train, X_test, y_train, y_test = train_test_split(
-            dataset, scores, test_size=test_size, random_state=42)
-
-        # Further split the training data into training and validation sets
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_train, y_train, test_size=validation_size/(1-test_size), random_state=42)
-
-    # TODO: see if this works for provided sets
+        X_train, X_test, y_train, y_test, meta_train, meta_test = train_test_split(
+                dataset, scores, meta_data, test_size=test_size, random_state=42)
+        X_train, X_val, y_train, y_val, meta_train, meta_val = train_test_split(
+                X_train, y_train, meta_train, test_size=validation_size/(1-test_size), random_state=42)
+    
     else:
         # Use the provided split
-        X_train = dataset[split == 'train']
-        X_test = dataset[split == 'test']
-        X_val = dataset[split == 'validation']
-        y_train = scores[split == 'train']
-        y_test = scores[split == 'test']
-        y_val = scores[split == 'validation']
+        X_train, X_val, X_test = dataset[split == 'train'], dataset[split == 'validation'], dataset[split == 'test']
+        y_train, y_val, y_test = scores[split == 'train'], scores[split == 'validation'], scores[split == 'test']
+        meta_train, meta_val, meta_test = meta_data[split == 'train'], meta_data[split == 'validation'], meta_data[split == 'test']
 
     # Scale the features if scaler is provided
     if scaler:
@@ -99,11 +105,12 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     y_train = convert_or_clone_to_tensor(y_train, dtype=torch.float32)
     y_val = convert_or_clone_to_tensor(y_val, dtype=torch.float32)
     y_test = convert_or_clone_to_tensor(y_test, dtype=torch.float32)
+    meta_train, meta_val, meta_test = torch.tensor(meta_train), torch.tensor(meta_val), torch.tensor(meta_test)
 
     # Create DataLoader for training, validation, and testing
-    train_dataset = TensorDataset(X_train, y_train)
-    val_dataset = TensorDataset(X_val, y_val)
-    test_dataset = TensorDataset(X_test, y_test)
+    train_dataset = TensorDataset(X_train, y_train, meta_train)
+    val_dataset = TensorDataset(X_val, y_val, meta_val)
+    test_dataset = TensorDataset(X_test, y_test, meta_test)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=num_workers>0)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=num_workers>0)
