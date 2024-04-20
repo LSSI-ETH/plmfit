@@ -27,6 +27,7 @@ from lightning.pytorch.utilities.deepspeed import convert_zero_checkpoint_to_fp3
 from lightning.pytorch.callbacks import DeviceStatsMonitor
 import torch.nn.functional as F
 import pandas as pd
+from deepspeed.runtime.zero.stage3 import estimate_zero3_model_states_mem_needs_all_live
 
 parser = argparse.ArgumentParser(description='plmfit_args')
 # options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
@@ -57,9 +58,10 @@ parser.add_argument('--logger', type=str, default='remote')
 
 parser.add_argument('--cpus', default=1)
 parser.add_argument('--gpus', default=0)
-parser.add_argument('--nodes', default=1)
+parser.add_argument('--nodes', type=int, default=1)
 
-parser.add_argument('--beta', default=False)
+parser.add_argument('--beta', default="False")
+parser.add_argument('--experimenting', default="False")
 
 NUM_WORKERS = 0
 
@@ -180,6 +182,7 @@ def lora(args, logger):
 def lora_lightning(args, logger):
     # Load dataset
     data = utils.load_dataset(args.data_type)
+    if args.experimenting == "True": data = data.sample(1000)
     split = None if args.split is None else data[args.split]
 
     model = init_plm(args.plm, logger)
@@ -190,8 +193,6 @@ def lora_lightning(args, logger):
     
     logger.save_data(vars(args), 'arguments')
     logger.save_data(head_config, 'head_config')
-
-    # data = data.sample(1000)
     
     network_type = head_config['architecture_parameters']['network_type']
     if network_type == 'linear':
@@ -204,13 +205,9 @@ def lora_lightning(args, logger):
         raise ValueError('Head type not supported')
     
     model.py_model.set_head(pred_model)
+    meta_data = None # This is only used for 'mut_mean' reduction
     if args.reduction == 'mut_mean': 
-        wildtype = {
-            'aa_seq': [utils.get_wild_type(args.data_type)],
-            'len': [len(utils.get_wild_type(args.data_type))]
-        }
-        model.py_model.wildtype = model.categorical_encode(pd.DataFrame(wildtype), max_length=max(data['len'].values))
-        model.py_model.find_mutation_positions = utils.find_mutation_positions # We do it like that to not import plmfit utils into language models code
+        meta_data = data['mut_mask'].values
     model.py_model.reduction = args.reduction
     model.set_layer_to_use(args.layer)
     model.py_model.layer_to_use = model.layer_to_use
@@ -224,7 +221,8 @@ def lora_lightning(args, logger):
             validation_size=training_params['val_split'], 
             dtype=torch.int8, 
             split=split,
-            num_workers=NUM_WORKERS
+            num_workers=NUM_WORKERS,
+            meta_data=meta_data
         )
     
     fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, model_name=args.plm, logger=logger)
@@ -235,7 +233,7 @@ def lora_lightning(args, logger):
     
     model = LightningModel(model.py_model, head_config['training_parameters'], plmfit_logger=logger, log_interval=100)
     lightning_logger = TensorBoardLogger(save_dir=logger.base_dir, version=0, name="lightning_logs")
-    
+    model.experimenting = args.experimenting == "True" # If we are in experimenting mode
 
     trainer = L.Trainer(
         default_root_dir=logger.base_dir,
@@ -246,17 +244,25 @@ def lora_lightning(args, logger):
         gradient_clip_val=model.gradient_clipping(),
         limit_train_batches=model.epoch_sizing(),
         limit_val_batches=model.epoch_sizing(),
-        # num_nodes=args.nodes,
-        # devices=args.gpus,
-        # strategy='deepspeed_stage_3_offload',
+        devices=args.gpus,
+        strategy='deepspeed_stage_3_offload',
         precision=16,
-        callbacks=[DeviceStatsMonitor(True), model.early_stopping()]
+        callbacks=[model.early_stopping()]
     )
 
-    trainer.strategy.load_full_weights = True
-    trainer.strategy.min_loss_scale = 0.25
+    estimate_zero3_model_states_mem_needs_all_live(model, num_gpus_per_node=int(args.gpus), num_nodes=1)
 
-    trainer.fit(model, data_loaders['train'], data_loaders['val'])
+    trainer.strategy.load_full_weights = True
+
+    try:
+        trainer.fit(model, data_loaders['train'], data_loaders['val'])
+    except Exception as e:
+        # Check if the specific deepspeed minimum loss scale exception is raised
+        if "Current loss scale already at minimum" in str(e):
+            logger.log("Minimum loss reached. Ending training...")
+        else:
+            # If it's a different kind of exception, you might want to re-raise it
+            raise e
 
     model = convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
     
@@ -317,7 +323,7 @@ def ray_tuning(function_to_run, head_config, args, logger):
     trials = 100
     if network_type == 'mlp': 
         head_config['architecture_parameters']['hidden_dim'] = tune.uniform(64, 2048)
-        trials = 300
+        trials = 200
     head_config['training_parameters']['learning_rate'] = tune.uniform(1e-6, 1e-3)
     head_config['training_parameters']['batch_size'] = tune.uniform(4, 256)
     head_config['training_parameters']['weight_decay'] = tune.uniform(1e-4, 1e-2)
@@ -341,6 +347,7 @@ def ray_tuning(function_to_run, head_config, args, logger):
 
     if args.function == 'one_hot':
         data = utils.load_dataset(args.data_type)
+        # data = data.iloc[:50000]
         tokenizer = utils.load_tokenizer('proteinbert') # Use same tokenizer as proteinbert
         encs = utils.categorical_encode(
             data['aa_seq'].values, tokenizer, max(data['len'].values), add_eos=True, logger=logger, model_name='proteinbert')
@@ -353,7 +360,7 @@ def ray_tuning(function_to_run, head_config, args, logger):
 
     logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
     tuner = tune.Tuner(
-        tune.with_parameters(function_to_run, args=args, logger=logger, on_ray_tuning=True),
+        tune.with_resources(tune.with_parameters(function_to_run, args=args, logger=logger, on_ray_tuning=True), {"gpu": 1}),
         tune_config=tune.TuneConfig(
             metric="loss", 
             mode="min",
@@ -462,6 +469,7 @@ def feature_extraction_lightning(config, args, logger, on_ray_tuning=False):
 def onehot(config, args, logger, on_ray_tuning=False):
     # Load dataset
     data = utils.load_dataset(args.data_type)
+    # data = data.iloc[:50000]
     split = None if args.split is None else data[args.split]
 
     head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
@@ -523,7 +531,7 @@ if __name__ == '__main__':
         elif args.function == 'fine_tuning':
             if args.ft_method == 'feature_extraction':
                 head_config = utils.load_config(args.head_config)
-                if args.beta: 
+                if args.beta == "True": 
                     if args.ray_tuning:
                         head_config = ray_tuning(feature_extraction_lightning, head_config, args, logger)
                     feature_extraction_lightning(head_config, args, logger)
