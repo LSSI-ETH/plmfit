@@ -152,7 +152,7 @@ class FullRetrainFineTuner(FineTuner):
                     for itr, training_data in enumerate(dataloaders_dict[phase], 0):
                         batch_start_time = time.time()
                         optimizer.zero_grad()
-                        input, labels = training_data
+                        input, labels, _ = training_data
                         input = input.to(device)
                         labels = labels.to(device)
                         if self.model_output == 'default':

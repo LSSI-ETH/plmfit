@@ -6,6 +6,7 @@ import time
 import json
 from deepspeed.ops.adam import DeepSpeedCPUAdam
 from plmfit.shared_utils import utils
+from deepspeed.profiling.flops_profiler.profiler import FlopsProfiler
 
 class LightningModel(L.LightningModule):
     def __init__(self,  model, training_config, plmfit_logger = None, log_interval=-1, method='lora'):
@@ -29,8 +30,11 @@ class LightningModel(L.LightningModule):
 
         self.metrics = Metrics(self.model.task)
 
-    def forward(self, input):
-        output = self.model(input)
+        self.profiler = FlopsProfiler(self)
+        self.profiling_interval = 100
+
+    def forward(self, input, meta=None):
+        output = self.model(input, meta=meta)
         if hasattr(output, 'logits'):
             return output.logits
         else:
@@ -79,12 +83,21 @@ class LightningModel(L.LightningModule):
 
     def training_step(self, batch, batch_idx):
         batch_start_time = time.time()
+        on_profiling = batch_idx == 30 and self.experimenting
+        if on_profiling:
+            self.profiler.start_profile()
+            print("FLOPS PROFILING INITIATED...", flush=True)
         
-        input, labels = batch
-        outputs = self(input).squeeze(dim=1)
+        input, labels, meta = batch
+        outputs = self(input, meta=meta).squeeze(dim=1)
 
         loss = self.loss_function(outputs, labels)
-        print(f"Loss value: {loss}", flush=True)
+        if on_profiling:
+            self.profiler.print_model_profile(profile_step=batch_idx, output_file=f'{self.plmfit_logger.base_dir}/flops.log')
+            self.profiler.end_profile()
+        print(f"Outputs: {outputs.tolist()}")
+        print(f"Labels: {labels.tolist()}")
+        print(f"Loss value: {loss}\n", flush=True)
         if self.trainer.precision == 16 and loss < 6.10e-5: loss = 6.10e-5 # Theoretical min loss value for float-16
         self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
@@ -102,6 +115,22 @@ class LightningModel(L.LightningModule):
         if self.plmfit_logger: 
             self.plmfit_logger.log(f'(train) loss: {self.trainer.logged_metrics["train_loss_epoch"]:.4f} {time.time() - self.epoch_start_time:.4f}s')
             self.plmfit_logger.log(f'(train) {self.metric_label}: {self.trainer.logged_metrics[f"train_{self.metric_label}_epoch"]:.4f}')
+        if self.experimenting: raise 'Experiment over'
+        total_time = time.time() - self.start_time
+        self.plmfit_logger.log(f'\nMean time per epoch: {total_time/(self.current_epoch+1):.4f}s')
+        self.plmfit_logger.log(f'Total training time: {total_time:.1f}s')
+        loss_data = {
+            "epoch_train_loss": self.epoch_train_loss,
+            "epoch_val_loss": self.epoch_val_loss
+        }
+        if self.trainer.global_rank == 0:
+            with open(f'{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}_loss.json', 'w', encoding='utf-8') as f:
+                json.dump(loss_data, f, indent=4)
+            report = {
+                "training_time": f'{total_time:.1f}',
+                "avg_time_per_epoch": f'{total_time/(self.current_epoch+1):.4f}'
+            }
+            self.plmfit_logger.save_data(report, 'report')
         
     ### VALIDATION STEPS ###
     def on_validation_epoch_start(self):
@@ -111,8 +140,8 @@ class LightningModel(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         batch_start_time = time.time()
 
-        input, labels = batch
-        outputs = self(input).squeeze(dim=1)
+        input, labels, meta = batch
+        outputs = self(input, meta=meta).squeeze(dim=1)
 
         loss = self.loss_function(outputs, labels)
         self.log('val_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
@@ -147,8 +176,8 @@ class LightningModel(L.LightningModule):
         self.plmfit_logger.log('-' * 10)
     
     def test_step(self, batch, batch_idx):
-        input, labels = batch
-        outputs = self(input).squeeze(dim=1)
+        input, labels, meta = batch
+        outputs = self(input, meta=meta).squeeze(dim=1)
 
         loss = self.loss_function(outputs, labels)
         self.log('test_loss', loss, on_step=False, on_epoch=True, logger=True, prog_bar=False)

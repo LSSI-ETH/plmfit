@@ -534,7 +534,7 @@ class ProteinBertForSequenceClassification(ProteinBertAbstractModel):
                 for param in layer.parameters():
                     param.requires_grad = False
 
-    def forward(self, input_ids, input_mask=None, targets=None):
+    def forward(self, input_ids, input_mask=None, targets=None, meta=None):
         if input_ids is not None:
             input_ids = input_ids.int()
         outputs = self.bert(input_ids, input_mask=input_mask)
