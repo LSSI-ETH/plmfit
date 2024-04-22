@@ -6,8 +6,9 @@ import seaborn as sns
 from tqdm import tqdm
 from plmfit.shared_utils import utils
 
+"""
 data_parse.py prepares rbd_data_full.csv for use with plmfit
-- enters raw_data/raw_data and searches for the relevant files (correct antibodies & cleaner data)
+- enters "./raw_data/raw_data" and searches for the relevant files (correct antibodies & cleaner data)
 - cleans data, removes redundant and contradictory sequences
 - creates rbd_data_full.csv
 """
