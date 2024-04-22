@@ -112,7 +112,14 @@ def feature_extraction(config, args, logger, on_ray_tuning=False):
     embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings', data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
     assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
 
-    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
+    if head_config['architecture_parameters']['task'] == 'regression':
+        scores = data['score'].values 
+    elif head_config['architecture_parameters']['task'] == 'classification':
+        scores = data['binary_score'].values
+    elif "multilabel" in head_config['architecture_parameters']['task']:
+        scores = data[["mouse","cattle","bat"]].values
+    else:
+        raise f"Task type {head_config['architecture_parameters']['task']} not supported."
     scores = torch.tensor(scores, dtype=torch.float32)
 
     training_params = head_config['training_parameters']
@@ -128,11 +135,6 @@ def feature_extraction(config, args, logger, on_ray_tuning=False):
     elif network_type == 'mlp':
         head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
         pred_model = heads.MLP(head_config['architecture_parameters'])
-    elif "multilabel" in head_config['architecture_parameters']['task']:
-        # TODO : Make multilabel task agnostic
-        scores = data[["mouse","cattle","bat"]].values
-        scores_dict = {0:"mouse",1:"cattle",2:"bat"}
-        split = data["random"].values
     else:
         raise ValueError('Head type not supported')
     
