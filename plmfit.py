@@ -51,7 +51,7 @@ logger = l.Logger(
 def init_plm(model_name, logger):
     model = None
     supported_progen2 = ['progen2-small', 'progen2-medium', 'progen2-xlarge']
-    supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
+    supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D", "esm1v_t33_650M_UR90S_1",
                      "esm2_t30_150M_UR50D", "esm2_t33_650M_UR50D","esm2_t36_3B_UR50D"]
     supported_Ankh = ['ankh-base', 'ankh-large', 'ankh2-large']
     supported_Proteinbert = ['proteinbert']
@@ -66,7 +66,7 @@ def init_plm(model_name, logger):
 
     elif 'ankh' in model_name:
         assert model_name in supported_Ankh, 'Ankh version is not supported'
-        model = AnkhFamily(model_name)
+        model = AnkhFamily(model_name,logger)
     elif 'antiberty' in args.plm:
         model = Antiberty()
     # elif 'proteinbert' in model_name:

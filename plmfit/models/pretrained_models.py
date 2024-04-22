@@ -470,6 +470,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         
         # Layers and reduction received from parser will be in string format
         layer = np.array(layer.split("_"))
+        layer_names = layer.copy()
         layer[layer == "last"] = self.no_layers
         layer[layer == "first"] = 1
         layer[layer == "middle"] = self.no_layers//2 + 1
@@ -518,8 +519,8 @@ class ESMFamily(IPretrainedProteinLanguageModel):
             lay = layer[j]
             for k in range(len(reduction)):
                 tmp = embs[j,k].detach().clone()
-                torch.save(tmp,f'{self.logger.base_dir}/{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt')
-                self.logger.log(f'Saved embeddings ({tmp.shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt" ({time.time() - start_enc_time:.2f}s)')
+                torch.save(tmp,f'{self.logger.base_dir}/{data_type}_{self.version}_embs_{layer_names[j]}_{reduction[k]}.pt')
+                self.logger.log(f'Saved embeddings ({tmp.shape[1]}-d) as "{data_type}_{self.version}_embs_{layer_names[j]}_{reduction[k]}.pt" ({time.time() - start_enc_time:.2f}s)')
                 del tmp
         return
 
@@ -595,7 +596,7 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
     
     tokenizer : AutoTokenizer
     
-    def __init__(self , ankh_version : str):
+    def __init__(self , ankh_version : str, logger : l.Logger):
         super().__init__()
         self.version = ankh_version 
         self.py_model = AutoModel.from_pretrained(f'ElnaggarLab/{ankh_version}' , output_hidden_states = True)
@@ -605,38 +606,41 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
         self.emb_layers_dim =  self.py_model.config.hidden_size
         self.tokenizer = AutoTokenizer.from_pretrained(f'ElnaggarLab/{ankh_version}')
         self.trainables = nn.ModuleList()
+        self.logger = logger
         
     def extract_embeddings(self , data_type , batch_size = 4 , layer = 48, reduction = 'mean', mut_pos= None):
-        logger = l.Logger(f'logger_extract_embeddings_{data_type}_{self.version}_layer{layer}_{reduction}')
         device = 'cpu'
         fp16 = False
         device_ids = []
         if torch.cuda.is_available():
             device = "cuda:0"
             fp16 = True
-            logger.log(f'Available GPUs : {torch.cuda.device_count()}')
+            self.logger.log(f'Available GPUs : {torch.cuda.device_count()}')
             for i in range(torch.cuda.device_count()):
-                logger.log(f' Running on {torch.cuda.get_device_properties(i).name}')
+                self.logger.log(f' Running on {torch.cuda.get_device_properties(i).name}')
                 device_ids.append(i)
 
         else:
-            logger.log(f' No gpu found rolling device back to {device}')
+            self.logger.log(f' No gpu found rolling device back to {device}')
         data = utils.load_dataset(data_type)
         start_enc_time = time.time()
-        logger.log(f' Encoding {data.shape[0]} sequences....')
+        self.logger.log(f' Encoding {data.shape[0]} sequences....')
         encs = self.categorical_encode(data['aa_seq'].values, self.tokenizer,max(data['len'].values)) 
-        logger.log(f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
+        self.logger.log(f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
         encs = encs.to(device)
         
         seq_dataset = data_utils.TensorDataset(encs)
         seq_loader =  data_utils.DataLoader(seq_dataset, batch_size= batch_size, shuffle=False)
-        logger.log(f'Extracting embeddings for {len(seq_dataset)} sequences...')
+        self.logger.log(f'Extracting embeddings for {len(seq_dataset)} sequences...')
         
-        if type(layer) == int:
-            layer = [layer]
-        
-        if type(reduction) == str:
-            reduction = [reduction]
+        # Layers and reduction received from parser will be in string format
+        layer = np.array(layer.split("_"))
+        layer_names = layer.copy()
+        layer[layer == "last"] = self.no_layers
+        layer[layer == "first"] = 1
+        layer[layer == "middle"] = self.no_layers//2 + 1
+        layer = layer.astype(int)
+        reduction = reduction.split("_")
         
         embs = torch.zeros(len(layer),len(reduction),len(seq_dataset), self.emb_layers_dim).to(device) ### FIX: Find embeddings dimension either hard coded for model or real the pytorch model of ProGen. Maybe add reduction dimension as well
         
@@ -670,7 +674,7 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
                             raise 'Unsupported reduction option'
                 del out
                 i = i + batch_size
-                logger.log(f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ') # | memory usage : {100 - memory_usage.percent:.2f}%
+                self.logger.log(f' {i} / {len(seq_dataset)} | {time.time() - start:.2f}s ') # | memory usage : {100 - memory_usage.percent:.2f}%
 
            
         os.makedirs(f'./plmfit/data/{data_type}/embeddings', exist_ok = True)
@@ -678,8 +682,8 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
             lay = layer[j]
             for k in range(len(reduction)):
                 tmp = embs[j,k].detach().clone()
-                torch.save(tmp,f'./plmfit/data/{data_type}/embeddings/{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt')
-                logger.log(f'Saved embeddings ({tmp.shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt" ({time.time() - start_enc_time:.2f}s)')
+                torch.save(tmp,f'{self.logger.base_dir}/{data_type}_{self.version}_embs_{layer_names[j]}_{reduction[k]}.pt')
+                self.logger.log(f'Saved embeddings ({tmp.shape[1]}-d) as "{data_type}_{self.version}_embs_{layer_names[j]}_{reduction[k]}.pt" ({time.time() - start_enc_time:.2f}s)')
                 del tmp
         return
     

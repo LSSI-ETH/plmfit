@@ -1,2 +1,2 @@
 function	data_type	plm	reduction	layer	output_dir	gpus	gres	mem-per-cpu
-extract_embeddings	rbd	esm2_t6_8M_UR50D	mean	middle	/cluster/scratch/bsahin	1	24g	16g
+extract_embeddings	rbd	ankh-large	eos_mean	middle	/cluster/scratch/bsahin	1	80g	64g
