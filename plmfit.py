@@ -116,8 +116,7 @@ def feature_extraction(config, args, logger, on_ray_tuning=False):
     scores = torch.tensor(scores, dtype=torch.float32)
 
     training_params = head_config['training_parameters']
-    data_loaders = utils.create_data_loaders(
-            embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=NUM_WORKERS)
+    
     
     logger.save_data(vars(args), 'arguments')
     logger.save_data(head_config, 'head_config')
@@ -129,9 +128,17 @@ def feature_extraction(config, args, logger, on_ray_tuning=False):
     elif network_type == 'mlp':
         head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
         pred_model = heads.MLP(head_config['architecture_parameters'])
+    elif "multilabel" in head_config['architecture_parameters']['task']:
+        # TODO : Make multilabel task agnostic
+        scores = data[["mouse","cattle","bat"]].values
+        scores_dict = {0:"mouse",1:"cattle",2:"bat"}
+        split = data["random"].values
     else:
         raise ValueError('Head type not supported')
     
+    data_loaders = utils.create_data_loaders(
+            embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=NUM_WORKERS)
+            
     utils.set_trainable_parameters(pred_model)
     fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
     fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning)
@@ -370,7 +377,7 @@ def ray_tuning(function_to_run, head_config, args, logger):
         ),
         run_config=RunConfig(
             progress_reporter=reporter, 
-            log_to_file=(f"ray_stdout.log", "ray_stderr.log"),
+            log_to_file=(f"{experiment_dir}/ray_stdout.log", f"{experiment_dir}/ray_stderr.log"),
             storage_path=f'{experiment_dir}/raytune_results'),
         param_space=head_config,
     )
@@ -530,37 +537,7 @@ if __name__ == '__main__':
             extract_embeddings(args, logger)
         elif args.function == 'fine_tuning':
             if args.ft_method == 'feature_extraction':
-                head_config = utils.load_config(args.head_config)
-                split = None
-                training_params = head_config['training_parameters']
-                if "multilabel" in head_config['architecture_parameters']['task']:
-                    # TODO : Make multilabel task agnostic
-                    scores = data[["mouse","cattle","bat"]].values
-                    scores_dict = {0:"mouse",1:"cattle",2:"bat"}
-                    split = data["random"].values
-                else:
-                    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
-                    scores = torch.tensor(scores, dtype=torch.float32)
-
-                data_loaders = utils.create_data_loaders(
-                        embeddings, scores, split = split, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'])
-
-                logger.save_data(vars(args), 'arguments')
-                logger.save_data(head_config, 'head_config')
-
-                network_type = head_config['architecture_parameters']['network_type']
-                if network_type == 'linear':
-                    head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
-                    pred_model = heads.LinearHead(head_config['architecture_parameters'])
-                elif network_type == 'mlp':
-                    head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
-                    pred_model = heads.MLP(head_config['architecture_parameters'])
-                else:
-                    raise ValueError('Head type not supported')
-                utils.set_trainable_parameters(pred_model)
-                fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
-                fine_tuner.train(pred_model, dataloaders_dict=data_loaders)
-                
+                head_config = utils.load_config(args.head_config)                
                 if args.beta == "True": 
                     if args.ray_tuning:
                         head_config = ray_tuning(feature_extraction_lightning, head_config, args, logger)

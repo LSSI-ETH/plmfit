@@ -12,8 +12,14 @@ import torch.nn as nn
 import psutil
 import importlib.util
 from plmfit.logger import Logger
+try:
+    from env import DATA_DIR
+    env_exists = True
+except:
+    env_exists = False
+    print(f"No environment file 'env.py' detected, using exported environment variables as a fallback")
 
-path = os.getenv('DATA_DIR')
+path = os.getenv('DATA_DIR', env_exists)
 data_dir = f'{path}/data'
 config_dir = f'{path}/models/configurations'
 

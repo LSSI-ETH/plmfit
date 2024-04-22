@@ -16,13 +16,7 @@ do
          --output="$experiment_dir/euler_output.out" \
          --error="$experiment_dir/euler_error.err" \
          --mem-per-cpu="$mem_per_cpu" \
-         --cpus-per-task=4 \
-         --nodes=$nodes \
-         --ntasks=$total_gpus \
-         --ntasks-per-node=$gpus \
-         --gpus-per-node=$gres:$gpus \
          --nice=1 \
-         --time=6:00:00 \
          scripts/feature_extraction/ray_tuning_mass.sh \
          "$function" "$ft_method" "$head_config" "$ray_tuning" "$data_type" "$plm" "$layer" "$reduction" "$output_dir" "$experiment_dir" "$experiment_name" "$gpus"
   sleep 2

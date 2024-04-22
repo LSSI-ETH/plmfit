@@ -1,6 +1,23 @@
 #!/bin/bash
+#SBATCH --job-name=ray_workload    # create a short name for your job
+#SBATCH --nodes=1          # node count
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --tasks-per-node=1
+#SBATCH --gpus-per-node=1
+#SBATCH --gres=gpumem:24g
+#SBATCH --time=4:00:00          # total run time limit (HH:MM:SS)
 
-export DATA_DIR='/cluster/home/estamkopoulo/plmfit_workspace/plmfit/plmfit'
+module load eth_proxy
+module load gcc/8.2.0  python_gpu/3.11.2
+module load cuda/12.1.1
+
+nvidia-smi
+nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used --format=csv -l 1 > ${6}/gpu_usage.log 2>&1 &
+# Store the PID of the nvidia-smi background process
+NVIDIA_SMI_PID=$!
+
+# export DATA_DIR='/cluster/home/estamkopoulo/plmfit_workspace/plmfit/plmfit'
 export NCCL_DEBUG=WARN
 export NCCL_P2P_DISABLE=1
 export NCCL_IB_DISABLE=1
@@ -10,10 +27,6 @@ export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 # Export the global rank using SLURM_PROCID
 export RANK=$SLURM_PROCID
 echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
-
-module load eth_proxy
-module load gcc/8.2.0  python_gpu/3.11.2
-module load cuda/12.1.1
 
 # Getting the node names
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
@@ -34,26 +47,27 @@ fi
 echo "IPV6 address detected. We split the IPV4 address as $head_node_ip"
 fi
 
-port=$(expr 10000 - $(echo -n $SLURM_JOBID | tail -c 3))
+port=$(expr 6379 + $(echo -n $SLURM_JOBID | tail -c 2))
+dashboard_port=$(expr 8265 + $(echo -n $SLURM_JOBID | tail -c 2))
 ip_head=$head_node_ip:$port
 export ip_head
 echo "IP Head: $ip_head"
 
 echo "Starting HEAD at $head_node"
-ray start --head --node-ip-address="$head_node_ip" --port=$port \
-    --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${12}" --block &
+ray start --head --node-ip-address="$head_node_ip" --port=$port --dashboard-host "0.0.0.0" --dashboard-port $dashboard_port  \
+    --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_NODE}" --block &
 
 # optional, though may be useful in certain versions of Ray < 1.0.
 sleep 5
 
 # number of nodes other than the head node
-worker_num=$((SLURM_NNODES - 1))
+worker_num=$((SLURM_JOB_NUM_NODES - 1))
 
 for ((i = 1; i <= worker_num; i++)); do
     node_i=${nodes_array[$i]}
     echo "Starting WORKER $i at $node_i"
     ray start --address "$ip_head" \
-        --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${12}" --block --verbose &
+        --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_NODE}" --block --verbose &
     sleep 5
 
     # Wait for the worker node to be up and ready
@@ -68,6 +82,8 @@ for ((i = 1; i <= worker_num; i++)); do
     done
 done
 
-srun python3 -u plmfit.py --function $1 --ft_method $2 --head_config $3 --ray_tuning $4 \
+python3 -u plmfit.py --function $1 --ft_method $2 --head_config $3 --ray_tuning $4 \
         --data_type $5 --plm $6 --layer $7 --reduction $8 \
         --output_dir ${9} --experiment_dir ${10} --experiment_name ${11} --beta True
+
+kill $NVIDIA_SMI_PID
