@@ -26,6 +26,7 @@ export MASTER_PORT=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4))
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 # Export the global rank using SLURM_PROCID
 export RANK=$SLURM_PROCID
+echo "JOB ID: $SLURM_JOBID"
 echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
 
 # Getting the node names
@@ -83,7 +84,7 @@ for ((i = 1; i <= worker_num; i++)); do
 done
 
 python3 -u plmfit.py --function $1 --head_config $2 \
-        --data_type $4 \
+        --data_type $4 --ray_tuning $3 \
         --output_dir ${5} --experiment_dir ${6} --experiment_name ${7}
 
 kill $NVIDIA_SMI_PID

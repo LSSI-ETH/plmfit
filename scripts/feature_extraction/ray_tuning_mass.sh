@@ -1,21 +1,17 @@
 #!/bin/bash
-#SBATCH --job-name=ray_workload    # create a short name for your job
-#SBATCH --nodes=1          # node count
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
-#SBATCH --tasks-per-node=1
-#SBATCH --gpus-per-node=1
-#SBATCH --gres=gpumem:24g
-#SBATCH --time=4:00:00          # total run time limit (HH:MM:SS)
 
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
 module load cuda/12.1.1
 
 nvidia-smi
-nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used --format=csv -l 1 > ${6}/gpu_usage.log 2>&1 &
+nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used --format=csv -l 10 > ${10}/gpu_usage.log 2>&1 &
 # Store the PID of the nvidia-smi background process
 NVIDIA_SMI_PID=$!
+
+# Start logging CPU RAM usage
+watch -n 1 "myjobs -j ${SLURM_JOBID}" > ${10}/stats.log 2>&1 &
+CPU_FREE_PID=$!
 
 # export DATA_DIR='/cluster/home/estamkopoulo/plmfit_workspace/plmfit/plmfit'
 export NCCL_DEBUG=WARN
@@ -26,7 +22,10 @@ export MASTER_PORT=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4))
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 # Export the global rank using SLURM_PROCID
 export RANK=$SLURM_PROCID
+echo "JOB ID: $SLURM_JOBID"
 echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
+
+sleep $(expr 5 + $(echo -n $SLURM_JOBID | tail -c 2))
 
 # Getting the node names
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")

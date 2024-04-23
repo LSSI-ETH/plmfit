@@ -2,9 +2,9 @@
   "architecture_parameters":
   {
     "network_type": "mlp",
-    "output_dim": 3,
+    "output_dim": 1,
     "hidden_dim": 1024,
-    "task": "multilabel_classification",
+    "task": "classification",
     "hidden_activation": "relu",
     "hidden_dropout": 0.25,
     "output_activation": "sigmoid"
