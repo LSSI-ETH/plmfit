@@ -522,6 +522,7 @@ class ProteinBertForSequenceClassification(ProteinBertAbstractModel):
         self.classifier = nn.Linear(config.hidden_size, self.num_labels, bias=False)
         self.reduction = 'bos'
         self.init_weights()
+        self.layer_to_use = -1
 
     def set_head(self, head):
         self.classifier = head
