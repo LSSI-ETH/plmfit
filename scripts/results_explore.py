@@ -43,6 +43,7 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
     
     # Initialize a list to store the collected data
     data = []
+    seen_filenames = set()
     
     if json_files is not None:
         # Iterate over the found JSON files and extract the required metrics and details
@@ -55,9 +56,15 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
                 filename = os.path.basename(file_path)
                 parts = filename.split('_')
                 model_name = parts[1]
-                layer = parts[-5]
-                reduction = parts[-4]
+                layer = parts[-5] if parts[-5] != 'mut' else parts[-6]
+                reduction = parts[-4] if parts[-5] != 'mut' else "mut_mean"
                 head_type = parts[-3]
+
+                # Check if filename has already been processed
+                if filename not in seen_filenames:
+                    seen_filenames.add(filename)
+                else:
+                    continue
                 
                 # Depending on the task type, extract the relevant metrics
                 entry = {
@@ -76,12 +83,12 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
                     entry['Spearman'] = metrics.get('spearman', None)
                     column_name = "Spearman"
                 data.append(entry)
-
+                
                 # Convert the collected data into a pandas DataFrame for easy tabular representation
                 df = pd.DataFrame(data)
 
-                # Combine 'bos' and 'eos' into 'bos/eos' for the 'Reduction' column
-                df['Reduction'] = df['Reduction'].replace({'bos': 'bos/eos', 'eos': 'bos/eos'})
+                # Combine 'bos' and 'eos' into 'cls' for the 'Reduction' column
+                df['Reduction'] = df['Reduction'].replace({'bos': 'cls', 'eos': 'cls'})
                 df['Model + Head'] = df['Model Name'] + ' + ' + df['Head Type']
                 df['Layer + Reduction'] = df['Layer'] + ' + ' + df['Reduction']
     else:
@@ -91,8 +98,8 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
 
     # Ensure the categorical order
     model_order = ['proteinbert', 'progen2-small', 'progen2-medium', 'progen2-xlarge']
-    layer_order = ['first', 'middle', 'last']
-    reduction_order = ['mean', 'bos/eos']
+    layer_order = ['first', 'quarter1', 'middle', 'quarter3', 'last']
+    reduction_order = ['mean', 'cls']
     head_order = ['linear', 'mlp']
     
     # Pivot without sorting
@@ -107,7 +114,7 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
     heatmap_data = heatmap_data.reindex(index=layer_reduction_order, columns=model_head_order)
 
     # Plotting the heatmap with the color scale adjusted from -1 to 1
-    plt.figure(figsize=(14, 10))  # Slightly larger figure size for better readability
+    plt.figure(figsize=(12, 12))  # Slightly larger figure size for better readability
     sns.set(font_scale=1.2)  # Adjust font scale for better readability
     ax = sns.heatmap(heatmap_data, annot=True, cmap="RdBu_r", fmt=".2f", linewidths=.5,
                     cbar_kws={'label': column_name}, center=0, vmin=-1, vmax=1)
@@ -136,14 +143,14 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
     print(f"Summary table saved to {output_csv}")
 
 def main():
-    use_cache = True
+    use_cache = False
     hostname = 'euler.ethz.ch'
     username = 'estamkopoulo'
     key_path = '/Users/tbikias/Desktop/vaggelis/Config/.ssh/id_ed25519_euler'
     base_folder = '$SCRATCH/fine_tuning/'
-    method_type = 'lora'
-    data_type = 'meltome'
-    task_type = 'regression'
+    method_type = 'feature_extraction'
+    data_type = 'aav'
+    task_type = 'classification'
     
     path = f'{base_folder}{method_type}'
     if use_cache:
