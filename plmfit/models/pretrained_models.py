@@ -442,7 +442,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         self.trainables = nn.ModuleList()
         self.logger = logger
         
-    def extract_embeddings(self , data_type , batch_size = 4 , layer = 48, reduction = 'mean',mut_pos = None):
+    def extract_embeddings(self , data_type , batch_size = 4 , layer = 48, reduction = 'mean', mut_pos = None):
         
         device = 'cpu'
         fp16 = False
@@ -462,9 +462,20 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         self.logger.log(f' Encoding {data.shape[0]} sequences....')
         encs = self.categorical_encode(data['aa_seq'].values, self.tokenizer,max(data['len'].values)) 
         self.logger.log(f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
+
+        # Important: When doing multiple reduction methods, always do mutmean last
+        if reduction == 'mutmean':
+            wildtype = utils.get_wild_type(data_type)
+            wild_token = self.tokenizer(wildtype,return_tensors = 'pt').input_ids[0]
+            mutation_mask = (encs == wild_token)
+            mutation_mask = mutation_mask.to(device)
+            
         encs = encs.to(device)
-        
         seq_dataset = data_utils.TensorDataset(encs)
+
+        if reduction == 'mutmean':
+            seq_dataset = data_utils.TensorDataset(encs,mutation_mask)
+
         seq_loader =  data_utils.DataLoader(seq_dataset, batch_size= batch_size, shuffle=False)
         self.logger.log(f'Extracting embeddings for {len(seq_dataset)} sequences...')
         
@@ -501,12 +512,13 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                                 embs[j,k,i : i+ batch_size, : ] = out[lay][:,0]
                             elif reduction[k].startswith('pos'):
                                 embs[j,k,i : i+ batch_size, : ] = out[lay][:,int(reduction[k][3:])]
-                            elif reduction[k] == 'mut_mean':
-                                n_pos = len(mut_pos)
-                                f_pos = mut_pos[0]
-                                for pos in mut_pos[1:]:
-                                    out[lay][:,f_pos] = torch.add(out[lay][:,f_pos],out[lay][:,pos])
-                                embs[j,k,i : i+ batch_size, : ] = torch.div(out[lay][:,f_pos],n_pos)
+                            elif reduction[k] == 'mutmean':
+                                mut_mask = batch[1]
+                                mut_counts = torch.sum(mut_mask, dim = 1)
+                                mut_counts = mut_counts.unsqueeze(dim = 1).expand(-1,self.emb_layers_dim)
+                                out[lay][~mut_mask] = 0
+                                weights = torch.sum(out[lay] , dim = 1)
+                                embs[j,k,i : i+ batch_size, : ] = torch.div(weights, mut_counts)
                             else:
                                 raise 'Unsupported reduction option'
                     del out
@@ -627,9 +639,20 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
         self.logger.log(f' Encoding {data.shape[0]} sequences....')
         encs = self.categorical_encode(data['aa_seq'].values, self.tokenizer,max(data['len'].values)) 
         self.logger.log(f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
+
+        # Important: When doing multiple reduction methods, always do mutmean last
+        if reduction == 'mutmean':
+            wildtype = utils.get_wild_type(data_type)
+            wild_token = self.tokenizer(wildtype,return_tensors = 'pt').input_ids[0]
+            mutation_mask = (encs == wild_token)
+            mutation_mask = mutation_mask.to(device)
+            
         encs = encs.to(device)
-        
         seq_dataset = data_utils.TensorDataset(encs)
+
+        if reduction == 'mutmean':
+            seq_dataset = data_utils.TensorDataset(encs,mutation_mask)
+
         seq_loader =  data_utils.DataLoader(seq_dataset, batch_size= batch_size, shuffle=False)
         self.logger.log(f'Extracting embeddings for {len(seq_dataset)} sequences...')
         
@@ -664,12 +687,13 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
                             embs[j,k,i : i+ batch_size, : ] = out[lay][:,-1]
                         elif reduction[k].startswith('pos'):
                             embs[j,k,i : i+ batch_size, : ] = out[lay][:,int(reduction[k][3:])]
-                        elif reduction[k] == 'mut_mean':
-                            n_pos = len(mut_pos)
-                            f_pos = mut_pos[0]
-                            for pos in mut_pos[1:]:
-                                out[lay][:,f_pos] = torch.add(out[lay][:,f_pos],out[lay][:,pos])
-                            embs[j,k,i : i+ batch_size, : ] = torch.div(out[lay][:,f_pos],n_pos)
+                         elif reduction[k] == 'mutmean':
+                                mut_mask = batch[1]
+                                mut_counts = torch.sum(mut_mask, dim = 1)
+                                mut_counts = mut_counts.unsqueeze(dim = 1).expand(-1,self.emb_layers_dim)
+                                out[lay][~mut_mask] = 0
+                                weights = torch.sum(out[lay] , dim = 1)
+                                embs[j,k,i : i+ batch_size, : ] = torch.div(weights, mut_counts)
                         else:
                             raise 'Unsupported reduction option'
                 del out
