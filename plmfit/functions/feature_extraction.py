@@ -47,7 +47,7 @@ def feature_extraction(args, logger):
         split=split
     )
 
-def runner(config, embeddings, scores, logger, split=None, on_ray_tuning=False, num_workers=0, report_loss=None):
+def runner(config, embeddings, scores, logger, split=None, on_ray_tuning=False, num_workers=0):
     head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
 
     training_params = head_config['training_parameters']
@@ -69,37 +69,34 @@ def runner(config, embeddings, scores, logger, split=None, on_ray_tuning=False, 
     
     utils.set_trainable_parameters(pred_model)
     fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
-    fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning, report_loss=report_loss)
+    final_loss = fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning)
+
+    return final_loss
 
 def ray_tuning(function_to_run, config, embeddings, scores, logger, experiment_dir, split=None):
 
     network_type = config['architecture_parameters']['network_type']
     trials = 200 if network_type == 'mlp' else 100
     
-    bounds = {
-        'learning_rate': (1e-6, 1e-3),
-        'batch_size': (4, 256),
-        'weight_decay': (1e-4, 1e-2)
-    }
+    config['training_parameters']['learning_rate'] = (1e-6, 1e-3)
+    config['training_parameters']['batch_size'] = (4, 128)
+    config['training_parameters']['weight_decay'] = (1e-5, 1e-2)
     if network_type == 'mlp':
-        bounds['hidden_dim'] = (64, 2048)
-
-    logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
+        config['architecture_parameters']['hidden_dim'] = (64, 2048)
 
     tuner = HyperTuner(
-        function_to_run=runner, 
-        config=config, 
-        bounds=bounds,
+        function_to_run=function_to_run, 
+        initial_config=config, 
         trials=trials,
-        logger=logger, 
         experiment_dir=experiment_dir, 
         embeddings=embeddings, 
         scores=scores,
         logger=logger,
         split=split, 
-        on_ray_tuning=True)
+        on_ray_tuning=True
+    )
+    
     best_config, best_loss = tuner.fit()
-    logger.mute = False # Ok, logger can be normal now
 
     logger.log(f"Best trial config: {best_config}")
     logger.log(f"Best trial metrics: {best_loss}")

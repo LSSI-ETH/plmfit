@@ -106,6 +106,7 @@ class FullRetrainFineTuner(FineTuner):
         utils.get_parameters(model.head, True)
 
     def train(self, model, dataloaders_dict, log_interval = -1, on_ray_tuning=False):
+        if on_ray_tuning: self.logger.mute = True
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         memory_usage = psutil.virtual_memory()
         max_mem_usage = utils.print_gpu_utilization(memory_usage, device)
@@ -207,12 +208,6 @@ class FullRetrainFineTuner(FineTuner):
                     epoch_train_loss.append(epoch_loss)
                 else:
 
-                    #! RAY TUNING EXPERIMENTATION !#
-                    if on_ray_tuning: ray.train.report({
-                                "loss": epoch_loss,
-                                "metric": epoch_metric
-                            })
-
                     epoch_val_loss.append(epoch_loss)
                     # Early stopping check
                     if epoch_loss < best_val_loss:
@@ -226,6 +221,10 @@ class FullRetrainFineTuner(FineTuner):
             if self.early_stopping != -1 and epochs_no_improve >= self.early_stopping:
                 self.logger.log('Early stopping triggered after {} epochs with no improvement'.format(self.early_stopping))
                 break  # Break the loop if model hasn't improved for 'patience' epochs
+        
+        if on_ray_tuning: 
+            self.logger.mute = False
+            return best_val_loss
 
         # After the training loop, restore the best model state
         if best_model_state:
