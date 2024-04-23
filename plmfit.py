@@ -2,14 +2,12 @@ import torch
 from plmfit.logger import Logger
 import os
 import argparse
-from plmfit.models.pretrained_models import *
 from plmfit.models.fine_tuning import FullRetrainFineTuner, LowRankAdaptationFineTuner
 from plmfit.models.lightning_model import LightningModel
 import plmfit.shared_utils.utils as utils
 import plmfit.shared_utils.data_explore as data_explore
 import plmfit.models.downstream_heads as heads
 import traceback
-import torch.multiprocessing as mp
 from ray import tune
 from ray.tune import CLIReporter
 from ray.train import RunConfig
@@ -18,15 +16,11 @@ from ray.tune.schedulers import ASHAScheduler
 from ray.tune.search import ConcurrencyLimiter
 from ray.tune.integration.pytorch_lightning import TuneReportCallback
 import ray
-from functools import partial
-import time
 import lightning as L
 from lightning.pytorch.loggers import TensorBoardLogger
-import threading
 from lightning.pytorch.utilities.deepspeed import convert_zero_checkpoint_to_fp32_state_dict
 from lightning.pytorch.callbacks import DeviceStatsMonitor
 import torch.nn.functional as F
-import pandas as pd
 from deepspeed.runtime.zero.stage3 import estimate_zero3_model_states_mem_needs_all_live
 
 parser = argparse.ArgumentParser(description='plmfit_args')
@@ -38,7 +32,7 @@ parser.add_argument('--data_type', type=str, default='aav')
 parser.add_argument('--data_file_name', type=str, default='data_train')
 
 parser.add_argument('--head_config', type=str, default='linear_head_config.json')
-parser.add_argument('--ray_tuning', type=bool, default=False)
+parser.add_argument('--ray_tuning', type=str, default="False")
 
 parser.add_argument('--split', default=None)
 
@@ -65,7 +59,9 @@ parser.add_argument('--experimenting', default="False")
 
 NUM_WORKERS = 0
 
+# Deprecated. Moved to utils.
 def init_plm(model_name, logger):
+    from plmfit.models.pretrained_models import Antiberty, BetaESMFamily, ProGenFamily, ProteinBERTFamily, AnkhFamily
     model = None
     supported_progen2 = ['progen2-small', 'progen2-medium', 'progen2-xlarge']
     supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
@@ -94,99 +90,17 @@ def init_plm(model_name, logger):
 
     return model
 
-def extract_embeddings(args, logger):
-    model = init_plm(args.plm, logger)
-    assert model != None, 'Model is not initialized'
+# MODULARITY DONE
+# TODO: Lightning implementation
+def run_extract_embeddings(args, logger):
+    from plmfit.functions import extract_embeddings
+    extract_embeddings(args=args, logger=logger)
 
-    model.extract_embeddings(data_type=args.data_type, layer=args.layer,
-                            reduction=args.reduction)
-
-def feature_extraction(config, args, logger, on_ray_tuning=False):
-    # Load dataset
-    data = utils.load_dataset(args.data_type)
-    split = None if args.split is None else data[args.split]
-    head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
-    
-    # Load embeddings and scores
-    ### TODO : Load embeddings if do not exist
-    embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings', data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
-    assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
-
-    if head_config['architecture_parameters']['task'] == 'regression':
-        scores = data['score'].values 
-    elif head_config['architecture_parameters']['task'] == 'classification':
-        scores = data['binary_score'].values
-    elif "multilabel" in head_config['architecture_parameters']['task']:
-        scores = data[["mouse","cattle","bat"]].values
-    else:
-        raise f"Task type {head_config['architecture_parameters']['task']} not supported."
-    scores = torch.tensor(scores, dtype=torch.float32)
-
-    training_params = head_config['training_parameters']
-    
-    
-    logger.save_data(vars(args), 'arguments')
-    logger.save_data(head_config, 'head_config')
-
-    network_type = head_config['architecture_parameters']['network_type']
-    if network_type == 'linear':
-        head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
-        pred_model = heads.LinearHead(head_config['architecture_parameters'])
-    elif network_type == 'mlp':
-        head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
-        pred_model = heads.MLP(head_config['architecture_parameters'])
-    else:
-        raise ValueError('Head type not supported')
-    
-    data_loaders = utils.create_data_loaders(
-            embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=NUM_WORKERS)
-            
-    utils.set_trainable_parameters(pred_model)
-    fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
-    fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning)
-
-def lora(args, logger):
-    # Load dataset
-    data = utils.load_dataset(args.data_type)
-    split = None if args.split is None else data[args.split]
-    
-    model = init_plm(args.plm, logger)
-    assert model != None, 'Model is not initialized'
-    
-    head_config = utils.load_config(args.head_config)
-    
-    logger.save_data(vars(args), 'arguments')
-    logger.save_data(head_config, 'head_config')
-    # data = data.sample(1000)
-    network_type = head_config['architecture_parameters']['network_type']
-    if network_type == 'linear':
-        head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
-        pred_model = heads.LinearHead(head_config['architecture_parameters'])
-    elif network_type == 'mlp':
-        head_config['architecture_parameters']['input_dim'] = model.emb_layers_dim
-        pred_model = heads.MLP(head_config['architecture_parameters'])
-    else:
-        raise ValueError('Head type not supported')
-    
-    model.py_model.set_head(pred_model)
-    model.py_model.reduction = args.reduction
-    model.set_layer_to_use(args.layer)
-    model.py_model.layer_to_use = model.layer_to_use
-    encs = model.categorical_encode(data)
-
-    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
-    training_params = head_config['training_parameters']
-    data_loaders = utils.create_data_loaders(
-            encs, scores, scaler=training_params['scaler'], 
-            batch_size=training_params['batch_size'], 
-            validation_size=training_params['val_split'], 
-            dtype=torch.int8, 
-            split=split,
-            num_workers=NUM_WORKERS)
-    fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, model_name=args.plm, logger=logger)
-    model = fine_tuner.set_trainable_parameters(model)
-    model.task = pred_model.task
-    fine_tuner.train(model, dataloaders_dict=data_loaders)
+# MODULARITY DONE
+# TODO: Lightning implementation
+def run_feature_extraction(args, logger):
+    from plmfit.functions import feature_extraction
+    feature_extraction(args=args, logger=logger)
 
 def lora_lightning(args, logger):
     # Load dataset
@@ -475,48 +389,11 @@ def feature_extraction_lightning(config, args, logger, on_ray_tuning=False):
         fig = data_explore.plot_actual_vs_predicted(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
         logger.save_plot(fig, 'actual_vs_predicted')
 
-def onehot(config, args, logger, on_ray_tuning=False):
-    # Load dataset
-    data = utils.load_dataset(args.data_type)
-    # data = data.iloc[:50000]
-    split = None if args.split is None else data[args.split]
-
-    head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
-
-    if args.encs is None:
-        tokenizer = utils.load_tokenizer('proteinbert') # Use same tokenizer as proteinbert
-        encs = utils.categorical_encode(
-            data['aa_seq'].values, tokenizer, max(data['len'].values), add_eos=True, logger=logger, model_name='proteinbert')
-        encs = F.one_hot(encs, tokenizer.get_vocab_size())
-        encs = encs.reshape(encs.shape[0], -1)
-    else:
-        encs = args.encs
-
-    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
-    scores = torch.tensor(scores, dtype=torch.float32)
-
-    training_params = head_config['training_parameters']
-    data_loaders = utils.create_data_loaders(
-            encs, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=NUM_WORKERS)
-    
-    if not on_ray_tuning: 
-        args.encs = None
-        logger.save_data(vars(args), 'arguments')
-        logger.save_data(head_config, 'head_config')
-
-    network_type = head_config['architecture_parameters']['network_type']
-    if network_type == 'linear':
-        head_config['architecture_parameters']['input_dim'] = encs.shape[1]
-        pred_model = heads.LinearHead(head_config['architecture_parameters'])
-    elif network_type == 'mlp':
-        head_config['architecture_parameters']['input_dim'] = encs.shape[1]
-        pred_model = heads.MLP(head_config['architecture_parameters'])
-    else:
-        raise ValueError('Head type not supported')
-    
-    utils.set_trainable_parameters(pred_model)
-    fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
-    fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning)
+# MODULARITY DONE
+# TODO: Lightning implementation
+def run_onehot(args, logger):
+    from plmfit.functions import onehot
+    onehot(args, logger)
 
 
 
@@ -535,33 +412,18 @@ if __name__ == '__main__':
         server_path=f'{trimmed_experiment_dir}'
     )
     try:
-        if args.function == 'extract_embeddings':
-            extract_embeddings(args, logger)
+        if args.function == 'extract_embeddings': run_extract_embeddings(args, logger)
         elif args.function == 'fine_tuning':
-            if args.ft_method == 'feature_extraction':
-                head_config = utils.load_config(args.head_config)                
-                if args.beta == "True": 
-                    if args.ray_tuning:
-                        head_config = ray_tuning(feature_extraction_lightning, head_config, args, logger)
-                    feature_extraction_lightning(head_config, args, logger)
-                else:
-                    if args.ray_tuning:
-                        head_config = ray_tuning(feature_extraction, head_config, args, logger)
-                    feature_extraction(head_config, args, logger)
+            if args.ft_method == 'feature_extraction': run_feature_extraction(args, logger)
             elif args.ft_method == 'lora':
                 lora_lightning(args, logger)
             elif args.ft_method == 'full':
                 full_retrain(args, logger)
             else:
                 raise ValueError('Fine Tuning method not supported')
-        elif args.function == 'one_hot':
-            args.encs = None
-            head_config = utils.load_config(args.head_config)
-            if args.ray_tuning:
-                head_config = ray_tuning(onehot, head_config, args, logger)
-            onehot(head_config, args, logger)
-        else:
-            raise ValueError('Function is not supported')
+        elif args.function == 'one_hot': run_onehot(args, logger)
+        else: raise ValueError('Function is not supported')
+
         logger.log("\n\nEnd of process", force_send=True)
     except:
         logger.mute = False
