@@ -65,5 +65,5 @@ for ((i = 1; i <= worker_num; i++)); do
 done
 
 python3 -u plmfit.py --function $1 --ft_method $2 --head_config $3 --ray_tuning $4 \
-        --data_type $5 --plm $6 --layer $7 --reduction $8 \
-        --output_dir ${9} --experiment_dir ${10} --experiment_name ${11}
+        --data_type $5 --split $6 --plm $7 --layer $8 --reduction $9 \
+        --output_dir ${10} --experiment_dir ${11} --experiment_name ${12}

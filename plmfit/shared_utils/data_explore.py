@@ -11,7 +11,11 @@ from sklearn.metrics import matthews_corrcoef, confusion_matrix, roc_auc_score, 
 import numpy as np
 from scipy.stats import spearmanr
 import json
-
+import torchmetrics.functional as functional
+import itertools
+from matplotlib.colors import ListedColormap
+from matplotlib.patches import Patch
+from torch.nn.functional import sigmoid
 
 def plot_label_distribution(data, label="binary_score", path=None, text="Keep"):
     sns.set(style="whitegrid")
@@ -450,3 +454,283 @@ def evaluate_regression(model, dataloaders_dict, device, model_output='default')
     }
 
     return eval_metrics, fig, testing_data
+
+def plot_multilabel_ROC(fpr, tpr, roc_auc, colors = None, labels = None):
+    
+    # Plot ROC curve
+    if colors == None:
+        colors = ["darkorange", "green", "red"]
+    
+    if labels == None:
+        labels = ["Mouse", "Cattle", "Bat"]
+
+    fig = plt.figure(figsize=(12, 9))  # Adjust figure size for better visibility
+    for i in range(len(fpr)):
+        plt.plot(fpr[i], tpr[i], color=colors[i], lw=2, label=f'{labels[i]} (AUC = %0.2f)' % roc_auc[i])
+
+    plt.plot([0, 1], [0, 1], color='gray', lw=2, linestyle='--')  # Adjusted color and style for unity line
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate', fontsize=14)  # Adjust label font size
+    plt.ylabel('True Positive Rate', fontsize=14)  # Adjust label font size
+    plt.title('Receiver Operating Characteristic (ROC) Curve', fontsize=16)  # Adjust title font size
+    plt.legend(loc="lower right", fontsize=12)  # Adjust legend font size
+    plt.grid(True, linestyle='--', alpha=0.7)  # Adjusted grid style for better visibility
+    plt.tight_layout()  # Adjust layout for better spacing
+
+    return fig
+
+def plot_multilabel_prec_recall(prec, rec, colors = None, labels = None ):
+    
+    # Plot ROC curve
+    if colors == None:
+        colors = ["darkorange", "green", "red"]
+    
+    if labels == None:
+        labels = ["Mouse", "Cattle", "Bat"]
+
+    fig = plt.figure(figsize=(12, 9))  # Adjust figure size for better visibility
+    for i in range(len(prec)):
+        plt.plot(rec[i], prec[i], color=colors[i], lw=2, label=f'{labels[i]}')
+
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('Recall', fontsize=14)  # Adjust label font size
+    plt.ylabel('Precision', fontsize=14)  # Adjust label font size
+    plt.title('Precision Recall Curve', fontsize=16)  # Adjust title font size
+    plt.legend(loc="lower right", fontsize=12)  # Adjust legend font size
+    plt.grid(True, linestyle='--', alpha=0.7)  # Adjusted grid style for better visibility
+    plt.tight_layout()  # Adjust layout for better spacing
+
+    return fig
+
+def plot_confusion_matrices(cms, class_names, normalize = False, titles = None, cmap=plt.cm.Blues):
+    if titles == None:
+        titles = ['Confusion Matrix 1', 'Confusion Matrix 2', 'Confusion Matrix 3']
+        
+    num_plots = len(cms)
+    fig, axes = plt.subplots(1, num_plots, figsize=(16, 6))
+
+    for idx, (cm, title) in enumerate(zip(cms, titles)):
+        ax = axes[idx]
+        ax.imshow(cm, interpolation='nearest', cmap=cmap)
+        ax.set_title(title, fontsize=16)
+        ax.set_xticks(np.arange(len(class_names)))
+        ax.set_xticklabels(class_names, rotation=45, fontsize=12)
+        ax.set_yticks(np.arange(len(class_names)))
+        ax.set_yticklabels(class_names, fontsize=12)
+
+        fmt = '.2f' if normalize else 'd'
+        thresh = cm.max() / 2.
+        for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+            color = 'white' if cm[i, j] > thresh else 'black'
+            ax.text(j, i, format(cm[i, j], fmt),
+                     horizontalalignment="center",
+                     color=color, fontsize=12)
+        ax.set_ylabel('True label', fontsize=14)
+        ax.set_xlabel('Predicted label', fontsize=14)
+    
+    plt.tight_layout()
+    plt.subplots_adjust(wspace=0.4)
+    return fig
+
+def plot_mcc(thresholds, scores, best_tre, best_score):
+    fig = plt.figure(figsize=(8, 6))  # Adjust figure size for better visibility
+    plt.plot(thresholds, scores, lw=2, label= 'MCC')
+    plt.plot(best_tre, best_score, 'ro') # 'ro' for red circle
+    plt.text(best_tre, best_score, f'Highest: {best_score:.2f}', fontsize=12, ha='right', va='bottom')
+    y_max = 0.5 + best_score.item()/2
+    plt.axvline(x=best_tre, color='gray', linestyle='--', ymax= y_max, linewidth=1, c = 'red')
+    plt.text(best_tre, -0.9, f'Best Threshold: {best_tre:.2f}', fontsize=12, ha='right')
+
+    plt.xlim([0.0, 1.0])
+    plt.ylim([-1.0, 1.00])
+
+    plt.xlim([0.0, 1.0])
+    plt.ylim([-1.0, 1.00])
+
+    plt.xlabel('Threshold', fontsize=14)  # Adjust label font size
+    plt.ylabel('MCC Score', fontsize=14)  # Adjust label font size
+    plt.title('Threshold Determination', fontsize=16)
+    plt.grid(True, linestyle='--', alpha=0.7)  # Adjusted grid style for better visibility
+    plt.tight_layout()  # Adjust layout for better spacing
+    return fig
+
+def get_threshold_MCC(y_pred, y_test, c_type):
+    # Calculate the best treshold utilizing MCC
+    best_tre = None
+    best_score = -np.inf
+    scores = []
+    n_class = len(y_pred[0])
+    
+    for tre in np.linspace(0.01,1,100):
+        score = functional.matthews_corrcoef(y_pred,y_test,c_type,threshold = tre,num_labels = n_class)
+        scores.append(score)
+        if score > best_score:
+            best_score = score
+            best_tre = tre
+
+    fig= plot_mcc(np.linspace(0.01,1,100),scores,best_tre,best_score)
+    
+    return (best_tre,fig)
+
+def plot_exact_accuracy(y_pred,y_test,best_tre,ignore_index = 0.5, logger = None):
+    valid_index = ~(y_test == ignore_index)
+    y_test = y_test[valid_index]
+    # Calculates the number of correct predictions per sequence
+    y_pred_tre = sigmoid(torch.clone(y_pred[valid_index]))
+    logger.log(y_test)
+    logger.log(y_pred_tre)
+    y_pred_tre[y_pred_tre >= best_tre] = 1
+    y_pred_tre[y_pred_tre < best_tre] = 0
+
+    pred_sum = torch.sum(torch.round(y_pred_tre) == y_test, dim = 1)
+    n_correct, frequency = np.unique(pred_sum,return_counts = True)
+
+    # Create bar plot
+    fig = plt.figure(figsize=(8, 6))
+    bars = plt.bar(n_correct, frequency, color='skyblue')
+
+    # Add labels to the bars
+    for bar, label in zip(bars, frequency):
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width() / 2, height, label,
+                ha='center', va='bottom')
+
+    # Add labels and title
+    plt.xlabel('# Correct Guesses')
+    plt.ylabel('Frequency')
+    plt.title('Exact Accuracy')
+
+    # Show plot
+    return fig
+
+def plot_mixedlabel_heatmap(y_pred,best_tre,case_mask,title):
+        y_pred_tre = torch.floor(y_pred + 1 - best_tre)
+        data = y_pred_tre[case_mask]
+        
+        fig = plt.figure(figsize=(6, 15))
+        colors = ['white', 'steelblue']
+        cmap = ListedColormap(colors)
+        plt.imshow(data, cmap=cmap, interpolation='nearest', aspect='auto')
+        plt.xlabel('Species')
+        plt.ylabel('Sequences')
+        plt.xticks(ticks = [0,1,2], labels = ["Mouse Pred","Cattle Pred","Bat Pred"])
+        legend = plt.legend(handles=[Patch(facecolor=colors[0], edgecolor='k', label='Non-bind'),
+                                    Patch(facecolor=colors[1], edgecolor='k', label='Bind')],
+                            loc='upper center', title="", bbox_to_anchor=(0.5, -0.05), handlelength=4, handleheight=4)
+
+        plt.setp(legend.get_title(), fontsize='large')
+
+        # Add vertical lines between different x ticks
+        for i in range(data.shape[1] - 1):
+            plt.axvline(x=i + 0.5, color='black', linestyle='-', linewidth=1)
+
+        # Add horizontal lines
+        for i in range(data.shape[0] - 1):
+            plt.axhline(y=i + 0.5, color='black', linestyle='-', linewidth=1)
+
+        # Customize ticks and labels for x-axis on top
+        plt.tick_params(axis='x', top=True, bottom=False, labeltop=True, labelbottom=False,labelsize="large")
+        plt.tight_layout()
+        plt.title(title)
+        return fig
+
+def mixed_labels_heatmaps(y_pred,y_test,best_tre,ignore_index = 0.5):
+    h_maps = {}
+    valid_index = ~torch.any(y_test == ignore_index,axis = 1)
+    y_test = y_test[valid_index]
+    y_pred = y_pred[valid_index]
+    #mixed_cases = [[1,0,0],[0,1,0],[0,0,1],[1,1,0],[1,0,1],[0,1,1]]
+    mixed_labels, inverse_ind = np.unique(y_test, axis = 0,return_inverse = True)
+    
+    for i in range(np.max(len(mixed_labels))):
+        case = mixed_labels[i]
+        if (case.tolist() == [0,0,0]) or (case.tolist() == [1,1,1]):
+            continue
+        case_ind = np.where(inverse_ind == i)
+        h_maps[str(case)] = plot_mixedlabel_heatmap(y_pred,best_tre,case_ind,str(case))
+        
+            
+    return h_maps
+
+def evaluate_predictions(y_pred,y_test,c_type,n_class = 1, ignore = 0.5, logger = None):
+    # Initialize dictionaries to save results, and initialize the metrics
+    results = {}
+    pooled_results = {}
+    figures = {}
+
+    metrics = {'Accuracy':functional.accuracy, 'Precision': functional.precision, 'Recall': functional.recall}
+    pooled_metrics = {'MCC': functional.matthews_corrcoef, 'Exact Match': functional.exact_match}
+
+    # Calculate the best threshold for classification based on MCC
+    best_tre, mcc_fig = get_threshold_MCC(y_pred,y_test,c_type)
+    figures["MCC"] = mcc_fig
+
+    n_class = len(y_pred[0])
+    c_type = "multilabel"
+
+    # Calculate scores for all metrics
+    for (name,metric) in metrics.items():
+        result = metric(y_pred,y_test,c_type, threshold = best_tre, average = "none", num_labels = n_class,ignore_index =ignore)
+        results[name] = result.tolist()
+        pooled_results[name] = torch.mean(result).item()
+
+    # Calculate binary MCC for all classes
+    mcc_list = []
+    for i in range(n_class):
+        mcc = functional.matthews_corrcoef(y_pred[:,i],y_test[:,i],"binary",threshold = best_tre,ignore_index = ignore )
+        mcc_list.append(mcc)
+    results["MCC"] = np.array(mcc_list).tolist()
+
+    # Calculate scores for "pooled metrics"
+    for (name,metric) in pooled_metrics.items():
+        result = metric(y_pred,y_test,c_type, threshold = best_tre, num_labels = n_class,ignore_index = ignore)
+        pooled_results[name] = result.item()
+
+    # Plot confusion matrix
+    cm = functional.confusion_matrix(y_pred,y_test,c_type, threshold = best_tre, num_labels = n_class,ignore_index = ignore)
+    cm_fig = plot_confusion_matrices(cm,["Non-bind","Bind"],titles = ["Mouse","Cattle","Bat"])
+    figures["con_mat"] = cm_fig
+
+    # Plot ROC curve
+    fpr, tpr, thresholds = functional.roc(y_pred,y_test,c_type, num_labels = n_class,ignore_index = ignore)
+    auc = functional.auroc(y_pred,y_test,c_type, num_labels = n_class,average = 'none')
+    roc_fig= plot_multilabel_ROC(fpr, tpr, auc)
+    figures["ROC"] = roc_fig
+
+    # Plot Precision Recall curve
+    precision, recall, thresholds = functional.precision_recall_curve(y_pred,y_test,c_type, num_labels = n_class,ignore_index = ignore)
+    prec_rec_fig= plot_multilabel_prec_recall(precision, recall)
+    figures["prec_recall_curve"] = prec_rec_fig
+
+    # Plot exact accuracy
+    exact_acc_fig = plot_exact_accuracy(y_pred,y_test,best_tre, logger = logger)
+    figures["correct_guesses"] = exact_acc_fig
+
+    # Plot heatmap for mixed labels
+    mixed_label_heatmap = mixed_labels_heatmaps(y_pred,y_test,best_tre)
+    for (name,hmap) in mixed_label_heatmap.items():
+        figures[name] = hmap
+
+    return (results,pooled_results,figures)
+
+def evaluate_multi_label_classification(model, dataloaders_dict, device, logger = None):
+    # Evaluate the model on the test dataset
+    model.eval()
+    y_pred = []
+    y_test = []
+    with torch.no_grad():
+        for (embeddings, labels) in dataloaders_dict['test']:
+            embeddings = embeddings.to(device)
+            labels = labels.to(device).int()
+            output = model(embeddings)
+            
+            y_pred.extend(output.cpu().detach().numpy())
+            y_test.extend(labels.cpu().detach().numpy())
+
+    y_pred = torch.tensor(np.array(y_pred))
+    y_test = torch.tensor(np.array(y_test)).int()
+    n_class = len(y_test[0])
+    
+    return evaluate_predictions(y_pred,y_test, c_type = "multilabel", n_class = n_class, ignore = -1, logger = logger)

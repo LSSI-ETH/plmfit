@@ -104,7 +104,7 @@ def extract_embeddings(args, logger):
 def feature_extraction(config, args, logger, on_ray_tuning=False):
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    split = None if args.split is None else data[args.split]
+    split = None if args.split is None else data[args.split].values
     head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
     
     # Load embeddings and scores
@@ -115,9 +115,9 @@ def feature_extraction(config, args, logger, on_ray_tuning=False):
     if head_config['architecture_parameters']['task'] == 'regression':
         scores = data['score'].values 
     elif head_config['architecture_parameters']['task'] == 'classification':
-        scores = data['binary_score'].values
+        scores = data['binary_score']
     elif "multilabel" in head_config['architecture_parameters']['task']:
-        scores = data[["mouse","cattle","bat"]].values
+        scores = data[["mouse","cattle","ihbat"]].values
     else:
         raise f"Task type {head_config['architecture_parameters']['task']} not supported."
     scores = torch.tensor(scores, dtype=torch.float32)
