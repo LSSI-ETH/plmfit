@@ -17,11 +17,13 @@ peft
 PyYAML
 requests
 psutil
+gputil
 pynvml
 einops
 botocore
 boto3
 paramiko
+ray
 ray[default,tune]
 bayesian-optimization
 lightning
