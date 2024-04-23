@@ -18,8 +18,9 @@ try:
 except:
     env_exists = False
     print(f"No environment file 'env.py' detected, using exported environment variables as a fallback")
+from plmfit.models.pretrained_models import Antiberty, BetaESMFamily, ProGenFamily, ProteinBERTFamily, AnkhFamily
 
-path = os.getenv('DATA_DIR', env_exists)
+path = os.getenv('DATA_DIR', DATA_DIR)
 data_dir = f'{path}/data'
 config_dir = f'{path}/models/configurations'
 
@@ -478,3 +479,32 @@ def find_mutation_positions(seq, ref, padding_id=None):
     Returns a list of positions where the sequence differs from the reference.
     """
     return [i for i, (s, r) in enumerate(zip(seq, ref)) if s != r]
+
+def init_plm(model_name, logger):
+    model = None
+    supported_progen2 = ['progen2-small', 'progen2-medium', 'progen2-xlarge']
+    supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
+                     "esm2_t30_150M_UR50D", "esm2_t33_650M_UR50D","esm2_t36_3B_UR50D"]
+    supported_Ankh = ['ankh-base', 'ankh-large', 'ankh2-large']
+    supported_Proteinbert = ['proteinbert']
+
+    if 'progen' in model_name:
+        assert model_name in supported_progen2, 'Progen version is not supported'
+        model = ProGenFamily(model_name, logger)
+
+    elif 'esm' in model_name:
+        assert model_name in supported_ESM, 'ESM version is not supported'
+        model = BetaESMFamily(model_name, logger)
+
+    elif 'ankh' in model_name:
+        assert model_name in supported_Ankh, 'Ankh version is not supported'
+        model = AnkhFamily(model_name)
+    elif 'antiberty' in model_name:
+        model = Antiberty()
+    elif 'proteinbert' in model_name:
+        assert model_name in supported_Proteinbert, 'ProteinBERT version is not supported'
+        model = ProteinBERTFamily(logger)
+    else:
+        raise 'PLM not supported'
+
+    return model
