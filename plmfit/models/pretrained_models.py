@@ -687,7 +687,7 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
                             embs[j,k,i : i+ batch_size, : ] = out[lay][:,-1]
                         elif reduction[k].startswith('pos'):
                             embs[j,k,i : i+ batch_size, : ] = out[lay][:,int(reduction[k][3:])]
-                         elif reduction[k] == 'mutmean':
+                        elif reduction[k] == 'mutmean':
                                 mut_mask = batch[1]
                                 mut_counts = torch.sum(mut_mask, dim = 1)
                                 mut_counts = mut_counts.unsqueeze(dim = 1).expand(-1,self.emb_layers_dim)

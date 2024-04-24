@@ -1,2 +1,3 @@
 function	data_type	plm	reduction	layer	output_dir	gpus	gres	mem-per-cpu
+extract_embeddings	rbd	esm2_t33_650M_UR50D	mutmean	middle	/cluster/scratch/bsahin	1	24g	32g
 extract_embeddings	rbd	esm2_t33_650M_UR50D	mutmean	first_middle_last	/cluster/scratch/bsahin	1	80g	64g
