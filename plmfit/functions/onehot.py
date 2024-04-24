@@ -3,12 +3,7 @@ import torch
 import torch.nn.functional as F
 import plmfit.models.downstream_heads as heads
 from plmfit.models.fine_tuning import FullRetrainFineTuner
-import ray
-from ray.tune import CLIReporter
-from ray.train import RunConfig
-from ray.tune.search.bayesopt import BayesOptSearch
-from ray.tune.schedulers import ASHAScheduler
-from ray.tune.search import ConcurrencyLimiter
+from plmfit.models.hyperparameter_tuner import HyperTuner
 
 def onehot(args, logger):
     # Load dataset
@@ -22,7 +17,15 @@ def onehot(args, logger):
     encs = F.one_hot(encs, tokenizer.get_vocab_size())
     encs = encs.reshape(encs.shape[0], -1)
 
-    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
+    if head_config['architecture_parameters']['task'] == 'regression':
+        scores = data['score'].values 
+    elif head_config['architecture_parameters']['task'] == 'classification':
+        scores = data['binary_score'].values
+    # TODO: Make scores data type agnostic
+    elif "multilabel" in head_config['architecture_parameters']['task']:
+        scores = data[["mouse","cattle","bat"]].values
+    else:
+        raise f"Task type {head_config['architecture_parameters']['task']} not supported."
     scores = torch.tensor(scores, dtype=torch.float32)
     
     logger.save_data(vars(args), 'arguments')
@@ -72,67 +75,29 @@ def runner(config, encodings, scores, logger, split=None, on_ray_tuning=False, n
 
 def ray_tuning(function_to_run, config, encodings, scores, logger, experiment_dir, split=None):
     network_type = config['architecture_parameters']['network_type']
+    trials = 200 if network_type == 'mlp' else 100
+    
+    config['training_parameters']['learning_rate'] = (1e-6, 1e-3)
+    config['training_parameters']['batch_size'] = (4, 128)
+    config['training_parameters']['weight_decay'] = (1e-5, 1e-2)
+    if network_type == 'mlp':
+        config['architecture_parameters']['hidden_dim'] = (64, 2048)
 
-    # Define search space and number of trials
-    trials = 100
-    if network_type == 'mlp': 
-        config['architecture_parameters']['hidden_dim'] = ray.tune.uniform(64, 2048)
-        trials = 200
-    config['training_parameters']['learning_rate'] = ray.tune.uniform(1e-6, 1e-3)
-    config['training_parameters']['batch_size'] = ray.tune.uniform(4, 256)
-    config['training_parameters']['weight_decay'] = ray.tune.uniform(1e-4, 1e-2)
-
-    initial_epoch_sizing = config['training_parameters']['epoch_sizing']
-    config['training_parameters']['epoch_sizing'] = 0.2 # Sample data to make procedure faster
-
-    # Initialize BayesOptSearch
-    searcher = BayesOptSearch(
-        utility_kwargs={"kind": "ucb", "kappa": 2.5, "xi": 0.0}, random_search_steps=10
-    )
-    # searcher = ConcurrencyLimiter(searcher, max_concurrent=4)
-
-    scheduler = ASHAScheduler(
-        max_t=10,
-        grace_period=2,
-        reduction_factor=2
+    tuner = HyperTuner(
+        function_to_run=function_to_run, 
+        initial_config=config, 
+        trials=trials,
+        experiment_dir=experiment_dir, 
+        encodings=encodings, 
+        scores=scores,
+        logger=logger,
+        split=split, 
+        on_ray_tuning=True
     )
 
-    reporter = CLIReporter(max_progress_rows=10)
+    best_config, best_loss = tuner.fit()
 
-    logger.log("Initializing ray tuning...")
-    ray.init(include_dashboard=True)
+    logger.log(f"Best trial config: {best_config}")
+    logger.log(f"Best trial metrics: {best_loss}")
 
-    logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
-    tuner = ray.tune.Tuner(
-        ray.tune.with_resources(
-            ray.tune.with_parameters(
-                function_to_run,
-                encodings=encodings, 
-                scores=scores,
-                logger=logger,
-                split=split, on_ray_tuning=True
-            ), 
-            {"gpu": 1}
-        ),
-        tune_config=ray.tune.TuneConfig(
-            metric="loss", 
-            mode="min",
-            search_alg=searcher,
-            scheduler=scheduler,
-            num_samples=trials,
-        ),
-        run_config=RunConfig(
-            progress_reporter=reporter, 
-            log_to_file=(f"{experiment_dir}/ray_stdout.log", f"{experiment_dir}/ray_stderr.log"),
-            storage_path=f'{experiment_dir}/raytune_results'),
-        param_space=config,
-    )
-    results = tuner.fit()
-    logger.mute = False # Ok, logger can be normal now
-
-    best_result = results.get_best_result("loss", "min")
-    best_result.config['training_parameters']['epoch_sizing'] = initial_epoch_sizing
-    logger.log(f"Best trial config: {best_result.config}")
-    logger.log(f"Best trial metrics: {best_result.metrics}")
-
-    return best_result.config
+    return best_config

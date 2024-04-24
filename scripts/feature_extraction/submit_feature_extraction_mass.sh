@@ -26,5 +26,4 @@ do
          --nice=1 \
          scripts/feature_extraction/ray_tuning_mass.sh \
          "$function" "$ft_method" "$head_config" "$ray_tuning" "$data_type" "$plm" "$layer" "$reduction" "$output_dir" "$experiment_dir" "$experiment_name" "$gpus"
-  sleep 10
 done

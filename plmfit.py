@@ -8,14 +8,6 @@ import plmfit.shared_utils.utils as utils
 import plmfit.shared_utils.data_explore as data_explore
 import plmfit.models.downstream_heads as heads
 import traceback
-from ray import tune
-from ray.tune import CLIReporter
-from ray.train import RunConfig
-from ray.tune.search.bayesopt import BayesOptSearch
-from ray.tune.schedulers import ASHAScheduler
-from ray.tune.search import ConcurrencyLimiter
-from ray.tune.integration.pytorch_lightning import TuneReportCallback
-import ray
 import lightning as L
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.utilities.deepspeed import convert_zero_checkpoint_to_fp32_state_dict
@@ -240,72 +232,6 @@ def full_retrain(args, logger):
     fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
     model.py_model.task = pred_model.task
     fine_tuner.train(model.py_model, dataloaders_dict=data_loaders)
-
-def ray_tuning(function_to_run, head_config, args, logger):
-    network_type = head_config['architecture_parameters']['network_type']
-    trials = 100
-    if network_type == 'mlp': 
-        head_config['architecture_parameters']['hidden_dim'] = tune.uniform(64, 2048)
-        trials = 200
-    head_config['training_parameters']['learning_rate'] = tune.uniform(1e-6, 1e-3)
-    head_config['training_parameters']['batch_size'] = tune.uniform(4, 256)
-    head_config['training_parameters']['weight_decay'] = tune.uniform(1e-4, 1e-2)
-
-    initial_epoch_sizing = head_config['training_parameters']['epoch_sizing']
-    head_config['training_parameters']['epoch_sizing'] = 0.2 # Sample data to make procedure faster
-
-    # Initialize BayesOptSearch
-    searcher = BayesOptSearch(
-        utility_kwargs={"kind": "ucb", "kappa": 2.5, "xi": 0.0}, random_search_steps=10
-    )
-    # searcher = ConcurrencyLimiter(searcher, max_concurrent=4)
-
-    scheduler = ASHAScheduler(
-        max_t=10,
-        grace_period=2,
-        reduction_factor=2
-    )
-
-    reporter = CLIReporter(max_progress_rows=10)
-
-    if args.function == 'one_hot':
-        data = utils.load_dataset(args.data_type)
-        # data = data.iloc[:50000]
-        tokenizer = utils.load_tokenizer('proteinbert') # Use same tokenizer as proteinbert
-        encs = utils.categorical_encode(
-            data['aa_seq'].values, tokenizer, max(data['len'].values), add_eos=True, logger=logger, model_name='proteinbert')
-        encs = F.one_hot(encs, tokenizer.get_vocab_size())
-        encs = encs.reshape(encs.shape[0], -1)
-        args.encs = encs
-
-    logger.log("Initializing ray tuning...")
-    ray.init(include_dashboard=True)
-
-    logger.mute = True # Avoid overpopulating logger with a mixture of training procedures
-    tuner = tune.Tuner(
-        tune.with_resources(tune.with_parameters(function_to_run, args=args, logger=logger, on_ray_tuning=True), {"gpu": 1}),
-        tune_config=tune.TuneConfig(
-            metric="loss", 
-            mode="min",
-            search_alg=searcher,
-            scheduler=scheduler,
-            num_samples=trials,
-        ),
-        run_config=RunConfig(
-            progress_reporter=reporter, 
-            log_to_file=(f"{experiment_dir}/ray_stdout.log", f"{experiment_dir}/ray_stderr.log"),
-            storage_path=f'{experiment_dir}/raytune_results'),
-        param_space=head_config,
-    )
-    results = tuner.fit()
-    logger.mute = False # Ok, logger can be normal now
-
-    best_result = results.get_best_result("loss", "min")
-    best_result.config['training_parameters']['epoch_sizing'] = initial_epoch_sizing
-    logger.log(f"Best trial config: {best_result.config}")
-    logger.log(f"Best trial metrics: {best_result.metrics}")
-
-    return best_result.config
 
 def feature_extraction_lightning(config, args, logger, on_ray_tuning=False):
     # Load dataset
