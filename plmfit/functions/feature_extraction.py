@@ -76,11 +76,11 @@ def runner(config, embeddings, scores, logger, split=None, on_ray_tuning=False, 
 def ray_tuning(function_to_run, config, embeddings, scores, logger, experiment_dir, split=None):
 
     network_type = config['architecture_parameters']['network_type']
-    trials = 200 if network_type == 'mlp' else 100
+    trials = 300 if network_type == 'mlp' else 100
     
-    config['training_parameters']['learning_rate'] = (1e-6, 1e-3)
-    config['training_parameters']['batch_size'] = (4, 128)
-    config['training_parameters']['weight_decay'] = (1e-5, 1e-2)
+    config['training_parameters']['learning_rate'] = (1e-6, 1e-2)
+    config['training_parameters']['batch_size'] = (8, 128)
+    config['training_parameters']['weight_decay'] = (1e-6, 1e-1)
     if network_type == 'mlp':
         config['architecture_parameters']['hidden_dim'] = (64, 2048)
 

@@ -168,6 +168,9 @@ def lora_lightning(args, logger):
     estimate_zero3_model_states_mem_needs_all_live(model, num_gpus_per_node=int(args.gpus), num_nodes=1)
 
     trainer.strategy.load_full_weights = True
+    trainer.strategy.initial_scale_power = 20
+    trainer.strategy.loss_scale_window = 2000
+    trainer.strategy.min_loss_scale = 0.25
 
     try:
         trainer.fit(model, data_loaders['train'], data_loaders['val'])
@@ -348,7 +351,7 @@ if __name__ == '__main__':
             else:
                 raise ValueError('Fine Tuning method not supported')
         elif args.function == 'one_hot': run_onehot(args, logger)
-        else: raise ValueError('Function is not supported')
+        else: raise ValueError('Function not supported')
 
         logger.log("\n\nEnd of process", force_send=True)
     except:
