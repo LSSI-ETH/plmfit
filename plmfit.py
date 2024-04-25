@@ -324,8 +324,6 @@ def run_onehot(args, logger):
     from plmfit.functions import onehot
     onehot(args, logger)
 
-
-
 if __name__ == '__main__':
     args = parser.parse_args()
     experiment_dir = args.experiment_dir

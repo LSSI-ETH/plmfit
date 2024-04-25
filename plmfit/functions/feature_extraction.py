@@ -19,9 +19,8 @@ def feature_extraction(args, logger):
         scores = data['score'].values 
     elif head_config['architecture_parameters']['task'] == 'classification':
         scores = data['binary_score'].values
-    # TODO: Make scores data type agnostic
     elif "multilabel" in head_config['architecture_parameters']['task']:
-        scores = data[["mouse","cattle","bat"]].values
+        scores = data[["mouse","cattle","ihbat"]].values
     else:
         raise f"Task type {head_config['architecture_parameters']['task']} not supported."
     scores = torch.tensor(scores, dtype=torch.float32)
