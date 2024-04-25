@@ -354,8 +354,8 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 class ESMFamily(IPretrainedProteinLanguageModel):
     tokenizer : AutoTokenizer
     
-    def __init__(self , esm_version : str):
-        super().__init__()
+    def __init__(self , esm_version : str, logger : l.Logger):
+        super().__init__(logger)
         self.version = esm_version 
         self.py_model = EsmForMaskedLM.from_pretrained(f'facebook/{esm_version}' , output_hidden_states = True)
         self.no_parameters = utils.get_parameters(self.py_model)

@@ -67,7 +67,8 @@ def init_plm(model_name, logger):
 
     elif 'esm' in model_name:
         assert model_name in supported_ESM, 'ESM version is not supported'
-        model = BetaESMFamily(model_name, logger)
+        model = ESMFamily(model_name,logger)
+        #model = BetaESMFamily(model_name, logger)
 
     elif 'ankh' in model_name:
         assert model_name in supported_Ankh, 'Ankh version is not supported'
@@ -225,7 +226,6 @@ def full_retrain(args, logger):
     utils.set_trainable_parameters(pred_model)
     model.py_model.set_head(pred_model)
     utils.get_parameters(model.py_model, logger=logger)
-    data = data.sample(100000)
     encs = model.categorical_encode(data)
     logger.log(model.py_model)
     scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values

@@ -15,6 +15,7 @@ from torch.cuda.amp import GradScaler, autocast
 from torch.nn import DataParallel
 import ray
 import ray.cloudpickle as pickle
+import torchmetrics
 
 class FineTuner(ABC):
     def __init__(self, training_config, logger = None):
@@ -29,6 +30,7 @@ class FineTuner(ABC):
         self.early_stopping = self.handle_bool_float_config_param(training_config['early_stopping'], false_value=-1, true_value=10)
         self.epoch_sizing = self.handle_bool_float_config_param(training_config['epoch_sizing'], false_value=0, true_value=0.2)
         self.model_output = training_config.get('model_output', 'default')
+        self.scheduler = training_config['scheduler']
         self.logger = logger
 
     def handle_bool_float_config_param(self, config_param, false_value=0, true_value=1):
@@ -80,7 +82,7 @@ class FineTuner(ABC):
     def initialize_lr_scheduler(self, optimizer):
         return torch.optim.lr_scheduler.StepLR(optimizer, step_size=1)
 
-    def initialize_loss_function(self, class_weights = None):
+    def initialize_loss_function(self):
         """
         Initializes the loss function. Can be overridden by subclasses to use different loss functions.
         """
@@ -91,7 +93,7 @@ class FineTuner(ABC):
         elif self.loss_function == 'mse':
             return torch.nn.MSELoss()
         elif self.loss_function == "weighted_bce":
-            return custom_loss_functions.WeightedBCELoss(class_weights)
+            return custom_loss_functions.WeightedBCELoss()
         else:
             raise ValueError(f"Loss Function '{self.loss_function}' not supported.")
 
@@ -105,7 +107,7 @@ class FullRetrainFineTuner(FineTuner):
         utils.get_parameters(model.py_model, True)
         utils.get_parameters(model.head, True)
 
-    def train(self, model, dataloaders_dict, log_interval = -1, on_ray_tuning=False):
+    def train(self, model, dataloaders_dict, log_interval = -1, on_ray_tuning=False, use_scheduler = False):
         if on_ray_tuning: self.logger.mute = True
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         memory_usage = psutil.virtual_memory()
@@ -125,13 +127,10 @@ class FullRetrainFineTuner(FineTuner):
         model = model.to(device)
 
         optimizer = self.initialize_optimizer(model.parameters())
-        class_weights = None
-        if self.loss_function == "weighted_bce":
-            train_labels = dataloaders_dict["train"].dataset.tensors[1]
-            class_weights = utils.get_loss_weights(train_labels)
-            self.logger.log(f'{class_weights}')
-
-        loss_function = self.initialize_loss_function(class_weights)
+        if self.scheduler: 
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
+            epoch_lrs = []
+        loss_function = self.initialize_loss_function()
 
         epoch_train_loss = []
         epoch_val_loss = []
@@ -140,6 +139,12 @@ class FullRetrainFineTuner(FineTuner):
         best_epoch = 0
         epochs_no_improve = 0  # Counter for epochs with no improvement
         start_time = time.time()
+
+        if self.task_type == 'multilabel_classification':
+            train_recall = torchmetrics.classification.MultilabelRecall(num_labels = 3, ignore_index = -1)
+            validation_recall = torchmetrics.classification.MultilabelRecall(num_labels = 3, ignore_index = -1)
+            multilabel_metrics = {'train': train_recall.to(device), 'val': validation_recall.to(device)}
+            epoch_recalls = {'train':[],'val':[]}
 
         for epoch in range(self.epochs):
 
@@ -162,7 +167,7 @@ class FullRetrainFineTuner(FineTuner):
                     for itr, training_data in enumerate(dataloaders_dict[phase], 0):
                         batch_start_time = time.time()
                         optimizer.zero_grad()
-                        input, labels, _ = training_data
+                        input, labels = training_data
                         input = input.to(device)
                         labels = labels.to(device)
                         if self.model_output == 'default':
@@ -181,6 +186,9 @@ class FullRetrainFineTuner(FineTuner):
                             preds = torch.round(outputs)
                         elif self.task_type == 'regression':
                             preds = outputs.squeeze()
+                        elif self.task_type == 'multilabel_classification':
+                            preds = outputs
+                            multilabel_metrics[phase].update(outputs, labels)
                         
                         all_preds.extend(np.atleast_1d(preds.detach().cpu().numpy()))
                         all_labels.extend(np.atleast_1d(labels.detach().cpu().numpy()))
@@ -203,12 +211,24 @@ class FullRetrainFineTuner(FineTuner):
                     epoch_metric = np.sqrt(
                         mean_squared_error(all_labels, all_preds))
                     self.logger.log(f'{phase} RMSE: {epoch_metric:.4f}')
+                elif self.task_type == 'multilabel_classification':
+                    epoch_metric = multilabel_metrics[phase].compute().cpu().item()
+                    self.logger.log(f'{phase} Recall: {epoch_metric:.4f}')
+                    epoch_recalls[phase].append(epoch_metric)
 
                 if phase == 'train':
                     epoch_train_loss.append(epoch_loss)
                 else:
 
                     epoch_val_loss.append(epoch_loss)
+
+                    # Scheduler
+                    if self.scheduler:
+                        scheduler.step(epoch_loss)
+                        last_lr = scheduler.optimizer.param_groups[0]['lr']
+                        epoch_lrs.append(last_lr)
+                        self.logger.log(f'Current learning rate: {last_lr}')
+
                     # Early stopping check
                     if epoch_loss < best_val_loss:
                         best_val_loss = epoch_loss
@@ -276,9 +296,25 @@ class FullRetrainFineTuner(FineTuner):
                 self.logger.save_plot(actual_vs_pred_fig, 'actual_vs_predicted')
                 with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_pred_vs_true.json', 'w', encoding='utf-8') as f:
                     json.dump(testing_data, f, indent=4)
+            elif self.task_type == "multilabel_classification":
+                recall_plot = data_explore.create_recall_plot(epoch_recalls["train"], epoch_recalls["val"])
+                self.logger.save_plot(recall_plot, "training_validation_recall")
+                if self.scheduler:
+                    lr_plot = data_explore.create_lr_plot(epoch_lrs)
+                    self.logger.save_plot(lr_plot, "learning_rate")
+                metrics, pooled_metrics, plots = data_explore.evaluate_multi_label_classification(model, dataloaders_dict, device, self.logger, False)
+                mixed_metrics, mixed_pooled_metrics, mixed_plots = data_explore.evaluate_multi_label_classification(model, dataloaders_dict, device, self.logger, True)
+                self.logger.save_data(metrics, 'metrics')
+                self.logger.save_data(pooled_metrics, 'pooled_metrics')
+                self.logger.save_data(mixed_metrics, 'mixed_metrics')
+                self.logger.save_data(mixed_pooled_metrics, 'mixed_pooled_metrics')
+                os.makedirs(f'{self.logger.base_dir}/plots/hmaps', exist_ok = True)
+                for (name,plot) in plots.items(): 
+                    self.logger.save_plot(plot,name, f'{self.logger.base_dir}/plots')
+                for (name,plot) in mixed_plots.items(): 
+                    self.logger.save_plot(plot,name, f'{self.logger.base_dir}/plots/mixed')
+
         
-
-
 class LowRankAdaptationFineTuner(FineTuner):
     def __init__(self, training_config, model_name='progen', logger = None):
         super().__init__(training_config, logger)
@@ -350,9 +386,8 @@ class LowRankAdaptationFineTuner(FineTuner):
             self.logger.log('-' * 10)
             epoch_dataloaders_dict = utils.get_epoch_dataloaders(dataloaders_dict, self.epoch_sizing)
             model.eval()
-
-            optimizer.zero_grad()
             
+            optimizer.zero_grad()
             # TODO torch_no_grad om val and autocast
             for phase in ['train', 'val']:
                 if phase == 'train':
@@ -388,8 +423,10 @@ class LowRankAdaptationFineTuner(FineTuner):
                                 preds = torch.round(outputs)
                             elif self.task_type == 'regression':
                                 preds = outputs.squeeze()
-                            all_preds.extend(np.atleast_1d(preds.detach().cpu().numpy()))
-                            all_labels.extend(np.atleast_1d(labels.detach().cpu().numpy()))
+
+                            if self.task_type in ['classification','regression']:
+                                all_preds.extend(np.atleast_1d(preds.detach().cpu().numpy()))
+                                all_labels.extend(np.atleast_1d(labels.detach().cpu().numpy()))
 
                         if log_interval != -1 and itr % log_interval == 0:
                             self.logger.log(
@@ -473,3 +510,10 @@ class LowRankAdaptationFineTuner(FineTuner):
             self.logger.save_plot(actual_vs_pred_fig, 'actual_vs_predicted')
             with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_pred_vs_true.json', 'w', encoding='utf-8') as f:
                 json.dump(testing_data, f, indent=4)
+        elif self.task_type == "multilabel_classification":
+            recall_plot = data_explore.create_recall_plot(epoch_recalls["train"], epoch_recalls["val"])
+            self.logger.save_plot(recall_plot, "training_validation_recall")
+            metrics, pooled_metrics, plots = data_explore.evaluate_multi_label_classification(model, dataloaders_dict, device, self.logger)
+            self.logger.save_data(metrics, 'metrics')
+            self.logger.save_data(pooled_metrics, 'pooled_metrics')
+            for (name,plot) in plots.items(): self.logger.save_plot(plot,name)

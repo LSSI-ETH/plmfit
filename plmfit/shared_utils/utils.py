@@ -84,7 +84,7 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
                 processed_data.append(np.array(sub_list, dtype=np.int8))
             else:
                 processed_data.append(np.array([], dtype=np.int8))
-        meta_data = processed_data
+        #meta_data = processed_data
 
     if split is None:
         X_train, X_test, y_train, y_test, meta_train, meta_test = train_test_split(
@@ -94,9 +94,9 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     
     else:
         # Use the provided split
-        X_train, X_val, X_test = dataset[split == 'train'], dataset[split == 'validation'], dataset[split == 'test']
-        y_train, y_val, y_test = scores[split == 'train'], scores[split == 'validation'], scores[split == 'test']
-        meta_train, meta_val, meta_test = meta_data[split == 'train'], meta_data[split == 'validation'], meta_data[split == 'test']
+        X_train, X_val, X_test = dataset[split == 'train'], dataset[split == 'valid'], dataset[split == 'test']
+        y_train, y_val, y_test = scores[split == 'train'], scores[split == 'valid'], scores[split == 'test']
+        #meta_train, meta_val, meta_test = meta_data[split == 'train'], meta_data[split == 'validation'], meta_data[split == 'test']
 
     # Scale the features if scaler is provided
     if scaler:
@@ -112,12 +112,12 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     y_train = convert_or_clone_to_tensor(y_train, dtype=torch.float32)
     y_val = convert_or_clone_to_tensor(y_val, dtype=torch.float32)
     y_test = convert_or_clone_to_tensor(y_test, dtype=torch.float32)
-    meta_train, meta_val, meta_test = torch.tensor(meta_train), torch.tensor(meta_val), torch.tensor(meta_test)
+    #meta_train, meta_val, meta_test = torch.tensor(meta_train), torch.tensor(meta_val), torch.tensor(meta_test)
 
     # Create DataLoader for training, validation, and testing
-    train_dataset = TensorDataset(X_train, y_train, meta_train)
-    val_dataset = TensorDataset(X_val, y_val, meta_val)
-    test_dataset = TensorDataset(X_test, y_test, meta_test)
+    train_dataset = TensorDataset(X_train, y_train)
+    val_dataset = TensorDataset(X_val, y_val)
+    test_dataset = TensorDataset(X_test, y_test)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=num_workers>0)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=num_workers>0)

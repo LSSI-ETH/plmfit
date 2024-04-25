@@ -71,11 +71,7 @@ class MLP(nn.Module):
         self.layers.append(nn.Linear(config['hidden_dim'], config['output_dim']))
 
         # Check if there's an activation function specified for the layer
-        if 'classification' in self.task:
-            self.layers.append(get_activation_function(config['output_activation']))
-        
-        # Check if there's an activation function specified for the layer
-        if 'classification' in self.task:
+        if config['output_activation']!= 'none':
             self.layers.append(get_activation_function(config['output_activation']))
         
         self.init_weights()
