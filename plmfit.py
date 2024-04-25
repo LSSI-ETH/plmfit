@@ -38,7 +38,7 @@ parser.add_argument('--data_type', type=str, default='aav')
 parser.add_argument('--data_file_name', type=str, default='data_train')
 
 parser.add_argument('--head_config', type=str, default='linear_head_config.json')
-parser.add_argument('--ray_tuning', type=bool, default=False)
+parser.add_argument('--ray_tuning', type=str, default="False")
 
 parser.add_argument('--split', default=None)
 
@@ -79,7 +79,8 @@ def init_plm(model_name, logger):
 
     elif 'esm' in model_name:
         assert model_name in supported_ESM, 'ESM version is not supported'
-        model = BetaESMFamily(model_name, logger)
+        model = ESMFamily(model_name,logger)
+        #model = BetaESMFamily(model_name, logger)
 
     elif 'ankh' in model_name:
         assert model_name in supported_Ankh, 'Ankh version is not supported'
@@ -123,10 +124,6 @@ def feature_extraction(config, args, logger, on_ray_tuning=False):
     scores = torch.tensor(scores, dtype=torch.float32)
 
     training_params = head_config['training_parameters']
-    
-    
-    logger.save_data(vars(args), 'arguments')
-    logger.save_data(head_config, 'head_config')
 
     network_type = head_config['architecture_parameters']['network_type']
     if network_type == 'linear':
@@ -134,10 +131,14 @@ def feature_extraction(config, args, logger, on_ray_tuning=False):
         pred_model = heads.LinearHead(head_config['architecture_parameters'])
     elif network_type == 'mlp':
         head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
+        head_config['architecture_parameters']['hidden_dim'] = embeddings.shape[1]
         pred_model = heads.MLP(head_config['architecture_parameters'])
     else:
         raise ValueError('Head type not supported')
     
+    logger.save_data(vars(args), 'arguments')
+    logger.save_data(head_config, 'head_config')
+
     data_loaders = utils.create_data_loaders(
             embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=NUM_WORKERS)
             
@@ -316,7 +317,6 @@ def full_retrain(args, logger):
     utils.set_trainable_parameters(pred_model)
     model.py_model.set_head(pred_model)
     utils.get_parameters(model.py_model, logger=logger)
-    data = data.sample(100000)
     encs = model.categorical_encode(data)
     logger.log(model.py_model)
     scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
@@ -484,15 +484,30 @@ def onehot(config, args, logger, on_ray_tuning=False):
     head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
 
     if args.encs is None:
-        tokenizer = utils.load_tokenizer('proteinbert') # Use same tokenizer as proteinbert
-        encs = utils.categorical_encode(
-            data['aa_seq'].values, tokenizer, max(data['len'].values), add_eos=True, logger=logger, model_name='proteinbert')
-        encs = F.one_hot(encs, tokenizer.get_vocab_size())
-        encs = encs.reshape(encs.shape[0], -1)
+        #if ("esm" in args.plm or "ankh" in args.plm):
+        if False:
+            model = init_plm(args.plm, logger)
+            encs = model.categorical_encode(data['aa_seq'].values, model.tokenizer,max(data['len'].values))
+            encs = F.one_hot(encs, model.tokenizer.get_vocab_size())
+            encs = torch.flatten(encs, start_dim=1, end_dim=-1)
+        else:
+            tokenizer = utils.load_tokenizer('proteinbert') # Use same tokenizer as proteinbert
+            encs = utils.categorical_encode(
+                data['aa_seq'].values, tokenizer, max(data['len'].values), add_eos=False, logger=logger, model_name='proteinbert')
+            encs = F.one_hot(encs, tokenizer.get_vocab_size())
+            encs = encs.reshape(encs.shape[0], -1)
     else:
         encs = args.encs
 
-    scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
+    if head_config['architecture_parameters']['task'] == 'regression':
+        scores = data['score'].values 
+    elif head_config['architecture_parameters']['task'] == 'classification':
+        scores = data['binary_score']
+    elif "multilabel" in head_config['architecture_parameters']['task']:
+        scores = data[["mouse","cattle","ihbat"]].values
+    else:
+        raise f"Task type {head_config['architecture_parameters']['task']} not supported."
+
     scores = torch.tensor(scores, dtype=torch.float32)
 
     training_params = head_config['training_parameters']
@@ -541,11 +556,11 @@ if __name__ == '__main__':
             if args.ft_method == 'feature_extraction':
                 head_config = utils.load_config(args.head_config)                
                 if args.beta == "True": 
-                    if args.ray_tuning:
+                    if args.ray_tuning == "true":
                         head_config = ray_tuning(feature_extraction_lightning, head_config, args, logger)
                     feature_extraction_lightning(head_config, args, logger)
                 else:
-                    if args.ray_tuning:
+                    if args.ray_tuning == "true":
                         head_config = ray_tuning(feature_extraction, head_config, args, logger)
                     feature_extraction(head_config, args, logger)
             elif args.ft_method == 'lora':
@@ -557,7 +572,7 @@ if __name__ == '__main__':
         elif args.function == 'one_hot':
             args.encs = None
             head_config = utils.load_config(args.head_config)
-            if args.ray_tuning:
+            if args.ray_tuning == "true":
                 head_config = ray_tuning(onehot, head_config, args, logger)
             onehot(head_config, args, logger)
         else:

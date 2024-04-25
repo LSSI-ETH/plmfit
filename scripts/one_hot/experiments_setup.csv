@@ -1,5 +1,2 @@
-function	data_type	head	task	head_config	ray_tuning	output_dir	gpus	gres	mem-per-cpu	nodes
-one_hot	aav	linear	classification	linear_classification_head_config.json	True	/cluster/scratch/estamkopoulo	4	10g	150g	1
-one_hot	aav	mlp	classification	mlp_classification_head_config.json	True	/cluster/scratch/estamkopoulo	4	10g	150g	1
-one_hot	aav	linear	regression	linear_head_config.json	True	/cluster/scratch/estamkopoulo	4	10g	150g	1
-one_hot	aav	mlp	regression	mlp_head_config.json	True	/cluster/scratch/estamkopoulo	4	10g	150g	1
+function	data_type	split 	head	task	head_config	ray_tuning	output_dir	gpus	gres	mem-per-cpu	nodes
+one_hot	rbd	linear	split_single_vs_all	multilabel_classification	linear_multi_classification_head_config.json	false	/cluster/scratch/bsahin	1	24g	32g	1

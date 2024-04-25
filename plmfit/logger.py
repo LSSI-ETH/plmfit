@@ -103,8 +103,12 @@ class Logger():
                 self.log(f'Error posting data to server: {e}', force_dont_send=True)
 
 
-    def save_plot(self, plot, plot_name):
-        plot_path = os.path.join(self.base_dir, f"{self.experiment_name}_{plot_name}.png")
+    def save_plot(self, plot, plot_name, plot_path = None):
+        if plot_path == None:
+            plot_path = os.path.join(self.base_dir, f"{self.experiment_name}_{plot_name}.png")
+        else:
+            os.makedirs(plot_path, exist_ok = True)
+            plot_path = os.path.join(plot_path, f"{plot_name}.png")
         plot.savefig(plot_path)
         plt.close(plot)  # Close the plot to free memory
         self.log(f'Saved plot with name "{plot_name}.png"')

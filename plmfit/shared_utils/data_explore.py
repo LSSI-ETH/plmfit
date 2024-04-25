@@ -649,12 +649,12 @@ def mixed_labels_heatmaps(y_pred,y_test,best_tre,ignore_index = 0.5):
         if (case.tolist() == [0,0,0]) or (case.tolist() == [1,1,1]):
             continue
         case_ind = np.where(inverse_ind == i)
-        h_maps[str(case)] = plot_mixedlabel_heatmap(y_pred,best_tre,case_ind,str(case))
+        h_maps['hmaps/'+ str(case)] = plot_mixedlabel_heatmap(y_pred,best_tre,case_ind,str(case))
         
             
     return h_maps
 
-def evaluate_predictions(y_pred,y_test,c_type,n_class = 1, ignore = 0.5, logger = None):
+def evaluate_predictions(y_pred,y_test,c_type,n_class = 1, ignore = 0.5, logger = None, skip_mixed = False):
     # Initialize dictionaries to save results, and initialize the metrics
     results = {}
     pooled_results = {}
@@ -705,17 +705,18 @@ def evaluate_predictions(y_pred,y_test,c_type,n_class = 1, ignore = 0.5, logger 
     figures["prec_recall_curve"] = prec_rec_fig
 
     # Plot exact accuracy
-    exact_acc_fig = plot_exact_accuracy(y_pred,y_test,best_tre, logger = logger)
-    figures["correct_guesses"] = exact_acc_fig
+    #exact_acc_fig = plot_exact_accuracy(y_pred,y_test,best_tre, logger = logger)
+    #figures["correct_guesses"] = exact_acc_fig
 
-    # Plot heatmap for mixed labels
-    mixed_label_heatmap = mixed_labels_heatmaps(y_pred,y_test,best_tre)
-    for (name,hmap) in mixed_label_heatmap.items():
-        figures[name] = hmap
+    if not skip_mixed:
+        # Plot heatmap for mixed labels
+        mixed_label_heatmap = mixed_labels_heatmaps(y_pred,y_test,best_tre)
+        for (name,hmap) in mixed_label_heatmap.items():
+            figures[name] = hmap
 
     return (results,pooled_results,figures)
 
-def evaluate_multi_label_classification(model, dataloaders_dict, device, logger = None):
+def evaluate_multi_label_classification(model, dataloaders_dict, device, logger = None, skip_mixed = False):
     # Evaluate the model on the test dataset
     model.eval()
     y_pred = []
@@ -733,4 +734,25 @@ def evaluate_multi_label_classification(model, dataloaders_dict, device, logger 
     y_test = torch.tensor(np.array(y_test)).int()
     n_class = len(y_test[0])
     
-    return evaluate_predictions(y_pred,y_test, c_type = "multilabel", n_class = n_class, ignore = -1, logger = logger)
+    if skip_mixed:
+        mixed_labels, inverse_ind = np.unique(y_test, axis = 0,return_inverse = True)
+        mixed_indices = []    
+        for i in range(np.max(len(mixed_labels))):
+            case = mixed_labels[i]
+            if (case.tolist() == [0,0,0]) or (case.tolist() == [1,1,1]):
+                continue
+            case_ind = np.where(inverse_ind == i)
+            mixed_indices.extend(case_ind[0].tolist())
+            
+        y_test = y_test[np.array(mixed_indices)]
+        y_pred = y_pred[np.array(mixed_indices)]
+
+    return evaluate_predictions(y_pred,y_test, c_type = "multilabel", n_class = n_class, ignore = -1, logger = logger, skip_mixed = skip_mixed)
+
+def create_lr_plot(lr_data):
+    fig = plt.figure(figsize=(10, 5))
+    plt.plot(lr_data)
+    plt.yscale('log')
+    plt.xlabel('Epochs')
+    plt.title(f'Learning Rate')
+    return fig

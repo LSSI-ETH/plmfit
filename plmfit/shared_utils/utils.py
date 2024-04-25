@@ -93,8 +93,8 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     
     else:
         # Use the provided split
-        X_train, X_val, X_test = dataset[split == 'train'], dataset[split == 'validation'], dataset[split == 'test']
-        y_train, y_val, y_test = scores[split == 'train'], scores[split == 'validation'], scores[split == 'test']
+        X_train, X_val, X_test = dataset[split == 'train'], dataset[split == 'valid'], dataset[split == 'test']
+        y_train, y_val, y_test = scores[split == 'train'], scores[split == 'valid'], scores[split == 'test']
         #meta_train, meta_val, meta_test = meta_data[split == 'train'], meta_data[split == 'validation'], meta_data[split == 'test']
 
     # Scale the features if scaler is provided
@@ -478,3 +478,27 @@ def find_mutation_positions(seq, ref, padding_id=None):
     Returns a list of positions where the sequence differs from the reference.
     """
     return [i for i, (s, r) in enumerate(zip(seq, ref)) if s != r]
+
+def one_hot_encoding(sequence):
+    # Define the amino acids and their corresponding indices
+    amino_acids = "ACDEFGHIKLMNPQRSTVWY"
+    aa_to_index = {aa: i for i, aa in enumerate(amino_acids)}
+
+    # Initialize an array to hold the one-hot encoding
+    encoding = [[0] * len(amino_acids) for _ in range(len(sequence))]
+
+    # Fill in the one-hot encoding
+    for i, aa in enumerate(sequence):
+        if aa in aa_to_index:
+            index = aa_to_index[aa]
+            encoding[i][index] = 1
+        else:
+            raise ValueError(f"Invalid amino acid: {aa}")
+
+    return encoding
+
+# Test the function
+sequence = "ACDEFGHIK"
+encoding = one_hot_encoding(sequence)
+for aa, enc in zip(sequence, encoding):
+    print(f"{aa}: {enc}")
