@@ -24,7 +24,7 @@
     "scaler": false,
     "gradient_accumulation": 2,
     "early_stopping": 3,
-    "epoch_sizing": 0.5,
+    "epoch_sizing": 0.7,
     "model_output": "logits"
   }
 }
