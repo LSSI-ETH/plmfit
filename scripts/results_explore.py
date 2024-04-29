@@ -114,8 +114,8 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
     heatmap_data = heatmap_data.reindex(index=layer_reduction_order, columns=model_head_order)
 
     # Plotting the heatmap with the color scale adjusted from -1 to 1
-    plt.figure(figsize=(12, 12))  # Slightly larger figure size for better readability
-    sns.set(font_scale=1.2)  # Adjust font scale for better readability
+    plt.figure(figsize=(10, 10))  # Slightly larger figure size for better readability
+    sns.set(font_scale=1.05)  # Adjust font scale for better readability
     ax = sns.heatmap(heatmap_data, annot=True, cmap="RdBu_r", fmt=".2f", linewidths=.5,
                     cbar_kws={'label': column_name}, center=0, vmin=-1, vmax=1)
     # Main title and subtitle setup
@@ -148,9 +148,9 @@ def main():
     username = 'estamkopoulo'
     key_path = '/Users/tbikias/Desktop/vaggelis/Config/.ssh/id_ed25519_euler'
     base_folder = '$SCRATCH/fine_tuning/'
-    method_type = 'feature_extraction'
-    data_type = 'aav'
-    task_type = 'classification'
+    method_type = 'lora'
+    data_type = 'gb1'
+    task_type = 'regression'
     
     path = f'{base_folder}{method_type}'
     if use_cache:
