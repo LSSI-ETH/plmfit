@@ -522,18 +522,12 @@ class ProteinBertForSequenceClassification(ProteinBertAbstractModel):
         self.classifier = nn.Linear(config.hidden_size, self.num_labels, bias=False)
         self.reduction = 'bos'
         self.init_weights()
-        self.layer_to_use = -1
 
     def set_head(self, head):
         self.classifier = head
 
-    def unset_trainable_parameters_after_layer_to_use(self):
-        # Set layers after self.layer_to_use to non-trainable
-        if self.layer_to_use == -1: return
-        for i, layer in enumerate(self.bert.encoder.layer):
-            if i > self.layer_to_use - 1: # Adjusted by 1 because in 'h' the initial embeddings are not accounted for
-                for param in layer.parameters():
-                    param.requires_grad = False
+    def trim_model(self, layer_to_use):
+        self.bert.encoder.layer = nn.ModuleList(list(self.bert.encoder.layer.children())[:layer_to_use + 1])
 
     def forward(self, input_ids, input_mask=None, targets=None, meta=None):
         if input_ids is not None:
@@ -544,8 +538,6 @@ class ProteinBertForSequenceClassification(ProteinBertAbstractModel):
         sequence_output = outputs[0]
         # The third element of outputs is the hidden states from all layers
         all_hidden_states = outputs[2]
-        if self.layer_to_use != -1:
-            sequence_output = all_hidden_states[self.layer_to_use]
         pooled_output = self.bert.pooler(sequence_output, pooling_method=self.reduction)
 
         logits = self.classifier(pooled_output)

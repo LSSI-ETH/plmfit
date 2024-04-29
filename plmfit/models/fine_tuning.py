@@ -51,21 +51,6 @@ class FineTuner(ABC):
         """
         pass
 
-    @abstractmethod
-    def train(self, model, dataloaders_dict, optimizer, loss_function, logger):
-        """
-        The core training logic to be implemented by subclasses. This method should handle the training
-        and validation loop, including logging and any early stopping or checkpointing logic.
-
-        Parameters:
-        - model: The model to be fine-tuned.
-        - dataloaders_dict: A dictionary containing 'train' and 'val' DataLoader objects.
-        - optimizer: The optimizer to be used for training.
-        - loss_function: The loss function to be used for training.
-        - logger: A logger instance for logging training progress and metrics.
-        """
-        pass
-
     def initialize_optimizer(self, model_parameters):
         """
         Initializes the optimizer. Can be overridden by subclasses to use different optimizers.
@@ -280,7 +265,7 @@ class FullRetrainFineTuner(FineTuner):
 
 
 class LowRankAdaptationFineTuner(FineTuner):
-    def __init__(self, training_config, model_name='progen', logger = None, layers_to_train="all"):
+    def __init__(self, training_config, model_name='progen', logger = None):
         super().__init__(training_config, logger)
         if 'progen' in model_name:
             lora_config = f'lora_config_progen.json'
@@ -290,11 +275,6 @@ class LowRankAdaptationFineTuner(FineTuner):
             lora_config = f'lora_config_esm.json'
         peft_config = utils.load_config(lora_config)
         self.logger.save_data(peft_config, 'lora_config')
-
-        if layers_to_train == "last":
-            layers_to_train = -1
-        else:
-            layers_to_train = None # Which will equal to all
             
         self.peft_config = LoraConfig(
             r = peft_config['r'],
@@ -302,14 +282,17 @@ class LowRankAdaptationFineTuner(FineTuner):
             lora_dropout= peft_config['lora_dropout'],
             target_modules = peft_config['target_modules'],
             modules_to_save = peft_config['modules_to_save'],
-            bias = peft_config['bias'],
-            layers_to_transform = layers_to_train
+            bias = peft_config['bias']
         )
 
-    def set_trainable_parameters(self, model):
+    def set_trainable_parameters(self, model, target_layers="all"):
+        if target_layers == "last":
+            layers_to_train = model.layer_to_use
+        else:
+            layers_to_train = None # Which will equal to all
+        self.peft_config.layers_to_transform = layers_to_train
         model.py_model = get_peft_model(model.py_model, self.peft_config)
         model.py_model.print_trainable_parameters()
-        model.py_model.base_model.model.unset_trainable_parameters_after_layer_to_use()
 
         model.py_model.train()
         model.py_model.base_model.model.eval()

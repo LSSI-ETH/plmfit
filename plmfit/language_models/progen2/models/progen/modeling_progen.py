@@ -705,7 +705,6 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         self.classifier = nn.Linear(config.n_embd, self.num_labels, bias=False)
         self.init_weights()
 
-        self.layer_to_use = -1
         self.reduction = 'eos'
 
         # Model parallel
@@ -737,14 +736,6 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
 
     def trim_model(self, layer_to_use):
         self.transformer.h = nn.ModuleList(list(self.transformer.h.children())[:layer_to_use + 1])
-
-    def unset_trainable_parameters_after_layer_to_use(self):
-        # Set layers after self.layer_to_use to non-trainable
-        if self.layer_to_use == -1: return
-        for i, layer in enumerate(self.transformer.h):
-            if i > self.layer_to_use - 1: # Adjusted by 1 because in 'h' the initial embeddings are not accounted for
-                for param in layer.parameters():
-                    param.requires_grad = False
     
     def forward(
         self,
@@ -787,9 +778,6 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
             return_dict=return_dict,
         )
         hidden_states = transformer_outputs[0]
-        if output_hidden_states and self.layer_to_use != -1:
-            all_hidden_states = transformer_outputs.hidden_states
-            hidden_states = all_hidden_states[self.layer_to_use]
         if input_ids is not None:
             batch_size = input_ids.shape[0]
         else:

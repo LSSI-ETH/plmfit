@@ -16,7 +16,6 @@ class PlmfitEsmForSequenceClassification(EsmPreTrainedModel):
         self.classifier = nn.Linear(config.hidden_size, self.num_labels, bias=False)
 
         self.init_weights()
-        self.layer_to_use = -1
         self.reduction = 'mean'
 
     def set_head(self, new_head):
@@ -28,15 +27,9 @@ class PlmfitEsmForSequenceClassification(EsmPreTrainedModel):
         """
         self.classifier = new_head
 
-    def unset_trainable_parameters_after_layer_to_use(self):
-        """
-        Set layers after self.layer_to_use to non-trainable
-        """
-        if self.layer_to_use == -1: return
-        for i, layer in enumerate(self.transformer.h):
-            if i > self.layer_to_use - 1: # Adjusted by 1 because in 'h' the initial embeddings are not accounted for
-                for param in layer.parameters():
-                    param.requires_grad = False
+    def trim_model(self, layer_to_use):
+        # TODO: Adjust for ESM
+        self.bert.encoder.layer = nn.ModuleList(list(self.bert.encoder.layer.children())[:layer_to_use + 1])
 
     def forward(
         self,

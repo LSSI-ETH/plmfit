@@ -18,6 +18,8 @@ def lora(args, logger):
     model = utils.init_plm(args.plm, logger)
     assert model != None, 'Model is not initialized'
     utils.disable_dropout(model)
+    
+    model.set_layer_to_use(args.layer)
 
     head_config = utils.load_config(args.head_config)
     
@@ -39,8 +41,7 @@ def lora(args, logger):
     if args.reduction == 'mut_mean': 
         meta_data = data['mut_mask'].values
     model.py_model.reduction = args.reduction
-    model.set_layer_to_use(args.layer)
-    model.py_model.layer_to_use = model.layer_to_use
+    
     encs = model.categorical_encode(data)
 
     scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
@@ -56,7 +57,7 @@ def lora(args, logger):
         )
     
     fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, model_name=args.plm, logger=logger)
-    model = fine_tuner.set_trainable_parameters(model)
+    model = fine_tuner.set_trainable_parameters(model, target_layers=args.target_layers)
  
     utils.trainable_parameters_summary(model, logger)
     model.py_model.task = pred_model.task
@@ -86,7 +87,7 @@ def lora(args, logger):
         limit_val_batches=model.epoch_sizing(),
         devices=args.gpus,
         strategy=strategy,
-        precision=16,
+        precision="16-mixed",
         callbacks=[model.early_stopping()]
     )
 

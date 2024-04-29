@@ -53,6 +53,24 @@ class IPretrainedProteinLanguageModel(nn.Module):
     def set_tokenizer(self, tokenizer):
         self.tokenizer = tokenizer
 
+    def set_layer_to_use(self, layer):
+        if layer == 'last':
+            # The last hidden layer
+            self.layer_to_use = -1
+        elif layer == 'middle':
+            self.layer_to_use = (self.no_layers - 1) // 2
+        elif layer == 'first':
+            self.layer_to_use = 0 
+        elif layer == 'quarter1':
+            self.layer_to_use = (self.no_layers - 1) // 4
+        elif layer == 'quarter3':
+            self.layer_to_use = (self.no_layers - 1) // 2 + (self.no_layers - 1) // 4
+        else:
+            # Fallback for numeric layer specification or unexpected strings
+            self.layer_to_use = int(layer) if layer.isdigit() else self.no_layers - 1
+
+        self.py_model.trim_model(self.layer_to_use)
+
     @abstractmethod
     def concat_task_specific_head(self, head):
         pass
@@ -180,7 +198,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
     def extract_embeddings(self, data_type, batch_size = 1, layer=11, reduction='mean', log_interval=1000):
         try:
             self.set_layer_to_use(layer)
-            layer = self.layer_to_use
+            layer = self.layer_to_use + 1 # Adjusted for considering input embeddings as well
             self.logger.log(f"Extracting embeddings from layer: {layer}")
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             memory_usage = psutil.virtual_memory()
@@ -321,24 +339,6 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             torch.cuda.memory._record_memory_history(enabled=None)
             stack_trace = traceback.format_exc()
             self.logger.log(stack_trace)
-
-    def set_layer_to_use(self, layer):
-        if layer == 'last':
-            # The last hidden layer
-            self.layer_to_use = -1
-        elif layer == 'middle':
-            # Adjusted to consider the first transformer block as the "first" layer
-            self.layer_to_use = 1 + (self.no_layers - 1) // 2
-        elif layer == 'first':
-            # The first transformer block after the input embeddings
-            self.layer_to_use = 1  # Adjusted to 1 to skip the input embeddings
-        elif layer == 'quarter1':
-            self.layer_to_use = 1 + (self.no_layers - 1) // 4
-        elif layer == 'quarter3':
-            self.layer_to_use = 1 + (self.no_layers - 1) // 2 + (self.no_layers - 1) // 4
-        else:
-            # Fallback for numeric layer specification or unexpected strings
-            self.layer_to_use = int(layer) if layer.isdigit() else self.no_layers - 1
 
     def evaluate(self):
         return 0
@@ -585,20 +585,6 @@ class BetaESMFamily(IPretrainedProteinLanguageModel):
                 del tmp
         return
 
-    def set_layer_to_use(self, layer):
-        if layer == 'last':
-            # The last hidden layer
-            self.layer_to_use = -1
-        elif layer == 'middle':
-            # Adjusted to consider the first transformer block as the "first" layer
-            self.layer_to_use = 1 + (self.no_layers - 1) // 2
-        elif layer == 'first':
-            # The first transformer block after the input embeddings
-            self.layer_to_use = 1  # Adjusted to 1 to skip the input embeddings
-        else:
-            # Fallback for numeric layer specification or unexpected strings
-            self.layer_to_use = int(layer) if layer.isdigit() else self.no_layers - 1
-
     
     def evaluate(self, data_type ):
         pass
@@ -630,29 +616,10 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
             data['aa_seq'].values, self.tokenizer, max(data['len'].values) if max_length=='default' else max_length, add_bos=True, add_eos=True, logger=self.logger, model_name=self.name)
         return encs
 
-    def set_layer_to_use(self, layer):
-        if layer == 'last':
-            # The last hidden layer
-            self.layer_to_use = -1
-        elif layer == 'middle':
-            # Adjusted to consider the first transformer block as the "first" layer
-            self.layer_to_use = 1 + (self.no_layers - 1) // 2
-        elif layer == 'first':
-            # The first transformer block after the input embeddings
-            self.layer_to_use = 1  # Adjusted to 1 to skip the input embeddings
-        elif layer == 'quarter1':
-            self.layer_to_use = 1 + (self.no_layers - 1) // 4
-        elif layer == 'quarter3':
-            self.layer_to_use = 1 + (self.no_layers - 1) // 2 + (self.no_layers - 1) // 4
-        else:
-            # Fallback for numeric layer specification or unexpected strings
-            self.layer_to_use = int(layer) if layer.isdigit() else self.no_layers - 1
-        print(f"Using layer: {self.layer_to_use}")
-
     def extract_embeddings(self, data_type, batch_size = 1, layer=11, reduction='mean', log_interval=1000):
         try:
             self.set_layer_to_use(layer)
-            layer = self.layer_to_use
+            layer = self.layer_to_use + 1 # Adjusted for considering input embeddings as well
             self.logger.log(f"Extracting embeddings from layer: {layer}")
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             memory_usage = psutil.virtual_memory()

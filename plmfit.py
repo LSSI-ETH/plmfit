@@ -11,6 +11,7 @@ parser = argparse.ArgumentParser(description='plmfit_args')
 # options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
 parser.add_argument('--plm', type=str, default='progen2-small')
 parser.add_argument('--ft_method', type=str, default='feature_extraction')
+parser.add_argument('--target_layers', type=str, default='all')
 parser.add_argument('--data_type', type=str, default='aav')
 # here you specifcy the different splits
 parser.add_argument('--data_file_name', type=str, default='data_train')
