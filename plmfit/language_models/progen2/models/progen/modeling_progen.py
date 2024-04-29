@@ -735,6 +735,9 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         self.model_parallel = False
         torch.cuda.empty_cache()
 
+    def trim_model(self, layer_to_use):
+        self.transformer.h = nn.ModuleList(list(self.transformer.h.children())[:layer_to_use + 1])
+
     def unset_trainable_parameters_after_layer_to_use(self):
         # Set layers after self.layer_to_use to non-trainable
         if self.layer_to_use == -1: return

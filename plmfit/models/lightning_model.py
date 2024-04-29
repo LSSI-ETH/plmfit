@@ -75,12 +75,6 @@ class LightningModel(L.LightningModule):
         self.plmfit_logger.log('\nEpoch {}/{}'.format(self.current_epoch + 1, self.trainer.max_epochs))
         self.plmfit_logger.log('-' * 10)
 
-        # self.train()
-        # if self.method == 'lora':
-        #     self.model.base_model.model.eval()
-        #     self.model.base_model.model.classifier.train()
-        #     utils.set_modules_to_train_mode(self.model, 'lora')
-
     def training_step(self, batch, batch_idx):
         batch_start_time = time.time()
         on_profiling = batch_idx == 30 and self.experimenting
