@@ -23,6 +23,8 @@ class HyperTuner:
         return bounds
 
     def fit(self):
+        num_hyperparameters = len(self.bounds)
+        init_points = 5 * num_hyperparameters  # Set initial points to five times the number of hyperparameters
         start_time = time.time()
         optimizer = BayesianOptimization(
             f=self.run_trial,
@@ -32,9 +34,9 @@ class HyperTuner:
         self.best_config = copy.deepcopy(self.initial_config)  # Start with a copy of the initial full configuration
         self.best_loss = float('-inf')
         self.current_trial = 1
-        optimizer.maximize(init_points=10, n_iter=self.trials)
+        optimizer.maximize(init_points=init_points, n_iter=self.trials - init_points)
         self.logger.log(f'Hyperparameter tuning completed in {time.time() - start_time}s')
-        return self.best_config, 0-self.best_loss
+        return self.best_config, -self.best_loss
     
     def run_trial(self, **args):
         start_time = time.time()        
