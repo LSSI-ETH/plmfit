@@ -56,7 +56,7 @@ class IPretrainedProteinLanguageModel(nn.Module):
     def set_layer_to_use(self, layer):
         if layer == 'last':
             # The last hidden layer
-            self.layer_to_use = -1
+            self.layer_to_use = self.no_layers - 1
         elif layer == 'middle':
             self.layer_to_use = (self.no_layers - 1) // 2
         elif layer == 'first':
