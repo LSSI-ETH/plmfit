@@ -200,7 +200,7 @@ class LightningModel(L.LightningModule):
         if self.hparams.optimizer == 'sgd':
             return torch.optim.SGD(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
         elif self.hparams.optimizer == 'adam':
-            return DeepSpeedCPUAdam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+            return DeepSpeedCPUAdam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay) if torch.cuda.is_available() else torch.optim.Adam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
         else:
             raise ValueError(f"Unsupported optimizer: {self.hparams.optimizer}")
         
