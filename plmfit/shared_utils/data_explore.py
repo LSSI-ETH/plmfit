@@ -450,3 +450,36 @@ def evaluate_regression(model, dataloaders_dict, device, model_output='default')
     }
 
     return eval_metrics, fig, testing_data
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+
+def visualize_embeddings(embeddings, title="Embeddings Visualization", use_heatmap=False):
+    """
+    Visualizes embeddings using line plots or a heatmap.
+    
+    Args:
+    embeddings (Tensor): The embeddings tensor to visualize.
+    title (str): The title for the plot.
+    use_heatmap (bool): Flag to determine if a heatmap is used for visualization.
+    """
+    embeddings = embeddings.detach().cpu().numpy()  # Ensure tensor is on CPU and convert to NumPy array
+
+    plt.figure(figsize=(10, 8))
+    if use_heatmap:
+        plt.imshow(embeddings, aspect='auto', interpolation='none', cmap='viridis')
+        plt.colorbar()
+        plt.xlabel('Dimension')
+        plt.ylabel('Tokens')
+        plt.title(title)
+    else:
+        for i in range(embeddings.shape[0]):
+            plt.plot(embeddings[i], label=f'Token {i}')
+        plt.legend()
+        plt.title(title)
+        plt.xlabel('Dimension')
+        plt.ylabel('Value')
+    
+    plt.grid(True)
+    plt.show()
