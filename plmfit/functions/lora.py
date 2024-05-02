@@ -56,8 +56,8 @@ def lora(args, logger):
             meta_data=meta_data
         )
     
-    fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, model_name=args.plm, logger=logger)
-    model = fine_tuner.set_trainable_parameters(model, target_layers=args.target_layers)
+    fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, logger=logger)
+    model = fine_tuner.prepare_model(model, target_layers=args.target_layers)
  
     utils.trainable_parameters_summary(model, logger)
     model.py_model.task = pred_model.task
@@ -76,6 +76,9 @@ def lora(args, logger):
         min_loss_scale = 0.25
     )
 
+    devices = args.gpus if torch.cuda.is_available() else 1
+    strategy = strategy if torch.cuda.is_available() else 'auto'
+
     trainer = Trainer(
         default_root_dir=logger.base_dir,
         logger=lightning_logger, 
@@ -85,13 +88,13 @@ def lora(args, logger):
         gradient_clip_val=model.gradient_clipping(),
         limit_train_batches=model.epoch_sizing(),
         limit_val_batches=model.epoch_sizing(),
-        devices=args.gpus,
+        devices=devices,
         strategy=strategy,
         precision="16-mixed",
         callbacks=[model.early_stopping()]
     )
 
-    estimate_zero3_model_states_mem_needs_all_live(model, num_gpus_per_node=int(args.gpus), num_nodes=1)
+    if torch.cuda.is_available(): estimate_zero3_model_states_mem_needs_all_live(model, num_gpus_per_node=int(args.gpus), num_nodes=1)
 
     try:
         trainer.fit(model, data_loaders['train'], data_loaders['val'])
@@ -103,7 +106,7 @@ def lora(args, logger):
             # If it's a different kind of exception, you might want to re-raise it
             raise e
 
-    model = convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
+    if torch.cuda.is_available(): model = convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
     
     trainer.test(model=model, ckpt_path=f'{logger.base_dir}/best_model.ckpt', dataloaders=data_loaders['test'])
 
