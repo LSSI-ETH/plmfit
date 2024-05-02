@@ -19,4 +19,9 @@ setup(
     license="Apache License 2.0",
     zip_safe=True,
     install_requires=required_deps,
+    entry_points={
+        'console_scripts': [
+            'plmfit=plmfit.__main__:main'
+        ]
+    }
 )

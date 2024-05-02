@@ -1,46 +1,7 @@
-import torch
 from plmfit.logger import Logger
 import os
 import argparse
-from plmfit.models.fine_tuning import FullRetrainFineTuner
-import plmfit.shared_utils.utils as utils
-import plmfit.models.downstream_heads as heads
 import traceback
-
-parser = argparse.ArgumentParser(description='plmfit_args')
-# options ['progen2-small', 'progen2-xlarge', 'progen2-oas', 'progen2-medium', 'progen2-base', 'progen2-BFD90' , 'progen2-large']
-parser.add_argument('--plm', type=str, default='progen2-small')
-parser.add_argument('--ft_method', type=str, default='feature_extraction')
-parser.add_argument('--target_layers', type=str, default='all')
-parser.add_argument('--data_type', type=str, default='aav')
-# here you specifcy the different splits
-parser.add_argument('--data_file_name', type=str, default='data_train')
-
-parser.add_argument('--head_config', type=str, default='linear_head_config.json')
-parser.add_argument('--ray_tuning', type=str, default="False")
-
-parser.add_argument('--split', default=None)
-
-parser.add_argument('--function', type=str, default='extract_embeddings')
-parser.add_argument('--reduction', type=str, default='mean',
-                    help='Reduction technique')
-parser.add_argument('--layer', type=str, default='last',
-                    help='PLM layer to be used')
-parser.add_argument('--output_dir', type=str, default='default',
-                    help='Output directory for created files')
-parser.add_argument('--experiment_name', type=str, default='default',
-                    help='Output directory for created files')
-parser.add_argument('--experiment_dir', type=str, default='default',
-                    help='Output directory for created files')
-
-parser.add_argument('--logger', type=str, default='remote')
-
-parser.add_argument('--cpus', default=1)
-parser.add_argument('--gpus', default=0)
-parser.add_argument('--nodes', type=int, default=1)
-
-parser.add_argument('--beta', default="False")
-parser.add_argument('--experimenting', default="False")
 
 NUM_WORKERS = 0
 
@@ -57,10 +18,13 @@ def run_feature_extraction(args, logger):
     feature_extraction(args=args, logger=logger)
 
 # MODULARITY DONE
-# TODO: TEST
 def run_lora(args, logger):
     from plmfit.functions import lora
     lora(args=args, logger=logger)
+
+def run_bottleneck_adapters(args, logger):
+    from plmfit.functions import bottleneck_adapters
+    bottleneck_adapters(args=args, logger=logger)
 
 # TODO: Move to functions
 # def full_retrain(args, logger):
@@ -107,9 +71,38 @@ def run_onehot(args, logger):
     from plmfit.functions import onehot
     onehot(args, logger)
 
+def run_developing(args, logger):
+    from plmfit.functions import developing
+    developing(args, logger)
 
+def main():
+    parser = argparse.ArgumentParser(description='plmfit_args')
+    
+    parser.add_argument('--plm', type=str, default='progen2-small')
+    parser.add_argument('--ft_method', type=str, default='feature_extraction')
+    parser.add_argument('--target_layers', type=str, default='all')
+    parser.add_argument('--data_type', type=str, default='aav')
+    parser.add_argument('--head_config', type=str, default='linear_head_config.json')
+    parser.add_argument('--ray_tuning', type=str, default="False")
+    parser.add_argument('--split', default=None)
+    parser.add_argument('--function', type=str, default='extract_embeddings')
+    parser.add_argument('--reduction', type=str, default='mean',
+                        help='Reduction technique')
+    parser.add_argument('--layer', type=str, default='last',
+                        help='PLM layer to be used')
+    parser.add_argument('--output_dir', type=str, default='default',
+                        help='Output directory for created files')
+    parser.add_argument('--experiment_name', type=str, default='default',
+                        help='Output directory for created files')
+    parser.add_argument('--experiment_dir', type=str, default='default',
+                        help='Output directory for created files')
+    parser.add_argument('--logger', type=str, default='remote')
+    parser.add_argument('--cpus', default=1)
+    parser.add_argument('--gpus', default=0)
+    parser.add_argument('--nodes', type=int, default=1)
+    parser.add_argument('--beta', default="False")
+    parser.add_argument('--experimenting', default="False")
 
-if __name__ == '__main__':
     args = parser.parse_args()
     experiment_dir = args.experiment_dir
     if not os.path.exists(experiment_dir):
@@ -128,12 +121,17 @@ if __name__ == '__main__':
         elif args.function == 'fine_tuning':
             if args.ft_method == 'feature_extraction': run_feature_extraction(args, logger)
             elif args.ft_method == 'lora': run_lora(args, logger)
-            elif args.ft_method == 'full': full_retrain(args, logger)
+            elif args.ft_method == 'bottleneck_adapters': run_bottleneck_adapters(args, logger)
+            # TODO: elif args.ft_method == 'full': full_retrain(args, logger)
             else: raise ValueError('Fine Tuning method not supported')
         elif args.function == 'one_hot': run_onehot(args, logger)
+        elif args.function == 'developing': run_developing(args, logger) # For developing new functions and testing them
         else: raise ValueError('Function not supported')
         logger.log("\n\nEnd of process", force_send=True)
     except:
         logger.mute = False
         stack_trace = traceback.format_exc()
         logger.log(stack_trace, force_send=True)
+
+if __name__ == '__main__':
+    main()
