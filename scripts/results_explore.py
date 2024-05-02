@@ -149,10 +149,11 @@ def main():
     key_path = '/Users/tbikias/Desktop/vaggelis/Config/.ssh/id_ed25519_euler'
     base_folder = '$SCRATCH/fine_tuning/'
     method_type = 'lora'
-    data_type = 'gb1'
-    task_type = 'regression'
+    submethod_type = '_last'
+    data_type = 'aav'
+    task_type = 'classification'
     
-    path = f'{base_folder}{method_type}'
+    path = f'{base_folder}{method_type}{submethod_type}'
     if use_cache:
         collect_metrics(csv_file=f"{data_type}_{task_type}_{method_type}_metrics_summary.csv", data_type=data_type, task_type=task_type)
         return
