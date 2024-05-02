@@ -2,6 +2,7 @@ import os
 from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForSequenceClassification
 from plmfit.language_models.proteinbert.modeling_bert import ProteinBertForSequenceClassification
 from plmfit.language_models.esm.modeling_esm import PlmfitEsmForSequenceClassification
+from plmfit.shared_utils.data_explore import visualize_embeddings
 
 
 import plmfit.shared_utils.utils as utils
@@ -18,6 +19,7 @@ from antiberty import AntiBERTyRunner
 from numpy import array
 import psutil
 import traceback
+import torch.nn.functional as F
 
 class IPretrainedProteinLanguageModel(nn.Module):
 
@@ -263,11 +265,36 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                             #         self.logger.log(f'Layer {layer_index} shape: {layer_output.shape}')
 
                             # Now select the specific layer's output
-                            out = hidden_states[layer]
+                            # out = hidden_states[layer]
                         if reduction == 'mean':
                             embs[i: i + current_batch_size, :] = torch.mean(out, dim=1)
-                            if i == 0:
+                            if i == 2:
                                 self.logger.log(f'{(torch.mean(out, dim=1)).size()}')
+                                visualize_embeddings(torch.mean(out, dim=1), use_heatmap=False)
+                        elif reduction == 'weighted_mean':
+                            # Calculate L2 norms of vectors across the feature dimension
+                            l2_norms = torch.norm(out, p=2, dim=-1)
+
+                            # Calculate variance of vectors across the feature dimension
+                            variances = torch.var(out, dim=-1, unbiased=False)
+
+                            # Normalize the outputs to positive values to calculate entropy
+                            normalized_outputs = F.softmax(out, dim=-1)
+                            # Calculate entropy across the feature dimension
+                            entropy = -torch.sum(normalized_outputs * torch.log(normalized_outputs + 1e-10), dim=-1)
+                            
+                            # Apply softmax to L2 norms to get weights for each token
+                            weights = F.softmax(l2_norms, dim=1)
+                            print(weights)
+                            # Use weights to perform weighted mean across the sequence length dimension
+                            weighted_mean = torch.sum(out * weights.unsqueeze(-1), dim=1)
+                            embs[i: i + current_batch_size, :] = weighted_mean
+                            if i == 2:
+                                # print(f"First batch weighted mean vector: {weighted_mean}")
+                                self.logger.log(f"Weighted Mean of first batch: {weighted_mean.numpy()}")
+                                # visualize_embeddings(weighted_mean, use_heatmap=False)
+                                
+            
                         elif reduction == 'sum':
                             embs[i: i + current_batch_size, :] = torch.sum(out, dim=1)
                         elif reduction == 'bos':
@@ -299,6 +326,9 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                             
                             # Update the embeddings tensor with the selected embeddings
                             embs[i: i + current_batch_size, :] = selected_embs
+                            if i == 2:
+                                self.logger.log(selected_embs)
+                                # visualize_embeddings(selected_embs, use_heatmap=False)
                         elif utils.convert_to_number(reduction) is not None:
                             # Select the embeddings for the i token of each sequence in the batch
                             embs[i: i + current_batch_size, :] = out[:, utils.convert_to_number(reduction), :]
@@ -330,13 +360,14 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             t = torch.load(f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
             self.logger.log(
                 f'Saved embeddings ({t.shape[1]}-d) as "{self.logger.experiment_name}.pt" ({time.time() - start_enc_time:.2f}s)')
-            
-            torch.cuda.memory._dump_snapshot(f'{self.logger.base_dir}/memory_profiler.pickle')
-            torch.cuda.memory._record_memory_history(enabled=None)
+            if torch.cuda.is_available():
+                torch.cuda.memory._dump_snapshot(f'{self.logger.base_dir}/memory_profiler.pickle')
+                torch.cuda.memory._record_memory_history(enabled=None)
             return
         except:
-            torch.cuda.memory._dump_snapshot(f'{self.logger.base_dir}/memory_profiler.pickle')
-            torch.cuda.memory._record_memory_history(enabled=None)
+            if torch.cuda.is_available():
+                torch.cuda.memory._dump_snapshot(f'{self.logger.base_dir}/memory_profiler.pickle')
+                torch.cuda.memory._record_memory_history(enabled=None)
             stack_trace = traceback.format_exc()
             self.logger.log(stack_trace)
 
