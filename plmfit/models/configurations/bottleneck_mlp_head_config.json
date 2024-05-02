@@ -1,21 +1,20 @@
 {
-  "architecture_parameters":
-  {
-    "network_type": "linear",
+  "architecture_parameters": {
+    "network_type": "mlp",
     "output_dim": 1,
-    "task": "classification",
-    "dropout": 0,
-    "output_activation": "sigmoid"
+    "hidden_dim": 1024,
+    "task": "regression",
+    "hidden_activation": "relu",
+    "hidden_dropout": 0.25
   },
-  "training_parameters":
-  {
+  "training_parameters": {
     "learning_rate": 0.0001,
-    "epochs": 10,
-    "batch_size": 16,
-    "loss_f": "bce",
+    "epochs": 3,
+    "batch_size": 4,
+    "loss_f": "mse",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 0.01,
+    "weight_decay": 0.0001,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,
