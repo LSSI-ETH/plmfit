@@ -64,6 +64,6 @@ for ((i = 1; i <= worker_num; i++)); do
     done
 done
 
-python3 -u plmfit.py --function $1 --head_config $2 --ray_tuning $3 \
+python3 -u plmfit --function $1 --head_config $2 --ray_tuning $3 \
         --data_type $4 \
         --output_dir ${5} --experiment_dir ${6} --experiment_name ${7}

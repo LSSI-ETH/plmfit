@@ -81,7 +81,7 @@ The process of leveraging pre-trained language models (PLMs) for specific tasks 
 The command provided demonstrates how to extract embeddings from the ProGen model using a dataset (for example, 'gb1'). The embeddings are extracted from the last layer of the model, and a mean reduction is applied to these embeddings:
 
 ```
-python3 plmfit.py --function extract_embeddings \
+python3 plmfit --function extract_embeddings \
                   --layer last --reduction mean --data_type gb1 \
                   --plm progen2-medium --output_dir $SCRATCH
 
@@ -99,7 +99,7 @@ python3 plmfit.py --function extract_embeddings \
 After extracting embeddings, you can train a new model (or "head") on these embeddings to perform a specific task. The command provided demonstrates how to fine-tune a model with a new head for feature extraction:
 
 ```
-python3 plmfit.py --function fine_tuning --ft_method feature_extraction \
+python3 plmfit --function fine_tuning --ft_method feature_extraction \
                   --head mlp --head_config config_mlp.json \
                   --layer last --reduction mean --data_type gb1 --plm progen2-small \
                   --scaler standard --batch_size 64 --epochs 200
@@ -119,7 +119,7 @@ python3 plmfit.py --function fine_tuning --ft_method feature_extraction \
 You can concatenate a task-specific head to the model as follows:
 
 ```
-python3 plmfit.py --function fine_tuning --ft_method feature_extraction \
+python3 plmfit --function fine_tuning --ft_method feature_extraction \
                   --head_dir $SCRATCH --plm progen2-small
 ```
 

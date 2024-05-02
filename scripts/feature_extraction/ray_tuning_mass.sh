@@ -25,7 +25,7 @@ export RANK=$SLURM_PROCID
 echo "JOB ID: $SLURM_JOBID"
 echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
 
-python3 -u plmfit.py --function $1 --ft_method $2 --head_config $3 --ray_tuning $4 \
+python3 -u plmfit --function $1 --ft_method $2 --head_config $3 --ray_tuning $4 \
         --data_type $5 --plm $6 --layer $7 --reduction $8 \
         --output_dir ${9} --experiment_dir ${10} --experiment_name ${11} --beta True
 

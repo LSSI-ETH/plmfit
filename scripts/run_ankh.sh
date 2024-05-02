@@ -15,4 +15,4 @@
 #env2lmod
 #module load gcc/8.2.0  python_gpu/3.11.2
 
-python3 plmfit.py --function extract_embeddings --layer 48 --reduction mean --data_type rbd --plm ankh-large
+python3 plmfit --function extract_embeddings --layer 48 --reduction mean --data_type rbd --plm ankh-large

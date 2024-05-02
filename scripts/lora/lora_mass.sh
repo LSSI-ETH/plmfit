@@ -27,7 +27,7 @@ NVIDIA_SMI_PID=$!
 watch -n 100 free -m > ${10}/cpu_usage.log 2>&1 &
 CPU_FREE_PID=$!
 
-srun python3 plmfit.py --function $1 --ft_method $2 --target_layers $3 --head_config $4 \
+srun python3 plmfit --function $1 --ft_method $2 --target_layers $3 --head_config $4 \
         --data_type $5 --plm $6 --layer $7 --reduction $8 \
         --output_dir ${9} --experiment_dir ${10} --experiment_name ${11} --gpus ${12} --nodes ${13} --beta True --experimenting ${14}
 kill $NVIDIA_SMI_PID
