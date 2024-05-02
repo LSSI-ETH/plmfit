@@ -10,8 +10,6 @@ from pynvml import *
 import os
 import torch.nn as nn
 import psutil
-import importlib.util
-from plmfit.logger import Logger
 try:
     from env import DATA_DIR
     env_exists = True
