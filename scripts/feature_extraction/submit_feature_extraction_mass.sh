@@ -20,7 +20,7 @@ do
          --ntasks="$nodes" \
          --cpus-per-task=1 \
          --tasks-per-node=1 \
-         --gpus-per-node=1 \
+         --gpus-per-node="$gpus" \
          --gres=gpumem:${gres} \
          --time="${run_time}:00:00" \
          --nice=1 \

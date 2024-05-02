@@ -1,2 +1,4 @@
 function	ft_method	data_type	split	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time
-fine_tuning	feature_extraction	rbd	split_single_vs_all	esm2_t33_650M_UR50D	linear	multilabel_classification	linear_multi_classification_head_config.json	True	middle	mean	/cluster/scratch/bsahin	1	24g	32g	1	10
+fine_tuning	feature_extraction	rbd	single_strict_split	esm2_t36_3B_UR50D	mlp	multilabel_classification	mlp_multi_classification_head_config.json	False	middle	bos	/cluster/scratch/bsahin	1	24g	32g	1	24
+fine_tuning	feature_extraction	rbd	single_strict_split	esm2_t36_3B_UR50D	mlp	multilabel_classification	mlp_multi_classification_head_config.json	False	middle	mean	/cluster/scratch/bsahin	1	24g	32g	1	24
+fine_tuning	feature_extraction	rbd	single_strict_split	esm2_t36_3B_UR50D	mlp	multilabel_classification	mlp_multi_classification_head_config.json	False	middle	mutmean	/cluster/scratch/bsahin	1	24g	32g	1	24

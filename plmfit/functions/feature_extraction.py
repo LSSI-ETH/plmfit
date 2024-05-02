@@ -20,7 +20,7 @@ def feature_extraction(args, logger):
     elif head_config['architecture_parameters']['task'] == 'classification':
         scores = data['binary_score'].values
     elif "multilabel" in head_config['architecture_parameters']['task']:
-        scores = data[["mouse","cattle","ihbat"]].values
+        scores = data[["mouse","cattle","ihbat","human"]].values
     else:
         raise f"Task type {head_config['architecture_parameters']['task']} not supported."
     scores = torch.tensor(scores, dtype=torch.float32)
@@ -53,19 +53,21 @@ def runner(config, embeddings, scores, logger, split=None, on_ray_tuning=False, 
     data_loaders = utils.create_data_loaders(
             embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=num_workers)
      
-    if not on_ray_tuning:
-        logger.save_data(head_config, 'head_config')
-
     network_type = head_config['architecture_parameters']['network_type']
     if network_type == 'linear':
         head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
         pred_model = heads.LinearHead(head_config['architecture_parameters'])
     elif network_type == 'mlp':
         head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
+        if not on_ray_tuning:
+            head_config['architecture_parameters']['hidden_dim'] = embeddings.shape[1]
         pred_model = heads.MLP(head_config['architecture_parameters'])
     else:
         raise ValueError('Head type not supported')
     
+    if not on_ray_tuning:
+        logger.save_data(head_config, 'head_config')
+
     utils.set_trainable_parameters(pred_model)
     fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
     final_loss = fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning)
@@ -75,13 +77,16 @@ def runner(config, embeddings, scores, logger, split=None, on_ray_tuning=False, 
 def ray_tuning(function_to_run, config, embeddings, scores, logger, experiment_dir, split=None):
 
     network_type = config['architecture_parameters']['network_type']
-    trials = 300 if network_type == 'mlp' else 100
+    trials = 100 if network_type == 'mlp' else 100
     
-    config['training_parameters']['learning_rate'] = (1e-6, 1e-2)
+    config['training_parameters']['learning_rate'] = (1e-4, 1e-2)
     config['training_parameters']['batch_size'] = (8, 128)
     config['training_parameters']['weight_decay'] = (1e-6, 1e-1)
     if network_type == 'mlp':
-        config['architecture_parameters']['hidden_dim'] = (64, 2048)
+        config['architecture_parameters']['hidden_dim'] = (64, 2560)
+        config['architecture_parameters']['hidden_dropout'] = (0.05, 0.5)
+    else:
+        config['architecture_parameters']['dropout'] = (0.05, 0.5)
 
     tuner = HyperTuner(
         function_to_run=function_to_run, 

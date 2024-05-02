@@ -31,6 +31,8 @@ class FineTuner(ABC):
         self.epoch_sizing = self.handle_bool_float_config_param(training_config['epoch_sizing'], false_value=0, true_value=0.2)
         self.model_output = training_config.get('model_output', 'default')
         self.scheduler = training_config['scheduler']
+        self.scheduler_patience = training_config['scheduler_patience']
+        self.scheduler_factor = training_config['scheduler_factor']
         self.logger = logger
 
     def handle_bool_float_config_param(self, config_param, false_value=0, true_value=1):
@@ -74,6 +76,8 @@ class FineTuner(ABC):
         """
         if self.optimizer == 'sgd':
             return torch.optim.SGD(model_parameters, lr=self.lr, weight_decay=self.weight_decay)
+        elif self.optimizer == 'rmsprop':
+            return torch.optim.RMSprop(model_parameters, lr=self.lr, weight_decay=self.weight_decay)    
         elif self.optimizer == 'adam':
             return torch.optim.Adam(model_parameters, betas=(0.9, 0.99), lr=self.lr, weight_decay=self.weight_decay)
         else:
@@ -128,7 +132,8 @@ class FullRetrainFineTuner(FineTuner):
 
         optimizer = self.initialize_optimizer(model.parameters())
         if self.scheduler: 
-            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, 'min', factor = self.scheduler_factor, patience = self.scheduler_patience, eps = 1e-6)
             epoch_lrs = []
         loss_function = self.initialize_loss_function()
 
@@ -141,8 +146,8 @@ class FullRetrainFineTuner(FineTuner):
         start_time = time.time()
 
         if self.task_type == 'multilabel_classification':
-            train_recall = torchmetrics.classification.MultilabelRecall(num_labels = 3, ignore_index = -1)
-            validation_recall = torchmetrics.classification.MultilabelRecall(num_labels = 3, ignore_index = -1)
+            train_recall = torchmetrics.classification.MultilabelRecall(num_labels = 4, ignore_index = -1)
+            validation_recall = torchmetrics.classification.MultilabelRecall(num_labels = 4, ignore_index = -1)
             multilabel_metrics = {'train': train_recall.to(device), 'val': validation_recall.to(device)}
             epoch_recalls = {'train':[],'val':[]}
 
@@ -230,13 +235,14 @@ class FullRetrainFineTuner(FineTuner):
                         self.logger.log(f'Current learning rate: {last_lr}')
 
                     # Early stopping check
-                    if epoch_loss < best_val_loss:
+                    if epoch_loss < best_val_loss - 0.0001:
                         best_val_loss = epoch_loss
                         best_model_state = model.state_dict()
                         best_epoch = epoch
                         epochs_no_improve = 0
                     else:
                         epochs_no_improve += 1
+                    self.logger.log(f'Current epochs without improvement: {epochs_no_improve}')
              # Check early stopping condition
             if self.early_stopping != -1 and epochs_no_improve >= self.early_stopping:
                 self.logger.log('Early stopping triggered after {} epochs with no improvement'.format(self.early_stopping))
