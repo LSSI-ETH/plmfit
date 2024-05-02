@@ -79,6 +79,8 @@ class ProteinBertConfig(ProteinConfig):
             layer_norm_eps: The epsilon used by LayerNorm.
     """
     pretrained_config_archive_map = BERT_PRETRAINED_CONFIG_ARCHIVE_MAP
+    
+    model_type = "bert"
 
     def __init__(self,
                  vocab_size: int = 30,
