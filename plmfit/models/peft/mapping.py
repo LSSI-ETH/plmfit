@@ -27,8 +27,8 @@ TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING = {
 # TODO adapt this to our plms
 TRANSFORMERS_MODELS_TO_BOTTLENECK_TARGET_MODULES_MAPPING = {
     "progen": ["mlp"],
-    "esm": ["query", "key", "value"],
-    "bert": ["query", "key", "value"],
+    "esm": ["output"],
+    "bert": ["output"],
 }
 
 def _prepare_lora_config(peft_config, model_config):

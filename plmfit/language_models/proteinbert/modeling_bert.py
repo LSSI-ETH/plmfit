@@ -109,6 +109,7 @@ class ProteinBertConfig(ProteinConfig):
         self.type_vocab_size = type_vocab_size
         self.initializer_range = initializer_range
         self.layer_norm_eps = layer_norm_eps
+        self.model_type = "bert"
 
 
 class ProteinBertEmbeddings(nn.Module):

@@ -124,7 +124,7 @@ class BottleneckModel(BaseTuner):
         
         # Create a sequential container that first executes the original target module,
         # then passes the output through the new adapter module
-        augmented_module = nn.Sequential()
+        augmented_module = AdapterSequential()
         augmented_module.add_module('original', target)
         augmented_module.add_module('adapter', new_module)
 
@@ -270,6 +270,9 @@ def get_last_linear_out_features(model):
         # Recursively find the last nn.Linear module
         def find_last_linear(module):
             last_linear = None
+            if isinstance(model, nn.Linear):
+                last_linear = model
+                return last_linear
             for child in module.children():
                 if isinstance(child, nn.Linear):
                     last_linear = child
@@ -287,6 +290,12 @@ def get_last_linear_out_features(model):
 
 
 
-
-
+class AdapterSequential(nn.Sequential):
+    def forward(self, *inputs):
+        for module in self:
+            if isinstance(inputs, tuple):
+                inputs = module(*inputs)
+            else:
+                inputs = module(inputs)
+        return inputs
         
