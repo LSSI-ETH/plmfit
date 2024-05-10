@@ -1,0 +1,26 @@
+{
+    "architecture_parameters":
+    {
+      "task": "masked_lm",
+      "mlm_probability": 0.15
+    },
+    "training_parameters":
+    {
+      "learning_rate": 0.00005,
+      "epochs": 5,
+      "batch_size": 4,
+      "loss_f": "mse",
+      "optimizer": "adam",
+      "val_split": 0.15,
+      "test_split": 0.15,
+      "weight_decay": 0.01,
+      "warmup_steps": 0,
+      "gradient_clipping": false,
+      "scheduler": false,
+      "scaler": false,
+      "gradient_accumulation": false,
+      "epoch_sizing": false,
+      "early_stopping": 10
+    }
+  }
+  

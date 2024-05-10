@@ -5,7 +5,7 @@ matplotlib
 numpy
 scipy
 transformers==4.28.0
-tokenizers!=0.11.3,<0.14,>=0.11.1
+tokenizers
 scikit-learn
 seaborn
 h5py
@@ -26,3 +26,4 @@ paramiko
 bayesian-optimization
 lightning
 deepspeed
+Bio

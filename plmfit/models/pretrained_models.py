@@ -1,8 +1,8 @@
 import os
 from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForSequenceClassification
-from plmfit.language_models.proteinbert.modeling_bert import ProteinBertForSequenceClassification
+from plmfit.language_models.proteinbert.modeling_bert import ProteinBertForSequenceClassification, ProteinBertForMaskedLM
 from plmfit.language_models.esm.modeling_esm import PlmfitEsmForSequenceClassification
-from plmfit.shared_utils.data_explore import visualize_embeddings
+# from plmfit.shared_utils.data_explore import visualize_embeddings
 
 
 import plmfit.shared_utils.utils as utils
@@ -32,10 +32,11 @@ class IPretrainedProteinLanguageModel(nn.Module):
     output_dim: int
     logger: l.Logger
 
-    def __init__(self, logger):
+    def __init__(self, logger, task='regression'):
         super().__init__()
         self.head_name = 'none'
         self.logger = logger
+        self.task = task
 
     def get_name(self):
         return self.name
@@ -72,33 +73,6 @@ class IPretrainedProteinLanguageModel(nn.Module):
             self.layer_to_use = int(layer) if layer.isdigit() else self.no_layers - 1
 
         self.py_model.trim_model(self.layer_to_use)
-
-    @abstractmethod
-    def concat_task_specific_head(self, head):
-        pass
-
-    @abstractmethod
-    def extract_embeddings(self, data_type, batch_size, layer=11, reduction='mean'):
-        pass
-
-    @abstractmethod
-    def fine_tune(self, data_type, fine_tuner, train_split_name, optimizer, loss_f):
-        pass
-
-    @abstractmethod
-    def evaluate(self, data_type):
-        pass
-
-    @abstractmethod
-    def forward(self, src):
-        pass
-
-# TODO: infere based on aa_seq list
-    @abstractmethod
-    def infere(self, aa_seq_list):
-        pass
-
-  # Implement class for every supported Portein Language Model family
 
 
 class Antiberty(IPretrainedProteinLanguageModel):
@@ -630,13 +604,17 @@ class BetaESMFamily(IPretrainedProteinLanguageModel):
 class ProteinBERTFamily(IPretrainedProteinLanguageModel):
     tokenizer: Tokenizer
 
-    def __init__(self, logger = None):
-        super().__init__(logger)
+    def __init__(self, logger = None, task='regression'):
+        super().__init__(logger, task)
         self.name = 'bert-base'
-        self.py_model = ProteinBertForSequenceClassification.from_pretrained('bert-base')
+        if self.task == 'masked_lm':
+            self.py_model = ProteinBertForMaskedLM.from_pretrained('bert-base')
+            self.output_dim = self.py_model.mlm.vocab_size
+        else:
+            self.py_model = ProteinBertForSequenceClassification.from_pretrained('bert-base')
+            self.output_dim = self.py_model.classifier.out_features
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.bert.encoder.layer)
-        self.output_dim = self.py_model.classifier.out_features
         self.emb_layers_dim = self.py_model.bert.encoder.layer[0].attention.output.dense.out_features
         self.tokenizer = utils.load_tokenizer(self.name)
         self.layer_to_use = -1
