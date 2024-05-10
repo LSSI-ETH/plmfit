@@ -3,13 +3,16 @@ import torch
 import json
 import pandas as pd
 from tokenizers import Tokenizer
-from torch.utils.data import TensorDataset, DataLoader, Subset
+from transformers import PreTrainedTokenizerFast
+from torch.utils.data import TensorDataset, DataLoader, Subset, random_split
 from sklearn.model_selection import train_test_split
 import numpy as np
 from pynvml import *
 import os
 import torch.nn as nn
 import psutil
+from tokenizers.processors import TemplateProcessing
+from torch.utils.data import Dataset
 try:
     from env import DATA_DIR
     env_exists = True
@@ -54,7 +57,7 @@ def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2
         return None
 
 
-def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32, num_workers=0, meta_data=None):
+def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32, num_workers=0):
     """
     Create DataLoader objects for training, validation, and testing.
 
@@ -71,30 +74,17 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     Returns:
         dict: Dictionary containing DataLoader objects for train, validation, and test.
     """
-    if meta_data is None:
-        # Return an empty array if meta_data is None
-        meta_data = [np.array([], dtype=np.int8) for _ in range(len(dataset))]
-    else:
-        # Process each list within the list of lists
-        processed_data = []
-        for sub_list in meta_data:
-            if sub_list:  # Check if the sub_list is not empty
-                processed_data.append(np.array(sub_list, dtype=np.int8))
-            else:
-                processed_data.append(np.array([], dtype=np.int8))
-        meta_data = processed_data
 
     if split is None:
-        X_train, X_test, y_train, y_test, meta_train, meta_test = train_test_split(
-                dataset, scores, meta_data, test_size=test_size, random_state=42)
-        X_train, X_val, y_train, y_val, meta_train, meta_val = train_test_split(
-                X_train, y_train, meta_train, test_size=validation_size/(1-test_size), random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(
+                dataset, scores, test_size=test_size, random_state=42)
+        X_train, X_val, y_train, y_val = train_test_split(
+                X_train, y_train, test_size=validation_size/(1-test_size), random_state=42)
     
     else:
         # Use the provided split
         X_train, X_val, X_test = dataset[split == 'train'], dataset[split == 'validation'], dataset[split == 'test']
         y_train, y_val, y_test = scores[split == 'train'], scores[split == 'validation'], scores[split == 'test']
-        meta_train, meta_val, meta_test = meta_data[split == 'train'], meta_data[split == 'validation'], meta_data[split == 'test']
 
     # Scale the features if scaler is provided
     if scaler:
@@ -110,12 +100,11 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     y_train = convert_or_clone_to_tensor(y_train, dtype=torch.float32)
     y_val = convert_or_clone_to_tensor(y_val, dtype=torch.float32)
     y_test = convert_or_clone_to_tensor(y_test, dtype=torch.float32)
-    meta_train, meta_val, meta_test = torch.tensor(meta_train), torch.tensor(meta_val), torch.tensor(meta_test)
 
     # Create DataLoader for training, validation, and testing
-    train_dataset = TensorDataset(X_train, y_train, meta_train)
-    val_dataset = TensorDataset(X_val, y_val, meta_val)
-    test_dataset = TensorDataset(X_test, y_test, meta_test)
+    train_dataset = TensorDataset(X_train, y_train)
+    val_dataset = TensorDataset(X_val, y_val)
+    test_dataset = TensorDataset(X_test, y_test)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=num_workers>0)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=num_workers>0)
@@ -210,6 +199,43 @@ def load_tokenizer(model_name):
     with open(file, 'r') as f:
         return Tokenizer.from_str(f.read())
 
+def load_transformer_tokenizer(model_name, tokenizer):
+    if 'progen2' in model_name:
+        tokenizer.post_processor = TemplateProcessing(
+            single="<|bos|> $A <|eos|>",
+            pair="<|bos|> $A <|eos|> <|bos|> $B:1 <|eos|>:1",
+            special_tokens=[
+                ("<|bos|>", tokenizer.token_to_id("<|bos|>")),
+                ("<|eos|>", tokenizer.token_to_id("<|eos|>")),
+            ],
+        )
+        tokenizer = PreTrainedTokenizerFast(
+            bos_token="<|bos|>",
+            eos_token="<|eos|>",
+            pad_token="<|pad|>",
+            tokenizer_object=tokenizer
+        )
+        return tokenizer
+    elif 'bert' in model_name:
+        tokenizer.post_processor = TemplateProcessing(
+            single="<cls> $A <sep>",
+            pair="<cls> $A <sep> $B:1 <sep>:1",
+            special_tokens=[
+                ("<cls>", tokenizer.token_to_id("<cls>")),
+                ("<sep>", tokenizer.token_to_id("<sep>")),
+            ],
+        )
+        tokenizer = PreTrainedTokenizerFast(
+            cls_token="<cls>",
+            sep_token="<sep>",
+            pad_token="<pad>",
+            mask_token="<mask>",
+            unk_token="<unk>",
+            tokenizer_object=tokenizer
+        )
+        return tokenizer
+    else:
+        raise 'Model transformer tokenizer not defined'
 
 def one_hot_encode(seqs):
     return torch.tensor([0])
@@ -341,7 +367,7 @@ def disable_dropout(model):
         else:
             disable_dropout(child)
 
-def set_modules_to_train_mode(model, module_name):
+def set_modules_to_train_mode(model, module_name='all'):
     """
     This function iterates through all modules in the given model.
     If it finds a module that has 'module_name' in its name,
@@ -349,7 +375,7 @@ def set_modules_to_train_mode(model, module_name):
     """
     for name, module in model.named_modules():
         # Identify modules by checking if 'module_name' is in their name.
-        if module_name in name:
+        if module_name in name or module_name == 'all':
             module.train()  # Set the identified 'module_name' module to training mode
 
     # Note: This does not change the global training/evaluation mode of the model,
@@ -478,7 +504,7 @@ def find_mutation_positions(seq, ref, padding_id=None):
     """
     return [i for i, (s, r) in enumerate(zip(seq, ref)) if s != r]
 
-def init_plm(model_name, logger):
+def init_plm(model_name, logger, task='regression'):
     model = None
     supported_progen2 = ['progen2-small', 'progen2-medium', 'progen2-xlarge']
     supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
@@ -501,8 +527,99 @@ def init_plm(model_name, logger):
         model = Antiberty()
     elif 'proteinbert' in model_name:
         assert model_name in supported_Proteinbert, 'ProteinBERT version is not supported'
-        model = ProteinBERTFamily(logger)
+        model = ProteinBERTFamily(logger, task)
     else:
         raise 'PLM not supported'
 
     return model
+
+import torch
+
+def masking_collator(tokenizer, features, mlm_probability=0.15, mutation_boost_factor=6.66):
+    """
+    Create masked inputs for MLM from tokenized data, with boosted masking probability for specified mutations.
+    
+    Args:
+    - tokenizer: The tokenizer used for tokenizing the data.
+    - features (dict): A dictionary containing the encoded sequences.
+    - mlm_probability (float): The base probability of each token being masked.
+    - mutation_boost_factor (float): Factor to boost the mlm_probability for mutated positions.
+
+    Returns:
+    - dict: A dictionary containing the masked input_ids, attention_masks, and labels for MLM.
+    """
+    input_ids = features['input_ids']
+
+    labels = input_ids.clone()  # Prepare labels for MLM
+
+    # Base probability matrix for masking
+    probability_matrix = torch.full(labels.shape, mlm_probability)
+    
+    # TODO fix for mut mask
+    if 'mutation_mask' in features:
+        probability_matrix += features['mutation_mask'] * (mlm_probability * (mutation_boost_factor - 1))
+
+    # Set probability for special tokens to 0 to avoid masking
+    special_tokens_mask = features.get('special_tokens_mask', torch.zeros_like(input_ids).bool())
+    if isinstance(special_tokens_mask, torch.Tensor) and special_tokens_mask.dtype != torch.bool:
+        special_tokens_mask = special_tokens_mask.bool()
+    probability_matrix.masked_fill_(special_tokens_mask, value=0.0)
+
+    # Create mask array
+    masked_indices = torch.bernoulli(probability_matrix).bool()
+
+    # Apply 80-10-10 masking strategy:
+    # 80% MASK
+    indices_replaced_with_mask = torch.bernoulli(torch.full(labels.shape, 0.8)).bool() & masked_indices
+    input_ids[indices_replaced_with_mask] = tokenizer.mask_token_id
+
+    # 10% random token
+    indices_replaced_with_random = torch.bernoulli(torch.full(labels.shape, 0.1)).bool() & masked_indices & ~indices_replaced_with_mask
+    random_tokens = torch.randint(low=0, high=tokenizer.vocab_size, size=labels.shape)
+    input_ids[indices_replaced_with_random] = random_tokens[indices_replaced_with_random]
+
+    # 10% unchanged - no action needed since indices are not masked
+
+
+    labels[~masked_indices] = -100
+
+    return {
+        'input_ids': input_ids,
+        'attention_mask': features['attention_mask'],
+        'labels': labels,
+    }
+
+
+
+class MaskedLMDataset(Dataset):
+    def __init__(self, encodings, tokenizer, mlm_probability, mutation_boost_factor=6.66):
+        self.encodings = encodings
+        self.tokenizer = tokenizer
+        self.mlm_probability = mlm_probability
+        self.mutation_boost_factor = mutation_boost_factor
+
+    def __len__(self):
+        return len(self.encodings['input_ids'])
+
+    def __getitem__(self, idx):
+        item = {key: val[idx].clone().detach() for key, val in self.encodings.items()}
+        masked_inputs = masking_collator(self.tokenizer, item, self.mlm_probability, self.mutation_boost_factor)
+        return masked_inputs
+    
+def create_mlm_data_loaders(data, tokenizer, batch_size=16, mlm_probability=0.15, mutation_boost_factor=6.66, split_ratios=(0.7, 0.15, 0.15)):
+    dataset = MaskedLMDataset(data, tokenizer, mlm_probability, mutation_boost_factor)
+    
+    # Determine split sizes
+    train_size = int(len(dataset) * split_ratios[0])
+    val_size = int(len(dataset) * split_ratios[1])
+    test_size = len(dataset) - train_size - val_size
+    
+    # Randomly split the dataset
+    train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
+    
+    # Create data loaders for each split
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    
+    return {'train': train_loader, 'val': val_loader, 'test': test_loader}

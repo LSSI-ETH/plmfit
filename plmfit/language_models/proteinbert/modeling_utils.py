@@ -32,6 +32,8 @@ import torch.nn.functional as F
 
 from .file_utils import cached_path
 
+from transformers.modeling_outputs import MaskedLMOutput
+
 CONFIG_NAME = "config.json"
 WEIGHTS_NAME = "pytorch_model.bin"
 
@@ -767,15 +769,16 @@ class MLMHead(nn.Module):
     def forward(self, hidden_states, targets=None):
         hidden_states = self.transform(hidden_states)
         hidden_states = self.decoder(hidden_states) + self.bias
-        outputs = (hidden_states,)
+        outputs = hidden_states
         if targets is not None:
             loss_fct = nn.CrossEntropyLoss(ignore_index=self._ignore_index)
             masked_lm_loss = loss_fct(
                 hidden_states.view(-1, self.vocab_size), targets.view(-1))
-            metrics = {'perplexity': torch.exp(masked_lm_loss)}
-            loss_and_metrics = (masked_lm_loss, metrics)
-            outputs = (loss_and_metrics,) + outputs
-        return outputs  # (loss), prediction_scores
+        return MaskedLMOutput(
+            loss=masked_lm_loss,
+            logits=outputs,
+            hidden_states=hidden_states
+        )  
 
 
 class ValuePredictionHead(nn.Module):

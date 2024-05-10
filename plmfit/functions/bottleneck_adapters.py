@@ -37,9 +37,6 @@ def bottleneck_adapters(args, logger):
         raise ValueError('Head type not supported')
     
     model.py_model.set_head(pred_model)
-    meta_data = None # This is only used for 'mut_mean' reduction
-    if args.reduction == 'mut_mean': 
-        meta_data = data['mut_mask'].values
     model.py_model.reduction = args.reduction
     
     encs = model.categorical_encode(data)
@@ -52,8 +49,7 @@ def bottleneck_adapters(args, logger):
             validation_size=training_params['val_split'], 
             dtype=torch.int8, 
             split=split,
-            num_workers=0,
-            meta_data=meta_data
+            num_workers=0
         )
     
     fine_tuner = BottleneckAdaptersFineTuner(training_config=training_params, logger=logger)

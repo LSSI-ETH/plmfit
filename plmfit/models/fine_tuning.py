@@ -135,7 +135,7 @@ class FullRetrainFineTuner(FineTuner):
                     for itr, training_data in enumerate(dataloaders_dict[phase], 0):
                         batch_start_time = time.time()
                         optimizer.zero_grad()
-                        input, labels, _ = training_data
+                        input, labels = training_data
                         input = input.to(device)
                         labels = labels.to(device)
                         if self.model_output == 'default':
@@ -250,7 +250,20 @@ class FullRetrainFineTuner(FineTuner):
                 with open(f'{self.logger.base_dir}/{self.logger.experiment_name}_pred_vs_true.json', 'w', encoding='utf-8') as f:
                     json.dump(testing_data, f, indent=4)
         
+    def prepare_model(self, model, target_layers="all"):
+        # TODO: Train only last layer
+        # if target_layers == "last":
+        #     layers_to_train = model.layer_to_use
+        # else:
+        #     layers_to_train = None # Which will equal to all
 
+        # Trim for dev purposes 
+        if model.experimenting: model.py_model.trim_model(0)
+        
+        utils.set_trainable_parameters(model.py_model)
+        utils.set_modules_to_train_mode(model.py_model)
+        utils.get_parameters(model.py_model, True)
+        return model
 
 class LowRankAdaptationFineTuner(FineTuner):
     def __init__(self, training_config, logger = None):

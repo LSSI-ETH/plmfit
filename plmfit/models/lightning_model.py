@@ -1,7 +1,7 @@
 import lightning as L
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 import torch
-from torchmetrics import classification, regression
+from torchmetrics import classification, regression, text
 import time
 import json
 from deepspeed.ops.adam import DeepSpeedCPUAdam
@@ -25,6 +25,9 @@ class LightningModel(L.LightningModule):
         elif self.model.task == 'regression':
             self.train_metric = regression.MeanSquaredError(squared=False)
             self.metric_label = 'rmse'
+        elif self.model.task == 'masked_lm':
+            self.train_metric = text.Perplexity(ignore_index=-100)
+            self.metric_label = 'perplexity'
         
         self.val_metric = self.train_metric.clone()
 
@@ -33,12 +36,11 @@ class LightningModel(L.LightningModule):
         self.profiler = FlopsProfiler(self)
         self.profiling_interval = 100
 
-    def forward(self, input, meta=None):
-        output = self.model(input, meta=meta)
-        if hasattr(output, 'logits'):
-            return output.logits
-        else:
-            return output
+        self.experimenting = False
+
+    def forward(self, input, **args):
+        output = self.model(input, **args)
+        return output
     
     def on_fit_start(self) -> None:
         self.start_time = time.time()
@@ -82,10 +84,22 @@ class LightningModel(L.LightningModule):
             self.profiler.start_profile()
             print("FLOPS PROFILING INITIATED...", flush=True)
         
-        input, labels, meta = batch
-        outputs = self(input, meta=meta).squeeze(dim=1)
+        if self.model.task == 'masked_lm':
+            input = batch['input_ids']
+            attention_mask = batch['attention_mask']
+            labels = batch['labels']
+            outputs = self(input, input_mask=attention_mask, targets=labels)
+            loss = outputs.loss
+            outputs = outputs.logits.squeeze(dim=1)
+        else:    
+            input, labels = batch
+            outputs = self(input)
+            if hasattr(outputs, 'logits'):
+                outputs = outputs.logits.squeeze(dim=1)
+            else:
+                outputs = outputs.squeeze(dim=1)
+            loss = self.loss_function(outputs, labels)
 
-        loss = self.loss_function(outputs, labels)
         if on_profiling:
             self.profiler.print_model_profile(profile_step=batch_idx, output_file=f'{self.plmfit_logger.base_dir}/flops.log')
             self.profiler.end_profile()
@@ -133,11 +147,23 @@ class LightningModel(L.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         batch_start_time = time.time()
+        
+        if self.model.task == 'masked_lm':
+            input = batch['input_ids']
+            attention_mask = batch['attention_mask']
+            labels = batch['labels']
+            outputs = self(input, input_mask=attention_mask, targets=labels)
+            loss = outputs.loss
+            outputs = outputs.logits.squeeze(dim=1)
+        else:    
+            input, labels = batch
+            outputs = self(input)
+            if hasattr(outputs, 'logits'):
+                outputs = outputs.logits.squeeze(dim=1)
+            else:
+                outputs = outputs.squeeze(dim=1)
+            loss = self.loss_function(outputs, labels)
 
-        input, labels, meta = batch
-        outputs = self(input, meta=meta).squeeze(dim=1)
-
-        loss = self.loss_function(outputs, labels)
         self.log('val_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
         self.val_metric.update(outputs, labels)
@@ -170,10 +196,21 @@ class LightningModel(L.LightningModule):
         self.plmfit_logger.log('-' * 10)
     
     def test_step(self, batch, batch_idx):
-        input, labels, meta = batch
-        outputs = self(input, meta=meta).squeeze(dim=1)
-
-        loss = self.loss_function(outputs, labels)
+        if self.model.task == 'masked_lm':
+            input = batch['input_ids']
+            attention_mask = batch['attention_mask']
+            labels = batch['labels']
+            outputs = self(input, input_mask=attention_mask, targets=labels)
+            loss = outputs.loss
+            outputs = outputs.logits.squeeze(dim=1)
+        else:    
+            input, labels = batch
+            outputs = self(input)
+            if hasattr(outputs, 'logits'):
+                outputs = outputs.logits.squeeze(dim=1)
+            else:
+                outputs = outputs.squeeze(dim=1)
+            loss = self.loss_function(outputs, labels)
         self.log('test_loss', loss, on_step=False, on_epoch=True, logger=True, prog_bar=False)
 
         self.metrics.add(outputs, labels)
