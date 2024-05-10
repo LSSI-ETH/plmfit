@@ -31,8 +31,14 @@ class HyperTuner:
         )
         self.best_config = copy.deepcopy(self.initial_config)  # Start with a copy of the initial full configuration
         self.best_loss = float('-inf')
+        if self.best_config['architecture_parameters']['network_type'] == 'linear':
+            n_steps = 12
+        else:
+            n_steps = 15
+
+        self.logger.log(f'Starting hyperparameter tuning in with {n_steps} inital steps for {self.trials} trials')
         self.current_trial = 1
-        optimizer.maximize(init_points=10, n_iter=self.trials)
+        optimizer.maximize(init_points= n_steps, n_iter=self.trials)
         self.logger.log(f'Hyperparameter tuning completed in {time.time() - start_time}s')
         return self.best_config, 0-self.best_loss
     
@@ -49,9 +55,14 @@ class HyperTuner:
         old_epochs = temp_config['training_parameters']['epochs']
         old_early_stopping = temp_config['training_parameters']['early_stopping']
         old_epoch_sizing = temp_config['training_parameters']['epoch_sizing']
-        temp_config['training_parameters']['epochs'] = 100
-        temp_config['training_parameters']['early_stopping'] = 10
-        temp_config['training_parameters']['epoch_sizing'] = 0.50
+        old_scheduler = temp_config['training_parameters']['scheduler']
+        old_scheduler_patience = temp_config['training_parameters']['scheduler_patience']
+
+        temp_config['training_parameters']['epochs'] = 50
+        temp_config['training_parameters']['early_stopping'] = 5
+        temp_config['training_parameters']['epoch_sizing'] = 0.10
+        temp_config['training_parameters']['scheduler_patience'] = 2
+        #temp_config['training_parameters']['scheduler'] = False
 
         self.current_loss = self.function_to_run(config=temp_config, logger=self.logger, **self.run_args)
         self.current_loss = 0.0 - self.current_loss
@@ -59,6 +70,8 @@ class HyperTuner:
         temp_config['training_parameters']['epochs'] = old_epochs
         temp_config['training_parameters']['early_stopping'] = old_early_stopping
         temp_config['training_parameters']['epoch_sizing'] = old_epoch_sizing
+        temp_config['training_parameters']['scheduler'] = old_scheduler
+        temp_config['training_parameters']['scheduler_patience'] = old_scheduler_patience
 
         if self.current_loss > self.best_loss:
             self.best_loss = self.current_loss

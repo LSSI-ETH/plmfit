@@ -235,7 +235,7 @@ class FullRetrainFineTuner(FineTuner):
                         self.logger.log(f'Current learning rate: {last_lr}')
 
                     # Early stopping check
-                    if epoch_loss < best_val_loss - 0.0001:
+                    if epoch_loss < best_val_loss - 0.00001:
                         best_val_loss = epoch_loss
                         best_model_state = model.state_dict()
                         best_epoch = epoch
@@ -308,17 +308,7 @@ class FullRetrainFineTuner(FineTuner):
                 if self.scheduler:
                     lr_plot = data_explore.create_lr_plot(epoch_lrs)
                     self.logger.save_plot(lr_plot, "learning_rate")
-                metrics, pooled_metrics, plots = data_explore.evaluate_multi_label_classification(model, dataloaders_dict, device, self.logger, False)
-                mixed_metrics, mixed_pooled_metrics, mixed_plots = data_explore.evaluate_multi_label_classification(model, dataloaders_dict, device, self.logger, True)
-                self.logger.save_data(metrics, 'metrics')
-                self.logger.save_data(pooled_metrics, 'pooled_metrics')
-                self.logger.save_data(mixed_metrics, 'mixed_metrics')
-                self.logger.save_data(mixed_pooled_metrics, 'mixed_pooled_metrics')
-                os.makedirs(f'{self.logger.base_dir}/plots/hmaps', exist_ok = True)
-                for (name,plot) in plots.items(): 
-                    self.logger.save_plot(plot,name, f'{self.logger.base_dir}/plots')
-                for (name,plot) in mixed_plots.items(): 
-                    self.logger.save_plot(plot,name, f'{self.logger.base_dir}/plots/mixed')
+                data_explore.evaluate_multi_label_classification(model, dataloaders_dict, device, self.logger, get_mixed = True)
 
         
 class LowRankAdaptationFineTuner(FineTuner):

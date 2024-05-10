@@ -9,6 +9,7 @@ class LinearHead(nn.Module):
         super(LinearHead, self).__init__()
         self.linear = nn.Linear(config['input_dim'], config['output_dim'])
         self.task = config['task']
+        self.drop = nn.Dropout(config['dropout'])
         if self.task == 'classification':
             # Initialize weights with a normal distribution around zero
             init.normal_(self.linear.weight, mean=0.0, std=0.01)
@@ -18,6 +19,7 @@ class LinearHead(nn.Module):
             self.activation = get_activation_function(config['output_activation'])
     
     def forward(self, x):
+        x = self.drop(x)
         x = self.linear(x)
         if self.task == 'classification':
             x= self.activation(x)

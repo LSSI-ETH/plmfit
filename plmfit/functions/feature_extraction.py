@@ -77,16 +77,17 @@ def runner(config, embeddings, scores, logger, split=None, on_ray_tuning=False, 
 def ray_tuning(function_to_run, config, embeddings, scores, logger, experiment_dir, split=None):
 
     network_type = config['architecture_parameters']['network_type']
-    trials = 100 if network_type == 'mlp' else 100
+    trials = 200 if network_type == 'mlp' else 100
     
     config['training_parameters']['learning_rate'] = (1e-4, 1e-2)
     config['training_parameters']['batch_size'] = (8, 128)
-    config['training_parameters']['weight_decay'] = (1e-6, 1e-1)
+    config['training_parameters']['weight_decay'] = (1e-6, 1e-4)
     if network_type == 'mlp':
-        config['architecture_parameters']['hidden_dim'] = (64, 2560)
-        config['architecture_parameters']['hidden_dropout'] = (0.05, 0.5)
-    else:
-        config['architecture_parameters']['dropout'] = (0.05, 0.5)
+        input_dim = config['architecture_parameters']['input_dim']
+        config['architecture_parameters']['hidden_dim'] = (64, input_dim * 2)
+        config['architecture_parameters']['hidden_dropout'] = (0.00, 0.5)
+    #else:
+        #config['architecture_parameters']['dropout'] = (0.0, 0.5)
 
     tuner = HyperTuner(
         function_to_run=function_to_run, 

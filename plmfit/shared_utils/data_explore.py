@@ -16,6 +16,8 @@ import itertools
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch
 from torch.nn.functional import sigmoid
+from sklearn import metrics
+import os
 
 def plot_label_distribution(data, label="binary_score", path=None, text="Keep"):
     sns.set(style="whitegrid")
@@ -760,3 +762,199 @@ def create_lr_plot(lr_data):
     plt.xlabel('Epochs')
     plt.title(f'Learning Rate')
     return fig
+
+def hit_rate(y_true, y_pred):
+    total_hits = 0
+    n_class = len(y_true[0])
+    for pred, true in zip(y_pred,y_true):
+        count = np.sum(pred == true)
+        total_hits += (count == (n_class - np.count_nonzero(true == -1)))
+
+    return total_hits / len(y_pred)
+
+def calculate_average_hit_rate(preds, trues):
+    if len(preds) != len(trues) or len(preds[0]) != len(trues[0]):
+        raise ValueError("The dimensions of 'preds' and 'trues' matrices must be the same.")
+
+    total_hits = 0
+    total_valid_entries = 0
+    preds = np.where(preds > 0.5, np.array(1), np.array(0))
+    hit_rates = []
+    
+    for i in range(len(preds)):
+        valid_entry = 0
+        hit_entry = 0
+        for j in range(len(preds[0])):
+            if trues[i][j] != -1:
+                total_valid_entries += 1
+                valid_entry += 1
+                if preds[i][j] == trues[i][j]:
+                    total_hits += 1
+                    hit_entry +=1
+        hit_rates.append(hit_entry / valid_entry)
+
+
+    average_hit_rate = total_hits / total_valid_entries
+    return  average_hit_rate , sum(hit_rates) / len(hit_rates) ,  hit_rates.count(1) / len(hit_rates)
+
+def evaluate_predictions(y_true, y_pred, logger = None):
+    mask = y_true != -1
+    species = ['Mouse','Cattle','Bat', 'Human']
+    species_true_list = []
+    species_pred_list = []
+
+    for i, animal in enumerate(species):
+        species_true_list.append(y_true[:,i][mask[:,i]])
+        species_pred_list.append(y_pred[:,i][mask[:,i]])
+
+    # Initialize dictionaries to save results, and initialize the metrics
+    results = {}
+
+    scores = {'Accuracy':metrics.accuracy_score, 'Precision': metrics.precision_score, 
+            'Recall': metrics.recall_score, 'MCC': metrics.matthews_corrcoef}
+
+    # Calculate scores for all metrics
+    for (name,score) in scores.items():
+        results[name] = {}
+        for i, animal in enumerate(species):
+            result = score(species_true_list[i], species_pred_list[i])
+            results[name][animal] = result 
+        results[name]['Average'] = np.mean(np.array([value for value in results[name].values()]))
+
+    results['Hit Rate'] = hit_rate(y_true,y_pred)
+
+    #thomas_hit = calculate_average_hit_rate(y_pred,y_true)
+    #thomas_hit_names = ['Average Hit Rate', 'Micro Hit Rate', 'Completely Correct']
+    #for score, name in zip(thomas_hit, thomas_hit_names):
+        #results[name] = score
+
+    return (results)
+
+def plot_dual_bar_chart(data_dict1, data_dict2):
+    keys1 = list(data_dict1.keys())
+    values1 = list(data_dict1.values())
+
+    keys2 = list(data_dict2.keys())
+    values2 = list(data_dict2.values())
+
+    # Generate a list of colors for each set of bars
+    num_bars1 = len(keys1)
+    colors1 = plt.cm.tab20c(np.linspace(0, 1, num_bars1))
+
+    num_bars2 = len(keys2)
+    colors2 = plt.cm.tab20b(np.linspace(0, 1, num_bars2))
+
+    # Increase figure size
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Calculate the position of each set of bars
+    bar_width = 1
+    x_pos1 = np.arange(len(keys1)) * (bar_width)
+    x_pos2 = 5 + (1 + np.arange(len(keys2))) * (bar_width) #* (bar_width) + (len(keys2) + 2) * (bar_width)
+
+    # Plot bars for the first data set
+    bars1 = ax.bar(x_pos1, values1, width=bar_width, color=colors1, edgecolor='black', linewidth=1.5, label='Set 1')
+
+    # Plot bars for the second data set
+    bars2 = ax.bar(x_pos2, values2, width=bar_width, color=colors2, edgecolor='black', linewidth=1.5, label='Set 2')
+
+    ax.set_xlabel('Categories', fontsize=12)
+    ax.set_ylabel('Values', fontsize=12)
+    ax.set_title('Performances for All & Mixed Labels', fontsize=14)
+
+    # Set the position of x ticks and labels
+    x_pos_combined = np.concatenate((x_pos1, x_pos2))
+    ax.set_xticks(x_pos_combined, keys1 + keys2)
+
+    # Add value labels on top of each bar in set 1
+    for bar1 in bars1:
+        yval1 = bar1.get_height()
+        ax.text(bar1.get_x() + bar1.get_width()/2, yval1 + 0.05, round(yval1, 2), ha='center', va='bottom', fontsize=10)
+
+    # Add value labels on top of each bar in set 2
+    for bar2 in bars2:
+        yval2 = bar2.get_height()
+        ax.text(bar2.get_x() + bar2.get_width()/2, yval2 + 0.05, round(yval2, 2), ha='center', va='bottom', fontsize=10)
+
+    plt.yticks(fontsize=10)
+    
+     # Add titles for separated plots
+    plt.text(3.0,1.15,'All Ground Truths')
+    plt.text(5.5,1.15,'Only Mixed Labels')
+
+    # Add grid lines
+    ax.grid(axis='y', linestyle='--', alpha=0.7)
+
+    # Set y-axis limits
+    ax.set_ylim(0, 1.2)
+    
+    # A vertical line to divide the plot in half
+    ax.axvline(x=5, color='gray', linestyle='--')
+    plt.tight_layout()
+
+    
+    return fig
+
+def collect_averages(results):
+    averages = {}
+    for metric, value in results.items():
+        if type(value) == dict and 'Average' in value:
+            averages[metric] = value['Average']
+        else:
+            averages[metric] = value
+    return averages
+
+def evaluate_multi_label_classification(model, dataloaders_dict, device, logger = None, get_mixed = False):
+    # Evaluate the model on the test dataset
+    model.eval()
+    y_pred = []
+    y_test = []
+    with torch.no_grad():
+        for (embeddings, labels) in dataloaders_dict['test']:
+            embeddings = embeddings.to(device)
+            labels = labels.to(device).int()
+            output = model(embeddings)
+
+            # Applies sigmoid and round the values for classification
+            preds = torch.round(sigmoid(output))
+            
+            y_pred.extend(preds.cpu().detach().numpy())
+            y_test.extend(labels.cpu().detach().numpy())
+
+    y_pred = np.array(y_pred)
+    y_test = np.array(y_test)
+
+    pred_path = f'{logger.base_dir}/predictions'
+    os.makedirs(pred_path, exist_ok = True)
+    torch.save(torch.from_numpy(y_pred),f'{pred_path}/preds.pt')
+    torch.save(torch.from_numpy(y_test),f'{pred_path}/truths.pt')
+    
+    results = evaluate_predictions(y_test, y_pred, logger)
+    logger.save_data(results, 'results')
+
+    # This is for when we only want to look at interesting RBDs
+    if get_mixed:
+        mixed_labels, inverse_ind = np.unique(y_test, axis = 0, return_inverse = True)
+        mixed_indices = []
+
+        for i in range(len(mixed_labels)):
+            unique_labels = np.unique(mixed_labels[i])
+            if len(unique_labels) < (2 + (-1 in unique_labels)):
+                continue
+                
+            case_ind = np.where(inverse_ind == i)
+            mixed_indices.extend(case_ind[0].tolist())
+            
+        y_test = y_test[np.array(mixed_indices)]
+        y_pred = y_pred[np.array(mixed_indices)]
+
+        torch.save(torch.from_numpy(y_pred),f'{pred_path}/preds_m.pt')
+        torch.save(torch.from_numpy(y_test),f'{pred_path}/truths_m.pt')
+
+    mixed_results = evaluate_predictions(y_test, y_pred, logger)
+    logger.save_data(mixed_results, 'mixed_results')
+
+    performance_plot = plot_dual_bar_chart(collect_averages(results), collect_averages(mixed_results))
+    logger.save_plot(performance_plot, 'performance', f'{logger.base_dir}/plots')
+
+    return None
