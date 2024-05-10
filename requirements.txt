@@ -26,3 +26,4 @@ paramiko
 bayesian-optimization
 lightning
 deepspeed
+Bio
