@@ -34,7 +34,7 @@ class FineTuner(ABC):
         self.scheduler_patience = training_config['scheduler_patience']
         self.scheduler_factor = training_config['scheduler_factor']
         self.logger = logger
-        self.species = None
+        self.species = False
         if 'separate_models' in training_config:
             self.species = training_config['separate_models']
 
@@ -123,7 +123,7 @@ class FullRetrainFineTuner(FineTuner):
         fp16 = False
         device_ids = list(range(torch.cuda.device_count()))
 
-        if self.species != None:
+        if self.species != False:
             self.logger.log(f'\nStarting training for {self.species} RBDs...\n')
 
         if torch.cuda.is_available():
@@ -152,7 +152,7 @@ class FullRetrainFineTuner(FineTuner):
         start_time = time.time()
 
         if self.task_type == 'multilabel_classification':
-            if self.species == None:
+            if self.species == False:
                 train_recall = torchmetrics.classification.MultilabelRecall(num_labels = 4, ignore_index = -1)
                 validation_recall = torchmetrics.classification.MultilabelRecall(num_labels = 4, ignore_index = -1)
             else:
@@ -163,7 +163,7 @@ class FullRetrainFineTuner(FineTuner):
             epoch_recalls = {'train':[],'val':[]}
 
         
-        if self.species != None:
+        if self.species != False:
             n_train_samples = len(dataloaders_dict['train'].dataset.tensors[1])
             self.logger.log(f'Training with {n_train_samples} {self.species} samples...')
 
@@ -281,7 +281,7 @@ class FullRetrainFineTuner(FineTuner):
         # After training, generate and save a plot of the training and validation loss
         species_path = None
         model_path = f'{self.logger.base_dir}/{self.logger.experiment_name}.pt'
-        if self.species != None:
+        if self.species != False:
             species_path = f'{self.logger.base_dir}/{self.species}'
             os.makedirs(species_path, exist_ok = True)
             model_path = f'{self.logger.base_dir}/{self.species}/trained_model.pt'
@@ -292,7 +292,7 @@ class FullRetrainFineTuner(FineTuner):
         }
 
         loss_data_path = f'{self.logger.base_dir}/{self.logger.experiment_name}_loss.json'
-        if self.species != None:
+        if self.species != False:
             loss_data_path = f'{species_path}/loss_data.json'
         with open(loss_data_path, 'w', encoding='utf-8') as f:
             json.dump(loss_data, f, indent=4)
@@ -335,7 +335,7 @@ class FullRetrainFineTuner(FineTuner):
                 if self.scheduler:
                     lr_plot = data_explore.create_lr_plot(epoch_lrs)
                     self.logger.save_plot(lr_plot, "learning_rate", species_path)
-                data_explore.evaluate_multi_label_classification(model, dataloaders_dict, device, self.logger, get_mixed = False, species = self.species)
+                data_explore.evaluate_multi_label_classification(model, dataloaders_dict, device, self.logger, get_mixed = True, species = self.species)
 
         
 class LowRankAdaptationFineTuner(FineTuner):

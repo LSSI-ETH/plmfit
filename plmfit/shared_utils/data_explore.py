@@ -797,10 +797,9 @@ def calculate_average_hit_rate(preds, trues):
     average_hit_rate = total_hits / total_valid_entries
     return  average_hit_rate , sum(hit_rates) / len(hit_rates) ,  hit_rates.count(1) / len(hit_rates)
 
-def evaluate_predictions(y_true, y_pred, logger = None, species = None):
+def evaluate_predictions(y_true, y_pred, logger = None):
     mask = y_true != -1
-    if species == None:
-        species = ['Mouse','Cattle','Bat', 'Human']
+    species = ['Mouse','Cattle','Bat', 'Human']
     species_true_list = []
     species_pred_list = []
 
@@ -918,8 +917,6 @@ def evaluate_single_predictions(y_true, y_pred, species):
 
     return (results)
 
-def evaluate_single_label_classification(model, dataloaders_dict, device, logger = None, get_mixed = False, species = None):
-    pass
 def evaluate_multi_label_classification(model, dataloaders_dict, device, logger = None, get_mixed = False, species = None):
     # Evaluate the model on the test dataset
     model.eval()
@@ -941,7 +938,7 @@ def evaluate_multi_label_classification(model, dataloaders_dict, device, logger 
     y_test = np.array(y_test)
 
     pred_path = f'{logger.base_dir}/predictions'
-    if species != None:
+    if species != False:
         pred_path = f'{logger.base_dir}/{species}/predictions'
 
     os.makedirs(pred_path, exist_ok = True)
@@ -949,10 +946,10 @@ def evaluate_multi_label_classification(model, dataloaders_dict, device, logger 
     torch.save(torch.from_numpy(y_test),f'{pred_path}/truths.pt')
     
     
-    if species != None:
+    if species != False:
         results = evaluate_single_predictions(y_test, y_pred, species)
     else:
-        results = evaluate_predictions(y_test, y_pred, logger, species)
+        results = evaluate_predictions(y_test, y_pred, logger)
     logger.save_data(results, 'results')
 
     # This is for when we only want to look at interesting RBDs
@@ -971,10 +968,12 @@ def evaluate_multi_label_classification(model, dataloaders_dict, device, logger 
         y_test = y_test[np.array(mixed_indices)]
         y_pred = y_pred[np.array(mixed_indices)]
 
+        logger.log(y_test.shape)
+
         torch.save(torch.from_numpy(y_pred),f'{pred_path}/preds_m.pt')
         torch.save(torch.from_numpy(y_test),f'{pred_path}/truths_m.pt')
 
-        mixed_results = evaluate_predictions(y_test, y_pred, logger, species)
+        mixed_results = evaluate_predictions(y_test, y_pred, logger)
         logger.save_data(mixed_results, 'mixed_results')
 
         performance_plot = plot_dual_bar_chart(collect_averages(results), collect_averages(mixed_results))
