@@ -105,7 +105,7 @@ class Logger():
 
     def save_plot(self, plot, plot_name, plot_path = None):
         if plot_path == None:
-            plot_path = os.path.join(self.base_dir, f"{self.experiment_name}_{plot_name}.png")
+            plot_path = os.path.join(self.base_dir, f"{plot_name}.png")
         else:
             os.makedirs(plot_path, exist_ok = True)
             plot_path = os.path.join(plot_path, f"{plot_name}.png")
@@ -118,11 +118,9 @@ class Logger():
             except Exception as e:
                 self.log(f'Error posting data to server: {e}', force_dont_send=True)
 
-    def save_model(self, model, model_name):
-        plot_path = os.path.join(self.base_dir, f"{self.experiment_name}.pt")
-        torch.save(model.state_dict(
-        ), plot_path)
-        self.log(f'Saved model with name "{self.experiment_name}.pt"')
+    def save_model(self, model, model_path = None):
+        torch.save(model.state_dict(), model_path)
+        self.log(f'Saved model to path "{model_path}"')
 
     def post_to_server(self, file_path, data_name):
         # Ensure the token is included in the headers for authorization

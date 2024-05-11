@@ -797,9 +797,10 @@ def calculate_average_hit_rate(preds, trues):
     average_hit_rate = total_hits / total_valid_entries
     return  average_hit_rate , sum(hit_rates) / len(hit_rates) ,  hit_rates.count(1) / len(hit_rates)
 
-def evaluate_predictions(y_true, y_pred, logger = None):
+def evaluate_predictions(y_true, y_pred, logger = None, species = None):
     mask = y_true != -1
-    species = ['Mouse','Cattle','Bat', 'Human']
+    if species == None:
+        species = ['Mouse','Cattle','Bat', 'Human']
     species_true_list = []
     species_pred_list = []
 
@@ -904,7 +905,22 @@ def collect_averages(results):
             averages[metric] = value
     return averages
 
-def evaluate_multi_label_classification(model, dataloaders_dict, device, logger = None, get_mixed = False):
+def evaluate_single_predictions(y_true, y_pred, species):
+    # Initialize dictionaries to save results, and initialize the metrics
+    results = {}
+
+    scores = {'Accuracy':metrics.accuracy_score, 'Precision': metrics.precision_score, 
+            'Recall': metrics.recall_score, 'MCC': metrics.matthews_corrcoef}
+
+    # Calculate scores for all metrics
+    for (name,score) in scores.items():
+        results[f'{name}_{species}'] = score(y_true, y_pred)
+
+    return (results)
+
+def evaluate_single_label_classification(model, dataloaders_dict, device, logger = None, get_mixed = False, species = None):
+    pass
+def evaluate_multi_label_classification(model, dataloaders_dict, device, logger = None, get_mixed = False, species = None):
     # Evaluate the model on the test dataset
     model.eval()
     y_pred = []
@@ -925,11 +941,18 @@ def evaluate_multi_label_classification(model, dataloaders_dict, device, logger 
     y_test = np.array(y_test)
 
     pred_path = f'{logger.base_dir}/predictions'
+    if species != None:
+        pred_path = f'{logger.base_dir}/{species}/predictions'
+
     os.makedirs(pred_path, exist_ok = True)
     torch.save(torch.from_numpy(y_pred),f'{pred_path}/preds.pt')
     torch.save(torch.from_numpy(y_test),f'{pred_path}/truths.pt')
     
-    results = evaluate_predictions(y_test, y_pred, logger)
+    
+    if species != None:
+        results = evaluate_single_predictions(y_test, y_pred, species)
+    else:
+        results = evaluate_predictions(y_test, y_pred, logger, species)
     logger.save_data(results, 'results')
 
     # This is for when we only want to look at interesting RBDs
@@ -951,10 +974,10 @@ def evaluate_multi_label_classification(model, dataloaders_dict, device, logger 
         torch.save(torch.from_numpy(y_pred),f'{pred_path}/preds_m.pt')
         torch.save(torch.from_numpy(y_test),f'{pred_path}/truths_m.pt')
 
-    mixed_results = evaluate_predictions(y_test, y_pred, logger)
-    logger.save_data(mixed_results, 'mixed_results')
+        mixed_results = evaluate_predictions(y_test, y_pred, logger, species)
+        logger.save_data(mixed_results, 'mixed_results')
 
-    performance_plot = plot_dual_bar_chart(collect_averages(results), collect_averages(mixed_results))
-    logger.save_plot(performance_plot, 'performance', f'{logger.base_dir}/plots')
+        performance_plot = plot_dual_bar_chart(collect_averages(results), collect_averages(mixed_results))
+        logger.save_plot(performance_plot, 'performance', f'{logger.base_dir}/plots')
 
     return None

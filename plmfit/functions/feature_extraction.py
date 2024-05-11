@@ -7,20 +7,19 @@ from plmfit.models.hyperparameter_tuner import HyperTuner
 def feature_extraction(args, logger):
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    
     split = None if args.split is None else data[args.split]
     head_config = utils.load_config(args.head_config)
 
     ### TODO : Extract embeddings if do not exist
     embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings', data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
     assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to create and save the embeddings"
-
     if head_config['architecture_parameters']['task'] == 'regression':
         scores = data['score'].values 
     elif head_config['architecture_parameters']['task'] == 'classification':
         scores = data['binary_score'].values
     elif "multilabel" in head_config['architecture_parameters']['task']:
-        scores = data[["mouse","cattle","ihbat","human"]].values
+        species = ["mouse","cattle","ihbat","human"]
+        scores = data[species].values
     else:
         raise f"Task type {head_config['architecture_parameters']['task']} not supported."
     scores = torch.tensor(scores, dtype=torch.float32)
@@ -38,13 +37,32 @@ def feature_extraction(args, logger):
             experiment_dir=args.experiment_dir
         )
 
-    runner(
-        config=head_config,
-        embeddings=embeddings, 
-        scores=scores,
-        logger=logger,
-        split=split
-    )
+    if ('separate_models' in head_config['training_parameters'] and 
+        head_config['training_parameters']['separate_models']):
+
+        head_config['architecture_parameters']['output_dim'] = 1
+        for animal in species:
+            scores = data[animal].values
+            split = data[args.split].copy()
+            split[data[animal] == -1] = 'ignore'
+            head_config['training_parameters']['separate_models'] = animal
+            head_config['training_parameters']['loss_f'] = 'bce_logits'
+
+            runner(
+                config=head_config,
+                embeddings=embeddings, 
+                scores=scores,
+                logger=logger,
+                split=split
+            )
+    else:
+        runner(
+                config=head_config,
+                embeddings=embeddings, 
+                scores=scores,
+                logger=logger,
+                split=split
+            )
 
 def runner(config, embeddings, scores, logger, split=None, on_ray_tuning=False, num_workers=0):
     head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
