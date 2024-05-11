@@ -954,29 +954,75 @@ def evaluate_multi_label_classification(model, dataloaders_dict, device, logger 
 
     # This is for when we only want to look at interesting RBDs
     if get_mixed:
-        mixed_labels, inverse_ind = np.unique(y_test, axis = 0, return_inverse = True)
-        mixed_indices = []
+        if species == False:
+            mixed_labels, inverse_ind = np.unique(y_test, axis = 0, return_inverse = True)
+            mixed_indices = []
 
-        for i in range(len(mixed_labels)):
-            unique_labels = np.unique(mixed_labels[i])
-            if len(unique_labels) < (2 + (-1 in unique_labels)):
-                continue
+            for i in range(len(mixed_labels)):
+                unique_labels = np.unique(mixed_labels[i])
+                if len(unique_labels) < (2 + (-1 in unique_labels)):
+                    continue
+                    
+                case_ind = np.where(inverse_ind == i)
+                mixed_indices.extend(case_ind[0].tolist())
                 
-            case_ind = np.where(inverse_ind == i)
-            mixed_indices.extend(case_ind[0].tolist())
-            
-        y_test = y_test[np.array(mixed_indices)]
-        y_pred = y_pred[np.array(mixed_indices)]
+            y_test = y_test[np.array(mixed_indices)]
+            y_pred = y_pred[np.array(mixed_indices)]
 
-        logger.log(y_test.shape)
+            mixed_results = evaluate_predictions(y_test, y_pred, logger)
+            logger.save_data(mixed_results, 'mixed_results')
+
+            performance_plot = plot_dual_bar_chart(collect_averages(results), collect_averages(mixed_results))
+            logger.save_plot(performance_plot, 'performance', f'{logger.base_dir}/plots')
+        
+        else:
+            y_pred, y_test = evaluate_mixed_species_classification(model, device, logger.base_dir, species)
+            mixed_results = evaluate_single_predictions(y_test, y_pred, species)
+            logger.save_data(mixed_results, 'mixed_results')
 
         torch.save(torch.from_numpy(y_pred),f'{pred_path}/preds_m.pt')
         torch.save(torch.from_numpy(y_test),f'{pred_path}/truths_m.pt')
 
-        mixed_results = evaluate_predictions(y_test, y_pred, logger)
-        logger.save_data(mixed_results, 'mixed_results')
-
-        performance_plot = plot_dual_bar_chart(collect_averages(results), collect_averages(mixed_results))
-        logger.save_plot(performance_plot, 'performance', f'{logger.base_dir}/plots')
-
     return None
+
+def evaluate_mixed_species_classification(model, device, experiment_dir, species):
+    # Find the json file that was saved during training
+    for file in os.scandir(experiment_dir):
+        if file.name.endswith('data.json'):
+            with open(file.path, "r") as json_file:
+                saved_json = json.load(json_file)
+
+    data = utils.load_dataset("rbd") # Load dataset
+    split = data['mixed_split'].copy() # Load the split
+    split[data[species] == -1] = 0 # Drop indices that don't have labels for the current species
+    args = saved_json['arguments']
+    #head_config = utils.load_config(args['head_config'])
+    emb_path = args['output_dir'] + '/extract_embeddings'
+    embeddings = utils.load_embeddings(emb_path= emb_path, data_type=args['data_type'], model=args['plm'], layer=args['layer'], reduction=args['reduction'])
+    
+    embs = embeddings[split == 1].detach().to(device)
+    scores = torch.tensor(data[species].values[split == 1]).to(device).int()
+
+    dataset = torch.utils.data.TensorDataset(embs, scores)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=False)
+
+    model.eval()
+    y_pred = []
+    y_test = []
+
+    with torch.no_grad():
+        for (embeddings, labels) in dataloader:
+            embeddings = embeddings.to(device)
+            labels = labels.to(device).int()
+            output = model(embeddings)
+
+            # Applies sigmoid and round the values for classification
+            preds = torch.round(sigmoid(output))
+            
+            y_pred.extend(preds.cpu().detach().numpy())
+            y_test.extend(labels.cpu().detach().numpy())
+
+    y_pred = np.array(y_pred)
+    y_test = np.array(y_test)
+
+    return y_pred, y_test
