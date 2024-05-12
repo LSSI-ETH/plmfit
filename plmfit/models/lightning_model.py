@@ -9,7 +9,7 @@ from plmfit.shared_utils import utils
 from deepspeed.profiling.flops_profiler.profiler import FlopsProfiler
 
 class LightningModel(L.LightningModule):
-    def __init__(self,  model, training_config, plmfit_logger = None, log_interval=-1, method='lora'):
+    def __init__(self,  model, training_config, plmfit_logger = None, log_interval=-1, method='lora', experimenting=False):
         torch.set_float32_matmul_precision('medium')
         super().__init__()
         self.model = model
@@ -36,7 +36,7 @@ class LightningModel(L.LightningModule):
         self.profiler = FlopsProfiler(self)
         self.profiling_interval = 100
 
-        self.experimenting = False
+        self.experimenting = experimenting
 
     def forward(self, input, **args):
         output = self.model(input, **args)
@@ -83,7 +83,7 @@ class LightningModel(L.LightningModule):
 
     def training_step(self, batch, batch_idx):
         batch_start_time = time.time()
-        on_profiling = batch_idx == 30 and self.experimenting
+        on_profiling = batch_idx == 30 and self.experimenting and False
         if on_profiling:
             self.profiler.start_profile()
             print("FLOPS PROFILING INITIATED...", flush=True)
@@ -127,7 +127,9 @@ class LightningModel(L.LightningModule):
         if self.plmfit_logger: 
             self.plmfit_logger.log(f'(train) loss: {self.trainer.logged_metrics["train_loss_epoch"]:.4f} {time.time() - self.epoch_start_time:.4f}s')
             self.plmfit_logger.log(f'(train) {self.metric_label}: {self.trainer.logged_metrics[f"train_{self.metric_label}_epoch"]:.4f}')
-        if self.experimenting: raise 'Experiment over'
+        if self.experimenting: 
+            print('Successful test')
+            raise 'Experiment over'
         total_time = time.time() - self.start_time
         self.plmfit_logger.log(f'\nMean time per epoch: {total_time/(self.current_epoch+1):.4f}s')
         self.plmfit_logger.log(f'Total training time: {total_time:.1f}s')
