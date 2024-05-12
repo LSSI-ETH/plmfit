@@ -1,6 +1,6 @@
 from plmfit.models.pretrained_models import *
 from plmfit.models.downstream_heads import LinearRegression
-from plmfit.models.fine_tuning import *
+from plmfit.models.fine_tuners import *
 import argparse
 import plmfit.logger as l
 

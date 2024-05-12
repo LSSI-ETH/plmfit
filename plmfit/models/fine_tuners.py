@@ -257,7 +257,7 @@ class FullRetrainFineTuner(FineTuner):
         # else:
         #     layers_to_train = None # Which will equal to all
 
-        # Trim for dev purposes 
+        # Trim for test purposes 
         if model.experimenting: model.py_model.trim_model(0)
         
         utils.set_trainable_parameters(model.py_model)
@@ -284,13 +284,11 @@ class LowRankAdaptationFineTuner(FineTuner):
             layers_to_train = model.layer_to_use
         else:
             layers_to_train = None # Which will equal to all
+        utils.disable_dropout(model.py_model)
         self.peft_config.layers_to_transform = layers_to_train
         model.py_model = get_peft_model(model.py_model, self.peft_config)
         model.py_model.print_trainable_parameters()
 
-        model.py_model.train()
-        model.py_model.base_model.model.eval()
-        model.py_model.base_model.model.classifier.train()
         utils.set_modules_to_train_mode(model.py_model, self.peft_config.peft_type.lower())
         return model
 
@@ -315,11 +313,9 @@ class BottleneckAdaptersFineTuner(FineTuner):
         # else:
         #     layers_to_train = None # Which will equal to all
         # self.peft_config.layers_to_transform = layers_to_train
+        utils.disable_dropout(model.py_model)
         model.py_model = get_peft_model(model.py_model, self.peft_config)
         model.py_model.print_trainable_parameters()
 
-        model.py_model.train()
-        model.py_model.base_model.model.eval()
-        model.py_model.base_model.model.classifier.train()
         utils.set_modules_to_train_mode(model.py_model, self.peft_config.peft_type.lower())
         return model

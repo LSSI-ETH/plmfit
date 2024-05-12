@@ -1,7 +1,7 @@
 from plmfit.shared_utils import utils
 import torch
 import plmfit.models.downstream_heads as heads
-from plmfit.models.fine_tuning import FullRetrainFineTuner
+from plmfit.models.fine_tuners import FullRetrainFineTuner
 from plmfit.models.hyperparameter_tuner import HyperTuner
 
 def feature_extraction(args, logger):
