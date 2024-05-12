@@ -54,14 +54,11 @@ def lora(args, logger):
     
     fine_tuner = LowRankAdaptationFineTuner(training_config=training_params, logger=logger)
     model = fine_tuner.prepare_model(model, target_layers=args.target_layers)
- 
     utils.trainable_parameters_summary(model, logger)
     model.py_model.task = pred_model.task
-    
     model = LightningModel(model.py_model, head_config['training_parameters'], plmfit_logger=logger, log_interval=100)
     lightning_logger = TensorBoardLogger(save_dir=logger.base_dir, version=0, name="lightning_logs")
     model.experimenting = args.experimenting == "True" # If we are in experimenting mode
-
     strategy = DeepSpeedStrategy(
         stage=3,
         offload_optimizer=True,
@@ -72,9 +69,8 @@ def lora(args, logger):
         min_loss_scale = 0.25
     )
 
-    devices = args.gpus if torch.cuda.is_available() else 1
+    devices = int(args.gpus) if torch.cuda.is_available() else 1
     strategy = strategy if torch.cuda.is_available() else 'auto'
-
     trainer = Trainer(
         default_root_dir=logger.base_dir,
         logger=lightning_logger, 
@@ -89,9 +85,7 @@ def lora(args, logger):
         precision="16-mixed",
         callbacks=[model.early_stopping()]
     )
-
     if torch.cuda.is_available(): estimate_zero3_model_states_mem_needs_all_live(model, num_gpus_per_node=int(args.gpus), num_nodes=1)
-
     try:
         trainer.fit(model, data_loaders['train'], data_loaders['val'])
     except Exception as e:
@@ -101,7 +95,6 @@ def lora(args, logger):
         else:
             # If it's a different kind of exception, you might want to re-raise it
             raise e
-
     if torch.cuda.is_available(): model = convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
     
     trainer.test(model=model, ckpt_path=f'{logger.base_dir}/best_model.ckpt', dataloaders=data_loaders['test'])

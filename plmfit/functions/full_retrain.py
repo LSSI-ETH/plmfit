@@ -119,7 +119,6 @@ def full_retrain(args, logger):
         precision="16-mixed",
         callbacks=[model.early_stopping()]
     )
-
     if torch.cuda.is_available(): estimate_zero3_model_states_mem_needs_all_live(model, num_gpus_per_node=int(args.gpus), num_nodes=1)
 
     try:

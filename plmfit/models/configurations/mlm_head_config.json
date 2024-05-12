@@ -7,12 +7,12 @@
     "training_parameters":
     {
       "learning_rate": 0.00005,
-      "epochs": 5,
+      "epochs": 2,
       "batch_size": 4,
       "loss_f": "mse",
       "optimizer": "adam",
       "val_split": 0.15,
-      "test_split": 0.15,
+      "test_split": 0.05,
       "weight_decay": 0.01,
       "warmup_steps": 0,
       "gradient_clipping": false,
