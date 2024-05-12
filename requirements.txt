@@ -27,3 +27,4 @@ bayesian-optimization
 lightning
 deepspeed
 Bio
+python-dotenv
