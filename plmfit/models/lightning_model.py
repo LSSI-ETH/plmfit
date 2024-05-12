@@ -42,6 +42,7 @@ class LightningModel(L.LightningModule):
         output = self.model(input, **args)
         return output
     
+    # If code hangs here, try https://github.com/microsoft/DeepSpeed/issues/2816
     def on_fit_start(self) -> None:
         self.start_time = time.time()
         self.epoch_train_loss = []
@@ -53,6 +54,9 @@ class LightningModel(L.LightningModule):
         self.best_val_loss = float('inf')
         self.best_epoch = 0
         self.epochs_no_improve = 0
+
+        # To avoid error when min scale is reached
+        if torch.cuda.is_available(): self.trainer.strategy.model.optimizer.loss_scaler.raise_error_at_min_scale = False
 
     def on_fit_end(self) -> None:
         total_time = time.time() - self.start_time
@@ -83,7 +87,6 @@ class LightningModel(L.LightningModule):
         if on_profiling:
             self.profiler.start_profile()
             print("FLOPS PROFILING INITIATED...", flush=True)
-        
         if self.model.task == 'masked_lm':
             input = batch['input_ids']
             attention_mask = batch['attention_mask']
@@ -91,6 +94,7 @@ class LightningModel(L.LightningModule):
             outputs = self(input, input_mask=attention_mask, targets=labels)
             loss = outputs.loss
             outputs = outputs.logits.squeeze(dim=1)
+            outputs = outputs.to(torch.float32)
         else:    
             input, labels = batch
             outputs = self(input)
@@ -103,9 +107,9 @@ class LightningModel(L.LightningModule):
         if on_profiling:
             self.profiler.print_model_profile(profile_step=batch_idx, output_file=f'{self.plmfit_logger.base_dir}/flops.log')
             self.profiler.end_profile()
-        print(f"Outputs: {outputs.tolist()}")
-        print(f"Labels: {labels.tolist()}")
-        print(f"Loss value: {loss}\n", flush=True)
+        # print(f"Outputs: {outputs.tolist()}")
+        # print(f"Labels: {labels.tolist()}")
+        # print(f"Loss value: {loss}\n", flush=True)
         if self.trainer.precision == 16 and loss < 6.10e-5: loss = 6.10e-5 # Theoretical min loss value for float-16
         self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
@@ -155,6 +159,7 @@ class LightningModel(L.LightningModule):
             outputs = self(input, input_mask=attention_mask, targets=labels)
             loss = outputs.loss
             outputs = outputs.logits.squeeze(dim=1)
+            outputs = outputs.to(torch.float32)
         else:    
             input, labels = batch
             outputs = self(input)
@@ -203,6 +208,7 @@ class LightningModel(L.LightningModule):
             outputs = self(input, input_mask=attention_mask, targets=labels)
             loss = outputs.loss
             outputs = outputs.logits.squeeze(dim=1)
+            outputs = outputs.to(torch.float32)
         else:    
             input, labels = batch
             outputs = self(input)
