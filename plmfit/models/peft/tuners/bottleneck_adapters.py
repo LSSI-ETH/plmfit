@@ -233,7 +233,7 @@ class AdapterLayer(nn.Module):
 
 
         # Actual trainable parameters
-        self.norm = nn.LayerNorm(out_features)
+        self.adapter_norm = nn.LayerNorm(out_features)
         self.adapter_down = nn.Linear(in_features, bottleneck_size, **kwargs)
         self.act_fn = ACT2FN[self.non_linearity]
         self.adapter_up = nn.Linear(bottleneck_size, out_features, **kwargs)
@@ -252,7 +252,7 @@ class AdapterLayer(nn.Module):
             return x
         else:
             # Normalize input features
-            normalized_output = self.norm(x)
+            normalized_output = self.adapter_norm(x)
             # Apply down projection
             down_projected = self.adapter_down(normalized_output)
             # Non-linear activation
