@@ -15,17 +15,9 @@ def run_feature_extraction(args, logger):
     from plmfit.functions import feature_extraction
     feature_extraction(args=args, logger=logger)
 
-def run_lora(args, logger):
-    from plmfit.functions import lora
-    lora(args=args, logger=logger)
-
-def run_bottleneck_adapters(args, logger):
-    from plmfit.functions import bottleneck_adapters
-    bottleneck_adapters(args=args, logger=logger)
-
-def run_full_retrain(args, logger):
-    from plmfit.functions import full_retrain
-    full_retrain(args=args, logger=logger)
+def run_fine_tuning(args, logger):
+    from plmfit.functions import fine_tune
+    fine_tune(args=args, logger=logger)
 
 # TODO: Lightning implementation
 def run_onehot(args, logger):
@@ -80,11 +72,8 @@ def main():
     try:
         if args.function == 'extract_embeddings': run_extract_embeddings(args, logger)
         elif args.function == 'fine_tuning':
-            if args.ft_method == 'feature_extraction': run_feature_extraction(args, logger)
-            elif args.ft_method == 'lora': run_lora(args, logger)
-            elif args.ft_method == 'bottleneck_adapters': run_bottleneck_adapters(args, logger)
-            elif args.ft_method == 'full': run_full_retrain(args, logger)
-            else: raise ValueError('Fine Tuning method not supported')
+            if args.ft_method == 'feature_extraction': run_feature_extraction(args, logger) # TODO: Add this to fine tuning function as well
+            else: run_fine_tuning(args, logger)
         elif args.function == 'one_hot': run_onehot(args, logger)
         elif args.function == 'developing': run_developing(args, logger) # For developing new functions and testing them
         else: raise ValueError('Function not supported')
