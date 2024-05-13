@@ -16,7 +16,7 @@ def fine_tune(args, logger):
 
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    if args.experimenting == "True": data = data.sample(1000)
+    if args.experimenting == "True": data = data.sample(100)
     split = None if args.split is None else data[args.split]
 
     model = utils.init_plm(args.plm, logger, task=task)
