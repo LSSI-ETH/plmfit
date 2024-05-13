@@ -797,7 +797,7 @@ def calculate_average_hit_rate(preds, trues):
     average_hit_rate = total_hits / total_valid_entries
     return  average_hit_rate , sum(hit_rates) / len(hit_rates) ,  hit_rates.count(1) / len(hit_rates)
 
-def evaluate_predictions(y_true, y_pred, logger = None):
+def evaluate_predictions(y_true, y_pred):
     mask = y_true != -1
     species = ['Mouse','Cattle','Bat', 'Human']
     species_true_list = []
@@ -892,8 +892,128 @@ def plot_dual_bar_chart(data_dict1, data_dict2):
     ax.axvline(x=5, color='gray', linestyle='--')
     plt.tight_layout()
 
-    
     return fig
+
+def get_experiment_arguments(experiment_dir):
+    # Find the json file that was saved during training
+    for file in os.scandir(experiment_dir):
+        if file.name.endswith('data.json'):
+            with open(file.path, "r") as json_file:
+                saved_json = json.load(json_file)
+    
+    return saved_json
+
+def get_test_loader(experiment_dir, species):
+    data = utils.load_dataset("rbd") # Load dataset
+
+    if species != False:
+        # Ignore indices that don't have labels for the current species
+        data.loc[data[species] == -1,'single_strict_split'] = 'ignore'
+    else:
+        species = ['mouse','cattle','ihbat','human']
+
+    split = data['single_strict_split'].copy() # Load the splits
+    test_dataset = data[data['single_strict_split'] == 'test']
+    mixed_mask = (test_dataset['mixed_split'] == 1).values
+
+    
+
+    truths = torch.tensor(data[species].values[split == 'test']).int().cpu()
+    args = get_experiment_arguments(experiment_dir)['arguments']
+    emb_path = args['output_dir'] + '/extract_embeddings'
+    embeddings = utils.load_embeddings(emb_path= emb_path, 
+                                       data_type=args['data_type'], 
+                                       model=args['plm'], 
+                                       layer=args['layer'], 
+                                       reduction=args['reduction'])
+    
+    embs = embeddings[split == 'test'].detach().cpu()
+
+    dataset = torch.utils.data.TensorDataset(embs, truths)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=False)
+
+    return dataloader, mixed_mask
+
+def save_predictions(predictions, experiment_dir, species):
+    names = ['preds','truths','preds_m','truths_m']
+    
+    if species != False:
+        pred_path = f'{experiment_dir}/{species}/predictions'
+    else:
+        pred_path = f'{experiment_dir}/predictions'
+
+    os.makedirs(pred_path, exist_ok = True)
+
+    for array, name in zip(predictions,names):
+        torch.save(torch.from_numpy(array), f'{pred_path}/{name}.pt')
+
+def fill_result_vector(labels, predictions):
+    result = np.full_like(labels, -1, dtype = np.float32)
+    labels_ind = np.where(labels != -1)[0]
+    result[labels_ind] = predictions
+
+    return result
+
+def create_result_vector(experiment_dir, get_mixed = False):
+    species = ['mouse','cattle','ihbat','human']
+    if get_mixed:
+        split_name = 'mixed_split'
+        pred_name = 'preds_m.pt'
+        split_value = 1
+    else:
+        split_name = 'single_strict_split'
+        pred_name = 'preds.pt'
+        split_value = 'test'
+
+    data = utils.load_dataset("rbd")
+    split = data[split_name].copy()
+    truths = data.loc[split == split_value, species]
+    result_vector = np.full_like(truths, -1, dtype = np.float32)
+
+    for i, animal in enumerate(species):
+        pred_path = f'{experiment_dir}/{animal}/predictions/{pred_name}'
+        pred = torch.load(pred_path, map_location = 'cpu')
+        pred = np.array(pred, dtype = np.float32).squeeze()
+        result = fill_result_vector(truths[animal].values, pred)
+        result_vector[:,i] = result
+
+    return result_vector
+
+def make_predictions(experiment_dir, species, model = None):
+    dataloader, mixed_mask = get_test_loader(experiment_dir, species)
+
+    model.cpu()
+    model.eval()
+    y_pred = []
+    y_test = []
+
+    with torch.no_grad():
+        for (embeddings, labels) in dataloader:
+            output = model(embeddings)
+
+            # Applies sigmoid and round the values for classification
+            preds = torch.round(sigmoid(output))
+            
+            y_pred.extend(preds.cpu().detach().numpy())
+            y_test.extend(labels.cpu().detach().numpy())
+
+    y_pred = np.array(y_pred)
+    y_test = np.array(y_test)
+    y_pred_m = y_pred[mixed_mask]
+    y_test_m = y_test[mixed_mask]
+
+    predictions = (y_pred, y_test, y_pred_m, y_test_m)
+    save_predictions(predictions,experiment_dir,species)
+
+def combine_model_predictions(experiment_dir):
+    # At the end of evaluating all the separate models, we want to create a result vector
+    y_pred = create_result_vector(experiment_dir, get_mixed = False)
+    y_pred_m = create_result_vector(experiment_dir, get_mixed = True)
+    dataloader, mixed_mask = get_test_loader(experiment_dir, species = False)
+    y_test = np.array(dataloader.dataset.tensors[1])
+    y_test_m = y_test[mixed_mask]
+    predictions = (y_pred, y_test, y_pred_m, y_test_m)
+    save_predictions(predictions,experiment_dir,species = False)
 
 def collect_averages(results):
     averages = {}
@@ -904,125 +1024,27 @@ def collect_averages(results):
             averages[metric] = value
     return averages
 
-def evaluate_single_predictions(y_true, y_pred, species):
-    # Initialize dictionaries to save results, and initialize the metrics
-    results = {}
+def create_results_json(experiment_dir):
+    experiment_dir = 'results/fine_tuning/feature_extraction/rbd_ankh-base_middle_mean/test/'
+    result_arrays = []
 
-    scores = {'Accuracy':metrics.accuracy_score, 'Precision': metrics.precision_score, 
-            'Recall': metrics.recall_score, 'MCC': metrics.matthews_corrcoef}
+    for file in os.scandir(f'{experiment_dir}/predictions'):
+        tensor = torch.load(file.path)
+        result_arrays.append(tensor.numpy())
 
-    # Calculate scores for all metrics
-    for (name,score) in scores.items():
-        results[f'{name}_{species}'] = score(y_true, y_pred)
+    (y_pred, y_pred_m, y_test, y_test_m) = result_arrays
+    results = evaluate_predictions(y_test, y_pred)
+    mixed_results = evaluate_predictions(y_test_m, y_pred_m)
 
-    return (results)
+    file_path = f'{experiment_dir}/results.json'
+    with open(file_path, "w") as json_file:
+            json.dump(results, json_file, indent=4)
 
-def evaluate_multi_label_classification(model, dataloaders_dict, device, logger = None, get_mixed = False, species = None):
-    # Evaluate the model on the test dataset
-    model.eval()
-    y_pred = []
-    y_test = []
-    with torch.no_grad():
-        for (embeddings, labels) in dataloaders_dict['test']:
-            embeddings = embeddings.to(device)
-            labels = labels.to(device).int()
-            output = model(embeddings)
+    file_path = f'{experiment_dir}/mixed_results.json'
+    with open(file_path, "w") as json_file:
+            json.dump(mixed_results, json_file, indent=4)
 
-            # Applies sigmoid and round the values for classification
-            preds = torch.round(sigmoid(output))
-            
-            y_pred.extend(preds.cpu().detach().numpy())
-            y_test.extend(labels.cpu().detach().numpy())
-
-    y_pred = np.array(y_pred)
-    y_test = np.array(y_test)
-
-    pred_path = f'{logger.base_dir}/predictions'
-    if species != False:
-        pred_path = f'{logger.base_dir}/{species}/predictions'
-
-    os.makedirs(pred_path, exist_ok = True)
-    torch.save(torch.from_numpy(y_pred),f'{pred_path}/preds.pt')
-    torch.save(torch.from_numpy(y_test),f'{pred_path}/truths.pt')
-    
-    
-    if species != False:
-        results = evaluate_single_predictions(y_test, y_pred, species)
-    else:
-        results = evaluate_predictions(y_test, y_pred, logger)
-    logger.save_data(results, 'results')
-
-    # This is for when we only want to look at interesting RBDs
-    if get_mixed:
-        if species == False:
-            mixed_labels, inverse_ind = np.unique(y_test, axis = 0, return_inverse = True)
-            mixed_indices = []
-
-            for i in range(len(mixed_labels)):
-                unique_labels = np.unique(mixed_labels[i])
-                if len(unique_labels) < (2 + (-1 in unique_labels)):
-                    continue
-                    
-                case_ind = np.where(inverse_ind == i)
-                mixed_indices.extend(case_ind[0].tolist())
-                
-            y_test = y_test[np.array(mixed_indices)]
-            y_pred = y_pred[np.array(mixed_indices)]
-
-            mixed_results = evaluate_predictions(y_test, y_pred, logger)
-            logger.save_data(mixed_results, 'mixed_results')
-
-            performance_plot = plot_dual_bar_chart(collect_averages(results), collect_averages(mixed_results))
-            logger.save_plot(performance_plot, 'performance', f'{logger.base_dir}/plots')
-        
-        else:
-            y_pred, y_test = evaluate_mixed_species_classification(model, device, logger.base_dir, species)
-            mixed_results = evaluate_single_predictions(y_test, y_pred, species)
-            logger.save_data(mixed_results, 'mixed_results')
-
-        torch.save(torch.from_numpy(y_pred),f'{pred_path}/preds_m.pt')
-        torch.save(torch.from_numpy(y_test),f'{pred_path}/truths_m.pt')
-
-    return None
-
-def evaluate_mixed_species_classification(model, device, experiment_dir, species):
-    # Find the json file that was saved during training
-    for file in os.scandir(experiment_dir):
-        if file.name.endswith('data.json'):
-            with open(file.path, "r") as json_file:
-                saved_json = json.load(json_file)
-
-    data = utils.load_dataset("rbd") # Load dataset
-    split = data['mixed_split'].copy() # Load the split
-    split[data[species] == -1] = 0 # Drop indices that don't have labels for the current species
-    args = saved_json['arguments']
-    #head_config = utils.load_config(args['head_config'])
-    emb_path = args['output_dir'] + '/extract_embeddings'
-    embeddings = utils.load_embeddings(emb_path= emb_path, data_type=args['data_type'], model=args['plm'], layer=args['layer'], reduction=args['reduction'])
-    
-    embs = embeddings[split == 1].detach().to(device)
-    scores = torch.tensor(data[species].values[split == 1]).to(device).int()
-
-    dataset = torch.utils.data.TensorDataset(embs, scores)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=False)
-
-    model.eval()
-    y_pred = []
-    y_test = []
-
-    with torch.no_grad():
-        for (embeddings, labels) in dataloader:
-            embeddings = embeddings.to(device)
-            labels = labels.to(device).int()
-            output = model(embeddings)
-
-            # Applies sigmoid and round the values for classification
-            preds = torch.round(sigmoid(output))
-            
-            y_pred.extend(preds.cpu().detach().numpy())
-            y_test.extend(labels.cpu().detach().numpy())
-
-    y_pred = np.array(y_pred)
-    y_test = np.array(y_test)
-
-    return y_pred, y_test
+    plot_path = f'{experiment_dir}/plots'
+    os.makedirs(plot_path, exist_ok= True)
+    plot = plot_dual_bar_chart(collect_averages(results),collect_averages(mixed_results))
+    plot.savefig(f'{plot_path}/performance.png')

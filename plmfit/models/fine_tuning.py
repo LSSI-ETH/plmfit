@@ -280,18 +280,18 @@ class FullRetrainFineTuner(FineTuner):
         
         # After training, generate and save a plot of the training and validation loss
         species_path = None
-        model_path = f'{self.logger.base_dir}/{self.logger.experiment_name}.pt'
+        model_path = f'{self.logger.base_dir}/trained_model.pt'
         if self.species != False:
             species_path = f'{self.logger.base_dir}/{self.species}'
             os.makedirs(species_path, exist_ok = True)
-            model_path = f'{self.logger.base_dir}/{self.species}/trained_model.pt'
+            model_path = f'{species_path}/trained_model.pt'
 
         loss_data = {
             "epoch_train_loss": epoch_train_loss,
             "epoch_val_loss": epoch_val_loss
         }
 
-        loss_data_path = f'{self.logger.base_dir}/{self.logger.experiment_name}_loss.json'
+        loss_data_path = f'{self.logger.base_dir}/loss_data.json'
         if self.species != False:
             loss_data_path = f'{species_path}/loss_data.json'
         with open(loss_data_path, 'w', encoding='utf-8') as f:
@@ -335,8 +335,13 @@ class FullRetrainFineTuner(FineTuner):
                 if self.scheduler:
                     lr_plot = data_explore.create_lr_plot(epoch_lrs)
                     self.logger.save_plot(lr_plot, "learning_rate", species_path)
-                data_explore.evaluate_multi_label_classification(model, dataloaders_dict, device, self.logger, get_mixed = True, species = self.species)
-
+                
+                data_explore.make_predictions(self.logger.base_dir, self.species, model)
+                if self.species == False:
+                    data_explore.create_results_json(self.logger.base_dir)
+                elif self.species == 'human':
+                    data_explore.combine_model_predictions(self.logger.base_dir)
+                    data_explore.create_results_json(self.logger.base_dir)
         
 class LowRankAdaptationFineTuner(FineTuner):
     def __init__(self, training_config, model_name='progen', logger = None):
