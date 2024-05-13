@@ -129,7 +129,7 @@ class LightningModel(L.LightningModule):
             self.plmfit_logger.log(f'(train) {self.metric_label}: {self.trainer.logged_metrics[f"train_{self.metric_label}_epoch"]:.4f}')
         if self.experimenting: 
             print('Successful test')
-            raise 'Experiment over'
+            raise SystemExit('Experiment over')
         total_time = time.time() - self.start_time
         self.plmfit_logger.log(f'\nMean time per epoch: {total_time/(self.current_epoch+1):.4f}s')
         self.plmfit_logger.log(f'Total training time: {total_time:.1f}s')
