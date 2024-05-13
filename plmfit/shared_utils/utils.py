@@ -13,15 +13,11 @@ import torch.nn as nn
 import psutil
 from tokenizers.processors import TemplateProcessing
 from torch.utils.data import Dataset
-try:
-    from env import DATA_DIR
-    env_exists = True
-except:
-    env_exists = False
-    print(f"No environment file 'env.py' detected, using exported environment variables as a fallback")
 from plmfit.models.pretrained_models import Antiberty, BetaESMFamily, ProGenFamily, ProteinBERTFamily, AnkhFamily
+from dotenv import load_dotenv 
 
-path = os.getenv('DATA_DIR', DATA_DIR)
+load_dotenv() 
+path = os.getenv('DATA_DIR', './plmfit/plmfit')
 data_dir = f'{path}/data'
 config_dir = f'{path}/models/configurations'
 

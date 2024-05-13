@@ -7,11 +7,15 @@ import torch
 import requests
 import traceback
 try:
-    from env import POST_URL, TOKEN, USER
-    env_exists = True
+    from dotenv import load_dotenv 
+    load_dotenv()
+    POST_URL = os.getenv('POST_URL')
+    TOKEN = os.getenv('TOKEN')
+    USER = os.getenv('USER')
+    env_exists = POST_URL is not None and TOKEN is not None and USER is not None
 except:
     env_exists = False
-    print(f"No environment file 'env.py' detected, reverting back to local logger")
+    print(f"No environment file 'env.py' detected or USER/TOKEN/POST_URL not set up correctly, reverting back to local logger")
 
 class Logger():
     _instance = None  # Private class variable to hold the instance

@@ -44,7 +44,7 @@ class TestPLMFitMainInvocation(unittest.TestCase):
             'plmfit', '--function=fine_tuning', '--ft_method=lora', '--experiment_dir=/fake/dir',
             '--logger=local'
         ]
-        with patch('sys.argv', test_args), patch('plmfit.__main__.run_lora') as mock_run:
+        with patch('sys.argv', test_args), patch('plmfit.__main__.run_fine_tuning') as mock_run:
             plmfit_main.main()
             mock_run.assert_called_once()
             self.mock_makedirs.assert_any_call('/fake/dir', exist_ok=True)

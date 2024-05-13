@@ -188,3 +188,4 @@ loggers/
 sandbox.py
 plmfit/data/*/models/*
 test/
+default/
