@@ -341,7 +341,7 @@ class FullRetrainFineTuner(FineTuner):
                     data_explore.create_results(self.logger.base_dir)
                 elif self.species == 'human':
                     data_explore.combine_model_predictions(self.logger.base_dir)
-                    data_explore.create_results_json(self.logger.base_dir)
+                    data_explore.create_results(self.logger.base_dir)
         
 class LowRankAdaptationFineTuner(FineTuner):
     def __init__(self, training_config, model_name='progen', logger = None):
