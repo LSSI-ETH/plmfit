@@ -1025,7 +1025,6 @@ def collect_averages(results):
     return averages
 
 def create_results_json(experiment_dir):
-    experiment_dir = 'results/fine_tuning/feature_extraction/rbd_ankh-base_middle_mean/test/'
     result_arrays = []
 
     for file in os.scandir(f'{experiment_dir}/predictions'):
