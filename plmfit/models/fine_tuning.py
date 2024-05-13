@@ -338,7 +338,7 @@ class FullRetrainFineTuner(FineTuner):
                 
                 data_explore.make_predictions(self.logger.base_dir, self.species, model)
                 if self.species == False:
-                    data_explore.create_results_json(self.logger.base_dir)
+                    data_explore.create_results(self.logger.base_dir)
                 elif self.species == 'human':
                     data_explore.combine_model_predictions(self.logger.base_dir)
                     data_explore.create_results_json(self.logger.base_dir)

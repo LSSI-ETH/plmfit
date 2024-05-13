@@ -1024,14 +1024,12 @@ def collect_averages(results):
             averages[metric] = value
     return averages
 
-def create_results_json(experiment_dir):
-    result_arrays = []
+def create_results(experiment_dir):
+    y_pred = torch.load(f'{experiment_dir}/predictions/preds.pt').numpy()
+    y_pred_m = torch.load(f'{experiment_dir}/predictions/preds_m.pt').numpy()
+    y_test = torch.load(f'{experiment_dir}/predictions/truths.pt').numpy()
+    y_test_m = torch.load(f'{experiment_dir}/predictions/truths_m.pt').numpy()
 
-    for file in os.scandir(f'{experiment_dir}/predictions'):
-        tensor = torch.load(file.path)
-        result_arrays.append(tensor.numpy())
-
-    (y_pred, y_pred_m, y_test, y_test_m) = result_arrays
     results = evaluate_predictions(y_test, y_pred)
     mixed_results = evaluate_predictions(y_test_m, y_pred_m)
 
