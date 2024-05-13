@@ -8,7 +8,7 @@
   },
   "training_parameters": {
     "learning_rate": 0.0001,
-    "epochs": 10,
+    "epochs": 5,
     "batch_size": 4,
     "loss_f": "mse",
     "optimizer": "adam",
