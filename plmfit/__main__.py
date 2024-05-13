@@ -49,7 +49,7 @@ def main():
                         help='Output directory for created files')
     parser.add_argument('--experiment_dir', type=str, default='default',
                         help='Output directory for created files')
-    parser.add_argument('--logger', type=str, default='remote')
+    parser.add_argument('--logger', type=str, default='local')
     parser.add_argument('--cpus', default=1)
     parser.add_argument('--gpus', default=0)
     parser.add_argument('--nodes', type=int, default=1)
@@ -76,7 +76,7 @@ def main():
             else: run_fine_tuning(args, logger)
         elif args.function == 'one_hot': run_onehot(args, logger)
         elif args.function == 'developing': run_developing(args, logger) # For developing new functions and testing them
-        else: raise ValueError('Function not supported')
+        else: raise ValueError('Function not supported (yet)')
         logger.log("\n\nEnd of process", force_send=True)
     except:
         logger.mute = False
