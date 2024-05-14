@@ -244,7 +244,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                             embs[i: i + current_batch_size, :] = torch.mean(out, dim=1)
                             if i == 2:
                                 self.logger.log(f'{(torch.mean(out, dim=1)).size()}')
-                                visualize_embeddings(torch.mean(out, dim=1), use_heatmap=False)
+                                # visualize_embeddings(torch.mean(out, dim=1), use_heatmap=False)
                         elif reduction == 'weighted_mean':
                             # Calculate L2 norms of vectors across the feature dimension
                             l2_norms = torch.norm(out, p=2, dim=-1)

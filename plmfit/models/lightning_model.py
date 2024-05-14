@@ -306,6 +306,8 @@ class Metrics(torch.nn.Module):
             self.mae = regression.MeanAbsoluteError()
             self.r2 = regression.R2Score()
             self.spearman = regression.SpearmanCorrCoef()
+        elif task == 'masked_lm':
+            self.perplexity = text.Perplexity(ignore_index=-100)
 
     def add(self, preds, actual):
         self.preds_list.extend(preds.tolist()) if len(preds.tolist()) > 1 else self.preds_list.append(preds.item())
@@ -316,6 +318,8 @@ class Metrics(torch.nn.Module):
             self.calc_classification_metrics(preds, actual)
         elif self.task == 'regression':
             self.calc_regression_metrics(preds, actual)
+        elif self.task == 'masked_lm':
+            self.calc_masked_lm_metrics(preds, actual)
 
     def calc_classification_metrics(self, preds, actual):
         self.acc.update(preds, actual)
@@ -331,12 +335,17 @@ class Metrics(torch.nn.Module):
         self.r2.update(preds, actual)
         self.spearman.update(preds, actual)
 
+    def calc_masked_lm_metrics(self, preds, actual):
+        self.perplexity.update(preds, actual)
+
     def get_metrics(self, device='cpu'):
         self.calculate(torch.tensor(self.preds_list, device=device), torch.tensor(self.actual_list, device=device))
         if self.task == 'classification':
             return self.get_classification_metrics()
         elif self.task == 'regression':
             return self.get_regression_metrics()
+        elif self.task == 'masked_lm':
+            return self.get_masked_lm_metrics()
 
     def get_classification_metrics(self):
         fpr, tpr, thresholds = list(self.roc.compute())
@@ -371,6 +380,17 @@ class Metrics(torch.nn.Module):
                 "actual": self.actual_list,
                 "eval_metrics": metrics
             }
+        }
+
+        return self.report
+    
+    def get_masked_lm_metrics(self):
+        metrics = {
+                'perplexity': self.perplexity.compute().item(),
+            }
+        
+        self.report = {
+            'main': metrics
         }
 
         return self.report

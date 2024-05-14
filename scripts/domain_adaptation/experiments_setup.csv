@@ -1,2 +1,2 @@
 function	ft_method	target_layers	data_type	plm	head	task	head_config	layer	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-fine_tuning	full	all	aav	proteinbert	lm	masked_lm	mlm_head_config.json	first	/cluster/scratch/estamkopoulo	4	titan_rtx	20g	1	4	False
+fine_tuning	full	all	aav	proteinbert	lm	masked_lm	mlm_head_config.json	first	/cluster/scratch/estamkopoulo	3	quadro_rtx_6000	50g	1	8	False
