@@ -77,11 +77,12 @@ def fine_tune(args, logger):
     trainer.fit(model, data_loaders['train'], data_loaders['val'])
 
     if torch.cuda.is_available(): model = convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
-    
-    trainer.test(model=model, ckpt_path=f'{logger.base_dir}/best_model.ckpt', dataloaders=data_loaders['test'])
 
     loss_plot = data_explore.create_loss_plot(json_path=f'{logger.base_dir}/{logger.experiment_name}_loss.json')
     logger.save_plot(loss_plot, "training_validation_loss")
+
+    # TODO: Testing for lm 
+    if task != 'masked_lm': trainer.test(model=model, ckpt_path=f'{logger.base_dir}/best_model.ckpt', dataloaders=data_loaders['test'])
 
     if task == 'classification':
         fig, _ = data_explore.plot_roc_curve(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
