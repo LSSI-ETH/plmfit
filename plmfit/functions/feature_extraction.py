@@ -8,7 +8,7 @@ def feature_extraction(args, logger):
     # Load dataset
     data = utils.load_dataset(args.data_type)
     
-    split = None if args.split is None else data[args.split]
+    split = None if args.split is 'sampled' else data[args.split]
     head_config = utils.load_config(args.head_config)
 
     ### TODO : Extract embeddings if do not exist

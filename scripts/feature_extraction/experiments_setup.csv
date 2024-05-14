@@ -1,4 +1,4 @@
-function	ft_method	data_type	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time
+function	ft_method	data_type	split	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time
 fine_tuning	feature_extraction	meltome	proteinbert	linear	regression	linear_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	1	24g	10g	1	4
 fine_tuning	feature_extraction	meltome	proteinbert	linear	regression	linear_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	1	24g	10g	1	4
 fine_tuning	feature_extraction	meltome	proteinbert	linear	regression	linear_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	1	24g	10g	1	4

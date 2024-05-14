@@ -189,3 +189,4 @@ sandbox.py
 plmfit/data/*/models/*
 test/
 default/
+output/

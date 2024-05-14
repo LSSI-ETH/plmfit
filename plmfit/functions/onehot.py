@@ -8,7 +8,7 @@ from plmfit.models.hyperparameter_tuner import HyperTuner
 def onehot(args, logger):
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    split = None if args.split is None else data[args.split]
+    split = None if args.split is 'sampled' else data[args.split]
     head_config = utils.load_config(args.head_config)
 
     tokenizer = utils.load_tokenizer('proteinbert') # Use same tokenizer as proteinbert
