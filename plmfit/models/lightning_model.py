@@ -9,7 +9,7 @@ from plmfit.shared_utils import utils
 from deepspeed.profiling.flops_profiler.profiler import FlopsProfiler
 
 class LightningModel(L.LightningModule):
-    def __init__(self,  model, training_config, plmfit_logger = None, log_interval=-1, method='lora', experimenting=False):
+    def __init__(self,  model, training_config=None, plmfit_logger = None, log_interval=-1, method='lora', experimenting=False):
         torch.set_float32_matmul_precision('medium')
         super().__init__()
         self.model = model
@@ -91,7 +91,7 @@ class LightningModel(L.LightningModule):
             input = batch['input_ids']
             attention_mask = batch['attention_mask']
             labels = batch['labels']
-            outputs = self(input, input_mask=attention_mask, targets=labels)
+            outputs = self(input, attention_mask=attention_mask, labels=labels)
             loss = outputs.loss
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
@@ -158,7 +158,7 @@ class LightningModel(L.LightningModule):
             input = batch['input_ids']
             attention_mask = batch['attention_mask']
             labels = batch['labels']
-            outputs = self(input, input_mask=attention_mask, targets=labels)
+            outputs = self(input, attention_mask=attention_mask, labels=labels)
             loss = outputs.loss
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
@@ -207,7 +207,7 @@ class LightningModel(L.LightningModule):
             input = batch['input_ids']
             attention_mask = batch['attention_mask']
             labels = batch['labels']
-            outputs = self(input, input_mask=attention_mask, targets=labels)
+            outputs = self(input, attention_mask=attention_mask, labels=labels)
             loss = outputs.loss
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)

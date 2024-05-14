@@ -3,5 +3,5 @@
     "lora_alpha": 16,
     "lora_dropout": 0.1,
     "bias": "none",
-    "modules_to_save": ["classifier", "mlm"]
+    "modules_to_save": ["classifier", "mlm", "lm_head"]
 }

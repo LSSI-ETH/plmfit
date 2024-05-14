@@ -1,7 +1,7 @@
 import os
 from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForSequenceClassification
 from plmfit.language_models.proteinbert.modeling_bert import ProteinBertForSequenceClassification, ProteinBertForMaskedLM
-from plmfit.language_models.esm.modeling_esm import PlmfitEsmForSequenceClassification
+from plmfit.language_models.esm.modeling_esm import PlmfitEsmForSequenceClassification, PlmfitEsmForMaskedLM
 # from plmfit.shared_utils.data_explore import visualize_embeddings
 
 
@@ -156,7 +156,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
     def __init__(self, progen_model_name: str, logger : l.Logger):
         super().__init__(logger)
         self.name = progen_model_name
-        self.py_model = ProGenForSequenceClassification.from_pretrained(
+        self.py_model:ProGenForSequenceClassification = ProGenForSequenceClassification.from_pretrained(
             f'{utils.path}/language_models/progen2/checkpoints/{progen_model_name}')
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.transformer.h)
@@ -499,14 +499,18 @@ class ESMFamily(IPretrainedProteinLanguageModel):
 class BetaESMFamily(IPretrainedProteinLanguageModel):
     tokenizer : AutoTokenizer
     
-    def __init__(self , esm_version : str, logger : l.Logger):
-        super().__init__(logger)
+    def __init__(self , esm_version : str, logger : l.Logger, task : str='regression'):
+        super().__init__(logger, task)
         self.version = esm_version 
-        self.py_model = PlmfitEsmForSequenceClassification.from_pretrained(f'facebook/{esm_version}' , output_hidden_states = True)
+        if self.task == 'masked_lm':
+            self.py_model : PlmfitEsmForMaskedLM = PlmfitEsmForMaskedLM.from_pretrained(f'facebook/{esm_version}' , output_hidden_states = True)
+            self.output_dim = self.py_model.lm_head.decoder.out_features
+        else:
+            self.py_model = PlmfitEsmForSequenceClassification.from_pretrained(f'facebook/{esm_version}' , output_hidden_states = True)
+            self.output_dim = self.py_model.classifier.out_features
         print(self.py_model)
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.esm.encoder.layer)
-        self.output_dim = self.py_model.classifier.out_features
         self.emb_layers_dim =  self.py_model.esm.encoder.layer[0].attention.self.query.in_features
         self.tokenizer = AutoTokenizer.from_pretrained(f'facebook/{esm_version}') 
    
@@ -608,10 +612,10 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
         super().__init__(logger, task)
         self.name = 'bert-base'
         if self.task == 'masked_lm':
-            self.py_model = ProteinBertForMaskedLM.from_pretrained('bert-base')
+            self.py_model:ProteinBertForMaskedLM = ProteinBertForMaskedLM.from_pretrained('bert-base')
             self.output_dim = self.py_model.mlm.vocab_size
         else:
-            self.py_model = ProteinBertForSequenceClassification.from_pretrained('bert-base')
+            self.py_model:ProteinBertForSequenceClassification = ProteinBertForSequenceClassification.from_pretrained('bert-base')
             self.output_dim = self.py_model.classifier.out_features
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.bert.encoder.layer)

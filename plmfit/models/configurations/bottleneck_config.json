@@ -3,5 +3,5 @@
     "non_linearity": "relu",
     "adapter_dropout": 0.1,
     "scaling": "learned",
-    "modules_to_save": ["classifier", "mlm"]
+    "modules_to_save": ["classifier", "mlm", "lm_head"]
 }

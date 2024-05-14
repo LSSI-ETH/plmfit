@@ -230,8 +230,10 @@ def load_transformer_tokenizer(model_name, tokenizer):
             tokenizer_object=tokenizer
         )
         return tokenizer
+    elif 'esm' in model_name:
+        return tokenizer
     else:
-        raise 'Model transformer tokenizer not defined'
+        raise 'Transformer tokenizer not supported (yet)'
 
 def one_hot_encode(seqs):
     return torch.tensor([0])
@@ -514,7 +516,7 @@ def init_plm(model_name, logger, task='regression'):
 
     elif 'esm' in model_name:
         assert model_name in supported_ESM, 'ESM version is not supported'
-        model = BetaESMFamily(model_name, logger)
+        model = BetaESMFamily(model_name, logger, task)
 
     elif 'ankh' in model_name:
         assert model_name in supported_Ankh, 'Ankh version is not supported'

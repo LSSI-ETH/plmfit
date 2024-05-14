@@ -484,13 +484,13 @@ class ProteinBertForMaskedLM(ProteinBertAbstractModel):
 
     def forward(self,
                 input_ids,
-                input_mask=None,
-                targets=None):
-        outputs = self.bert(input_ids, input_mask=input_mask)
+                attention_mask=None,
+                labels=None):
+        outputs = self.bert(input_ids, input_mask=attention_mask)
 
         sequence_output, pooled_output = outputs[:2]
         # add hidden states and attention if they are here
-        mlm_output = self.mlm(sequence_output, targets)
+        mlm_output = self.mlm(sequence_output, labels)
         mlm_output.hidden_states = outputs[2:]
         
         return mlm_output
