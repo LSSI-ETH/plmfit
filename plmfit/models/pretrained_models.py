@@ -239,7 +239,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                             #         self.logger.log(f'Layer {layer_index} shape: {layer_output.shape}')
 
                             # Now select the specific layer's output
-                            # out = hidden_states[layer]
+                            out = hidden_states[layer]
                         if reduction == 'mean':
                             embs[i: i + current_batch_size, :] = torch.mean(out, dim=1)
                             if i == 2:

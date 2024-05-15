@@ -13,7 +13,7 @@ module load gcc/8.2.0  python_gpu/3.11.2
 module load cuda/12.1.1
 
 nvidia-smi
-nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used --format=csv -l 1 > ${6}/gpu_usage.log 2>&1 &
+nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used --format=csv -l 1 > ${7}/gpu_usage.log 2>&1 &
 # Store the PID of the nvidia-smi background process
 NVIDIA_SMI_PID=$!
 
@@ -84,7 +84,7 @@ for ((i = 1; i <= worker_num; i++)); do
 done
 
 python3 -u plmfit --function $1 --head_config $2 \
-        --data_type $4 --ray_tuning $3 \
-        --output_dir ${5} --experiment_dir ${6} --experiment_name ${7}
+        --data_type $4 --split $5 --ray_tuning $3 \
+        --output_dir ${6} --experiment_dir ${7} --experiment_name ${8}
 
 kill $NVIDIA_SMI_PID
