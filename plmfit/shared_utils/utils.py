@@ -380,7 +380,7 @@ def set_modules_to_train_mode(model, module_name='all'):
     # but specifically sets 'module_name' modules to training mode.
 
 
-def set_trainable_layers(model: nn.Module, layers_to_train: list[int]):
+def set_trainable_layers(model: nn.Module, layers_to_train: list):
     """
     Sets the specified layers to trainable and freezes all other layers.
     Disables dropout for all modules in the frozen layers.
@@ -542,7 +542,7 @@ def init_plm(model_name, logger, task='regression'):
     model = None
     supported_progen2 = ['progen2-small', 'progen2-medium', 'progen2-xlarge']
     supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
-                     "esm2_t30_150M_UR50D", "esm2_t33_650M_UR50D","esm2_t36_3B_UR50D"]
+                     "esm2_t30_150M_UR50D", "esm2_t33_650M_UR50D","esm2_t36_3B_UR50D", "esm2_t48_15B_UR50D"]
     supported_Ankh = ['ankh-base', 'ankh-large', 'ankh2-large']
     supported_Proteinbert = ['proteinbert']
 
