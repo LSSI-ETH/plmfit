@@ -2,6 +2,7 @@ import pandas as pd
 import plmfit.shared_utils.data_explore as data_explore
 import os
 import json
+import numpy as np
 
 script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
 
@@ -33,6 +34,8 @@ def get_mutation_positions(wildtype_seq, region, mask):
     return positions
 
 if __name__ == "__main__":
+    data = data[~data['sampled_split'].isna()]
+    data["two_vs_many_split"] = np.where(data["two_vs_many_split_validation"].isna(), data['two_vs_many_split'], 'validation')
 
     # Calculate and add a new column for the length of each amino acid sequence
     data["sequence_length"] = data["full_aa_sequence"].apply(len)
@@ -54,6 +57,7 @@ if __name__ == "__main__":
             "no_mut": data["number_of_mutations"],
             "score": data["normalized_score"],
             "binary_score": data["binary_score"],
+            "two_vs_many": data["two_vs_many_split"],
             "mut_mask":  data.apply(lambda row: get_mutation_positions(sequence, row["reference_region"], row["mutation_mask"]),axis=1)
         }
     )
