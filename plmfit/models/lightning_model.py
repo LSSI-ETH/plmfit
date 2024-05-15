@@ -111,10 +111,10 @@ class LightningModel(L.LightningModule):
         # print(f"Labels: {labels.tolist()}")
         # print(f"Loss value: {loss}\n", flush=True)
         if self.trainer.precision == 16 and loss < 6.10e-5: loss = 6.10e-5 # Theoretical min loss value for float-16
-        self.log('train_loss', loss, on_step=True, on_epoch=False, logger=True, prog_bar=False, sync_dist=True)
+        self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
         self.train_metric.update(outputs, labels)
-        self.log(f'train_{self.metric_label}_step', self.train_metric, on_step=True, on_epoch=False, logger=True, prog_bar=False, sync_dist=True)
+        self.log(f'train_{self.metric_label}_step', self.train_metric, on_step=False, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(f'(train) batch : {batch_idx + 1}  / {len(self.trainer.train_dataloader)} | running_loss : {loss} (batch time : {time.time() - batch_start_time:.4f})')
@@ -171,10 +171,10 @@ class LightningModel(L.LightningModule):
                 outputs = outputs.squeeze(dim=1)
             loss = self.loss_function(outputs, labels)
 
-        self.log('val_loss', loss, on_step=True, on_epoch=False, logger=True, prog_bar=False, sync_dist=True)
+        self.log('val_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
         self.val_metric.update(outputs, labels)
-        self.log(f'val_{self.metric_label}_step', self.val_metric, on_step=True, on_epoch=False, logger=True, prog_bar=False, sync_dist=True)
+        self.log(f'val_{self.metric_label}_step', self.val_metric, on_step=False, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(f'(val) batch : {batch_idx + 1}  / {len(self.trainer.val_dataloaders)} | running_loss : {loss} (batch time : {time.time() - batch_start_time:.4f})')
@@ -220,7 +220,7 @@ class LightningModel(L.LightningModule):
             else:
                 outputs = outputs.squeeze(dim=1)
             loss = self.loss_function(outputs, labels)
-        self.log('test_loss', loss, on_step=True, on_epoch=False, logger=True, prog_bar=False)
+        self.log('test_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False)
 
         self.metrics.add(outputs, labels)
 
