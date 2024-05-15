@@ -251,17 +251,19 @@ class FullRetrainFineTuner(FineTuner):
                     json.dump(testing_data, f, indent=4)
         
     def prepare_model(self, model, target_layers="all"):
-        # TODO: Train only last layer
-        # if target_layers == "last":
-        #     layers_to_train = model.layer_to_use
-        # else:
-        #     layers_to_train = None # Which will equal to all
+        if target_layers == "last":
+            layers_to_train = model.layer_to_use
+        else:
+            layers_to_train = None # Which will equal to all
 
         # Trim for test purposes 
         if model.experimenting: model.py_model.trim_model(0)
         
         utils.set_trainable_parameters(model.py_model)
         utils.set_modules_to_train_mode(model.py_model)
+        if layers_to_train is not None: 
+            utils.freeze_parameters(model.py_model)
+            utils.set_trainable_layers(model.py_model, [layers_to_train])
         utils.get_parameters(model.py_model, True)
         return model
 
@@ -307,12 +309,11 @@ class BottleneckAdaptersFineTuner(FineTuner):
         )
 
     def prepare_model(self, model, target_layers="all"):
-        # TODO: Choose layers to use adapter only, currently does all
-        # if target_layers == "last":
-        #     layers_to_train = model.layer_to_use
-        # else:
-        #     layers_to_train = None # Which will equal to all
-        # self.peft_config.layers_to_transform = layers_to_train
+        if target_layers == "last":
+            layers_to_train = model.layer_to_use
+        else:
+            layers_to_train = None # Which will equal to all
+        self.peft_config.layers_to_transform = layers_to_train
         utils.disable_dropout(model.py_model)
         model.py_model = get_peft_model(model.py_model, self.peft_config)
         model.py_model.print_trainable_parameters()

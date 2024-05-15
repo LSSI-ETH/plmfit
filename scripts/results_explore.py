@@ -34,13 +34,7 @@ def find_and_download_json_files(ssh, sftp, base_folder, data_type, task_type, t
     
     return [os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith('.json')]
 
-def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='regression', method_type='feature_extraction'):
-    # # Define the pattern to search for JSON files based on the provided criteria
-    # search_pattern = os.path.join(base_folder, f"**/*{data_type}*{task_type}*_data.json")
-    
-    # # Use glob to find all files matching the pattern, including in subdirectories
-    # json_files = glob.glob(search_pattern, recursive=True)
-    
+def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='regression', method_type='feature_extraction', use_mlp=False):
     # Initialize a list to store the collected data
     data = []
     seen_filenames = set()
@@ -84,23 +78,26 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
                     column_name = "Spearman"
                 data.append(entry)
                 
-                # Convert the collected data into a pandas DataFrame for easy tabular representation
-                df = pd.DataFrame(data)
+        # Convert the collected data into a pandas DataFrame for easy tabular representation
+        df = pd.DataFrame(data)
 
-                # Combine 'bos' and 'eos' into 'cls' for the 'Reduction' column
-                df['Reduction'] = df['Reduction'].replace({'bos': 'cls', 'eos': 'cls'})
-                df['Model + Head'] = df['Model Name'] + ' + ' + df['Head Type']
-                df['Layer + Reduction'] = df['Layer'] + ' + ' + df['Reduction']
+        # Combine 'bos' and 'eos' into 'cls' for the 'Reduction' column
+        df['Reduction'] = df['Reduction'].replace({'bos': 'cls', 'eos': 'cls'})
+        df['Model + Head'] = df['Model Name'] + ' + ' + df['Head Type']
+        df['Layer + Reduction'] = df['Layer'] + ' + ' + df['Reduction']
     else:
         df = pd.read_csv(csv_file)
         column_name = "MCC" if task_type == 'classification' else "Spearman"
     
-
+    # If use_mlp is True, remove columns related to mlp
+    if not use_mlp:
+        df = df[~df['Model + Head'].str.contains('mlp')]
+    
     # Ensure the categorical order
     model_order = ['proteinbert', 'progen2-small', 'progen2-medium', 'progen2-xlarge']
     layer_order = ['first', 'quarter1', 'middle', 'quarter3', 'last']
     reduction_order = ['mean', 'cls']
-    head_order = ['linear', 'mlp']
+    head_order = ['linear'] if not use_mlp else ['linear', 'mlp']
     
     # Pivot without sorting
     heatmap_data = df.pivot(index="Layer + Reduction", columns="Model + Head", values=column_name)
@@ -136,7 +133,6 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
 
     plt.show()
 
-    
     # Optionally, save the table to a CSV file
     output_csv = os.path.join(f"{data_type}_{task_type}_{method_type}_metrics_summary.csv")
     df.to_csv(output_csv, index=False)
@@ -144,6 +140,7 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
 
 def main():
     use_cache = False
+    use_mlp = False
     hostname = 'euler.ethz.ch'
     username = 'estamkopoulo'
     key_path = '/Users/tbikias/Desktop/vaggelis/Config/.ssh/id_ed25519_euler'
@@ -163,7 +160,7 @@ def main():
     # Create a temporary directory to store downloaded files
     with tempfile.TemporaryDirectory() as temp_dir:
         json_files = find_and_download_json_files(ssh, sftp, path, data_type, task_type, temp_dir)
-        collect_metrics(json_files=json_files, data_type=data_type, task_type=task_type, method_type=method_type)
+        collect_metrics(json_files=json_files, data_type=data_type, task_type=task_type, method_type=method_type, use_mlp=use_mlp)
     
     # Close SSH and SFTP sessions
     sftp.close()
