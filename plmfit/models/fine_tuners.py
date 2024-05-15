@@ -251,17 +251,19 @@ class FullRetrainFineTuner(FineTuner):
                     json.dump(testing_data, f, indent=4)
         
     def prepare_model(self, model, target_layers="all"):
-        # TODO: Train only last layer
-        # if target_layers == "last":
-        #     layers_to_train = model.layer_to_use
-        # else:
-        #     layers_to_train = None # Which will equal to all
+        if target_layers == "last":
+            layers_to_train = model.layer_to_use
+        else:
+            layers_to_train = None # Which will equal to all
 
         # Trim for test purposes 
         if model.experimenting: model.py_model.trim_model(0)
         
         utils.set_trainable_parameters(model.py_model)
         utils.set_modules_to_train_mode(model.py_model)
+        if layers_to_train is not None: 
+            utils.freeze_parameters(model.py_model)
+            utils.set_trainable_layers(model.py_model, [layers_to_train])
         utils.get_parameters(model.py_model, True)
         return model
 

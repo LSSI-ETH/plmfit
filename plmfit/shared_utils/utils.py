@@ -379,6 +379,42 @@ def set_modules_to_train_mode(model, module_name='all'):
     # Note: This does not change the global training/evaluation mode of the model,
     # but specifically sets 'module_name' modules to training mode.
 
+
+def set_trainable_layers(model: nn.Module, layers_to_train: list[int]):
+    """
+    Sets the specified layers to trainable and freezes all other layers.
+    Disables dropout for all modules in the frozen layers.
+    
+    Args:
+    - model (nn.Module): The model to modify.
+    - layers_to_train (list): List of layer indices to set as trainable.
+    """
+    # Iterate over each layer in the model
+    for name, layer in model.named_modules():
+        # Extract the layer index from the name (assuming standard naming conventions)
+        layer_index = None
+        if 'layer' in name:
+            try:
+                layer_index = int(name.split('layer')[1].split('.')[1])
+            except (ValueError, IndexError):
+                continue
+        
+        # If the layer index is in the list of layers to train
+        if layer_index is not None:
+            if layer_index in layers_to_train:
+                # Set the layer to training mode
+                layer.train()
+                # Set requires_grad to True for all parameters in this layer
+                for param in layer.parameters():
+                    param.requires_grad = True
+            else:
+                # Freeze the layer by setting requires_grad to False
+                layer.eval()
+                for param in layer.parameters():
+                    if hasattr(param, 'requires_grad'): param.requires_grad = False
+                # Disable dropout for this layer
+                layer.apply(disable_dropout)
+
 def read_fasta(file_path):
     sequences = {}
     current_sequence_id = None
