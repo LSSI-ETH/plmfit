@@ -567,8 +567,6 @@ def init_plm(model_name, logger, task='regression'):
 
     return model
 
-import torch
-
 def masking_collator(tokenizer, features, mlm_probability=0.15, mutation_boost_factor=6.66):
     """
     Create masked inputs for MLM from tokenized data, with boosted masking probability for specified mutations.

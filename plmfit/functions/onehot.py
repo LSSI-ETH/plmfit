@@ -83,7 +83,7 @@ def ray_tuning(function_to_run, config, encodings, scores, logger, experiment_di
     config['training_parameters']['batch_size'] = (4, 128)
     config['training_parameters']['weight_decay'] = (1e-5, 1e-2)
     if network_type == 'mlp':
-        config['architecture_parameters']['hidden_dim'] = (64, 2048)
+        config['architecture_parameters']['hidden_dim'] = (4, 1024)
 
     tuner = HyperTuner(
         function_to_run=function_to_run, 
