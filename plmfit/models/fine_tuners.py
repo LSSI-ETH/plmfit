@@ -307,12 +307,11 @@ class BottleneckAdaptersFineTuner(FineTuner):
         )
 
     def prepare_model(self, model, target_layers="all"):
-        # TODO: Choose layers to use adapter only, currently does all
-        # if target_layers == "last":
-        #     layers_to_train = model.layer_to_use
-        # else:
-        #     layers_to_train = None # Which will equal to all
-        # self.peft_config.layers_to_transform = layers_to_train
+        if target_layers == "last":
+            layers_to_train = model.layer_to_use
+        else:
+            layers_to_train = None # Which will equal to all
+        self.peft_config.layers_to_transform = layers_to_train
         utils.disable_dropout(model.py_model)
         model.py_model = get_peft_model(model.py_model, self.peft_config)
         model.py_model.print_trainable_parameters()
