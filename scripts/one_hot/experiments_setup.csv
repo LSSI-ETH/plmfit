@@ -1,3 +1,3 @@
 function	data_type	split	head	task	head_config	ray_tuning	output_dir	gpus	gres	mem-per-cpu	nodes
-one_hot	gb1	three_vs_rest	linear	regression	linear_head_config.json	True	/cluster/scratch/estamkopoulo	1	10g	80g	1
-one_hot	gb1	three_vs_rest	mlp	regression	mlp_head_config.json	True	/cluster/scratch/estamkopoulo	1	10g	80g	1
+one_hot	gb1	three_vs_rest	linear	regression	linear_head_config.json	True	/cluster/scratch/estamkopoulo	1	10g	50g	1
+one_hot	gb1	three_vs_rest	mlp	regression	mlp_head_config.json	True	/cluster/scratch/estamkopoulo	1	10g	50g	1

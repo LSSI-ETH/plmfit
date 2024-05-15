@@ -71,7 +71,9 @@ def runner(config, encodings, scores, logger, split=None, on_ray_tuning=False, n
     
     utils.set_trainable_parameters(pred_model)
     fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
-    fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning)
+    final_loss = fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning)
+
+    return final_loss
 
 def ray_tuning(function_to_run, config, encodings, scores, logger, experiment_dir, split=None):
     network_type = config['architecture_parameters']['network_type']
