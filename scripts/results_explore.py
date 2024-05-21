@@ -35,6 +35,13 @@ def find_and_download_json_files(ssh, sftp, base_folder, data_type, task_type, t
     return [os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith('.json')]
 
 def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='regression', method_type='feature_extraction', use_mlp=False):
+    # Ensure the categorical order
+    model_order = ['proteinbert', 'progen2-small', 'progen2-medium', 'progen2-xlarge']
+    layer_order = ['first', 'quarter1', 'middle', 'quarter3', 'last']
+    reduction_order = ['mean', 'cls']
+    head_order = ['linear'] if not use_mlp else ['linear', 'mlp']
+    reduction_methods = ['mean', 'bos', 'eos']
+    
     # Initialize a list to store the collected data
     data = []
     seen_filenames = set()
@@ -48,11 +55,15 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
                 
                 # Extract details from the filename
                 filename = os.path.basename(file_path)
-                parts = filename.split('_')
-                model_name = parts[1]
-                layer = parts[-5] if parts[-5] != 'mut' else parts[-6]
-                reduction = parts[-4] if parts[-5] != 'mut' else "mut_mean"
-                head_type = parts[-3]
+                # Find model name
+                model_name = next((m for m in model_order if m in filename), None)
+                # Find layer
+                layer = next((l for l in layer_order if l in filename), None)
+                # Find reduction
+                reduction = next((r for r in reduction_methods if r in filename), None)
+                # Find head type
+                head_type = next((h for h in head_order if h in filename), None)
+                
 
                 # Check if filename has already been processed
                 if filename not in seen_filenames:
@@ -93,12 +104,11 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
     if not use_mlp:
         df = df[~df['Model + Head'].str.contains('mlp')]
     
-    # Ensure the categorical order
-    model_order = ['proteinbert', 'progen2-small', 'progen2-medium', 'progen2-xlarge']
-    layer_order = ['first', 'quarter1', 'middle', 'quarter3', 'last']
-    reduction_order = ['mean', 'cls']
-    head_order = ['linear'] if not use_mlp else ['linear', 'mlp']
-    
+    # Check for duplicate entries
+    duplicates = df.duplicated(subset=['Layer + Reduction', 'Model + Head'])
+    if duplicates.any():
+        print("Duplicate entries found for the combo 'Layer + Reduction' and 'Model + Head'")
+        print(df[duplicates])
     # Pivot without sorting
     heatmap_data = df.pivot(index="Layer + Reduction", columns="Model + Head", values=column_name)
 
@@ -140,15 +150,16 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
 
 def main():
     use_cache = False
-    use_mlp = False
+    use_mlp = True
     hostname = 'euler.ethz.ch'
     username = 'estamkopoulo'
     key_path = '/Users/tbikias/Desktop/vaggelis/Config/.ssh/id_ed25519_euler'
     base_folder = '$SCRATCH/fine_tuning/'
-    method_type = 'lora'
-    submethod_type = '_last'
-    data_type = 'aav'
-    task_type = 'classification'
+    method_type = 'feature_extraction'
+    submethod_type = ''
+    data_type = 'gb1'
+    split = 'three_vs_rest'
+    task_type = 'regression'
     
     path = f'{base_folder}{method_type}{submethod_type}'
     if use_cache:
@@ -159,8 +170,8 @@ def main():
     
     # Create a temporary directory to store downloaded files
     with tempfile.TemporaryDirectory() as temp_dir:
-        json_files = find_and_download_json_files(ssh, sftp, path, data_type, task_type, temp_dir)
-        collect_metrics(json_files=json_files, data_type=data_type, task_type=task_type, method_type=method_type, use_mlp=use_mlp)
+        json_files = find_and_download_json_files(ssh, sftp, path, data_type+'_'+split, task_type, temp_dir)
+        collect_metrics(json_files=json_files, data_type=data_type+'_'+split, task_type=task_type, method_type=method_type+submethod_type, use_mlp=use_mlp)
     
     # Close SSH and SFTP sessions
     sftp.close()
