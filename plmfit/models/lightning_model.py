@@ -232,7 +232,7 @@ class LightningModel(L.LightningModule):
     
     def on_test_end(self) -> None:
             metrics = self.metrics.get_metrics(device=self.device)
-            self.plmfit_logger.log(f'loss: {self.trainer.logged_metrics["test_loss"]:.4f} {time.time() - self.epoch_start_time:.4f}s')
+            self.plmfit_logger.log(f'loss: {self.trainer.logged_metrics["test_loss_epoch"]:.4f} {time.time() - self.epoch_start_time:.4f}s')
             for key, value in metrics['main'].items():
                 self.plmfit_logger.log(f'{key}: {value}')
             if self.trainer.global_rank == 0:
