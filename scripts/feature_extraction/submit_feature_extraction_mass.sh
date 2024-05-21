@@ -9,7 +9,7 @@ uid=$(date +%Y%m%d_%H%M%S)
 tail -n +2 "$csv_file" | while IFS=$'\t' read -r function ft_method data_type split plm head task head_config ray_tuning layer reduction output_dir gpus gres mem_per_cpu nodes run_time
 do
   output_dir="$output_dir"
-  experiment_name="${data_type}_${plm}_${ft_method}_${layer}_${reduction}_${head}_${task}"
+  experiment_name="${data_type}_${split}_${plm}_${ft_method}_${layer}_${reduction}_${head}_${task}"
   experiment_dir="$output_dir/$function/${ft_method}/$experiment_name/$uid"
   total_gpus="$((${gpus}*${nodes}))"
   sbatch --job-name="feature_extraction_${data_type}_${plm}" \

@@ -24,7 +24,10 @@ nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used -
 NVIDIA_SMI_PID=$!
 
 # Start logging CPU RAM usage
-watch -n 100 free -m > ${10}/cpu_usage.log 2>&1 &
+while true; do
+  myjobs -j $SLURM_JOBID >> ${10}/task_monitor.log 2>&1
+  sleep 5
+done &
 CPU_FREE_PID=$!
 
 srun python3 plmfit --function $1 --ft_method $2 --target_layers $3 --head_config $4 \

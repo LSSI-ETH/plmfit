@@ -23,8 +23,10 @@ nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used -
 # Store the PID of the nvidia-smi background process
 NVIDIA_SMI_PID=$!
 
-# Start logging CPU RAM usage
-watch -n 100 free -m > ${11}/cpu_usage.log 2>&1 &
+while true; do
+  myjobs -j $SLURM_JOBID >> ${11}/task_monitor.log 2>&1
+  sleep 1
+done &
 CPU_FREE_PID=$!
 
 srun python3 plmfit --function $1 --ft_method $2 --target_layers $3 --head_config $4 \

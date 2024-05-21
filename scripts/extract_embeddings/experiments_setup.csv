@@ -1,11 +1,7 @@
 function	data_type	plm	reduction	layer	output_dir	gpus	gres	mem-per-cpu
-extract_embeddings	gb1	progen2-xlarge	mean	first	/cluster/scratch/estamkopoulo	1	24g	60g
-extract_embeddings	gb1	progen2-xlarge	mean	middle	/cluster/scratch/estamkopoulo	1	24g	60g
-extract_embeddings	gb1	progen2-xlarge	mean	last	/cluster/scratch/estamkopoulo	1	24g	60g
-extract_embeddings	gb1	progen2-xlarge	eos	first	/cluster/scratch/estamkopoulo	1	24g	60g
-extract_embeddings	gb1	progen2-xlarge	eos	middle	/cluster/scratch/estamkopoulo	1	24g	60g
-extract_embeddings	gb1	progen2-xlarge	eos	last	/cluster/scratch/estamkopoulo	1	24g	60g
-extract_embeddings	gb1	progen2-xlarge	mean	quarter1	/cluster/scratch/estamkopoulo	1	24g	60g
-extract_embeddings	gb1	progen2-xlarge	mean	quarter3	/cluster/scratch/estamkopoulo	1	24g	60g
-extract_embeddings	gb1	progen2-xlarge	eos	quarter1	/cluster/scratch/estamkopoulo	1	24g	60g
-extract_embeddings	gb1	progen2-xlarge	eos	quarter3	/cluster/scratch/estamkopoulo	1	24g	60g
+extract_embeddings	gb1	esm2_t36_3B_UR50D	mean	quarter3	/cluster/scratch/estamkopoulo	1	20g	30g
+extract_embeddings	gb1	esm2_t36_3B_UR50D	bos	first	/cluster/scratch/estamkopoulo	1	20g	30g
+extract_embeddings	gb1	esm2_t36_3B_UR50D	bos	middle	/cluster/scratch/estamkopoulo	1	20g	30g
+extract_embeddings	gb1	esm2_t36_3B_UR50D	bos	last	/cluster/scratch/estamkopoulo	1	20g	30g
+extract_embeddings	gb1	esm2_t36_3B_UR50D	bos	quarter1	/cluster/scratch/estamkopoulo	1	20g	30g
+extract_embeddings	gb1	esm2_t36_3B_UR50D	bos	quarter3	/cluster/scratch/estamkopoulo	1	20g	30g

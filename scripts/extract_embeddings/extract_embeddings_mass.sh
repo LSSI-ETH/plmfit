@@ -7,6 +7,8 @@
 #SBATCH --time=16:00:00
 
 export DATA_DIR='/cluster/home/estamkopoulo/plmfit_workspace/plmfit/plmfit'
+export HF_HOME='/cluster/scratch/estamkopoulo/'
+export HF_HUB_CACHE='/cluster/scratch/estamkopoulo/'
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
 

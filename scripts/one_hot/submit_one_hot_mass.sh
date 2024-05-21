@@ -9,7 +9,7 @@ uid=$(date +%Y%m%d_%H%M%S)
 tail -n +2 "$csv_file" | while IFS=$'\t' read -r function data_type split head task head_config ray_tuning output_dir gpus gres mem_per_cpu nodes
 do
   output_dir="$output_dir"
-  experiment_name="${data_type}_${head}_${task}"
+  experiment_name="${data_type}_${split}_${head}_${task}"
   experiment_dir="$output_dir/$function/$experiment_name/$uid"
   sbatch --job-name="one_hot" \
          --output="$experiment_dir/euler_output.out" \

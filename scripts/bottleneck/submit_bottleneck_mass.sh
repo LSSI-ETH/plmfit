@@ -15,7 +15,7 @@ do
   # read -r node_name gres gpus <<< "$(select_gpus)"
   # echo "$node_name $gres $gpus"
   output_dir="$output_dir"
-  experiment_name="${data_type}_${plm}_${ft_method}_${layer}_${reduction}_${head}_${task}"
+  experiment_name="${data_type}_${split}_${plm}_${ft_method}_${layer}_${reduction}_${head}_${task}"
   experiment_dir="$output_dir/$function/${ft_method}_${target_layers}/$experiment_name/$uid"
   total_gpus="$((${gpus}*${nodes}))"
   
