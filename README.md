@@ -64,6 +64,18 @@ DATA_DIR='/absolute/path/to/plmfit'
 
 For detailed data structure and setup, refer to the [data management guide](./plmfit/data/README.md).
 
+## Supported PLMs
+| Arguments | Model Name | Parameters | Source |
+|-----------|------------|-------------|-------------|
+| `esm2_t6_8M_UR50D` | ESM | 8M | [esm](https://github.com/facebookresearch/esm) |
+| `esm2_t33_650M_UR50D` | ESM | 650M | [esm](https://github.com/facebookresearch/esm) |
+| `esm2_t36_3B_UR50D` | ESM | 3B | [esm](https://github.com/facebookresearch/esm) |
+| `esm2_t48_15B_UR50D` | ESM | 15B | [esm](https://github.com/facebookresearch/esm) |
+| `progen2-small` | ProGen2 | 151M | [progen](https://github.com/enijkamp/progen2) |
+| `progen2-medium` | ProGen2 | 764M | [progen](https://github.com/enijkamp/progen2) |
+| `progen2-xlarge` | ProGen2 | 6.4B | [progen](https://github.com/enijkamp/progen2) |
+| `proteinbert` | ProteinBERT | 94M | [proteinbert](https://github.com/nadavbra/protein_bert) |
+
 ## Usage
 
 PLMFit facilitates easy application of protein language models (PLMs) for embedding extraction, fine-tuning, and other machine learning tasks through a user-friendly command-line interface. Below are detailed instructions for using PLMFit to perform various tasks:
