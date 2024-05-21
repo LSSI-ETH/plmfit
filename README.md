@@ -65,16 +65,16 @@ DATA_DIR='/absolute/path/to/plmfit'
 For detailed data structure and setup, refer to the [data management guide](./plmfit/data/README.md).
 
 ## Supported PLMs
-| Arguments | Model Name | Parameters | Source |
-|-----------|------------|-------------|-------------|
-| `esm2_t6_8M_UR50D` | ESM | 8M | [esm](https://github.com/facebookresearch/esm) |
-| `esm2_t33_650M_UR50D` | ESM | 650M | [esm](https://github.com/facebookresearch/esm) |
-| `esm2_t36_3B_UR50D` | ESM | 3B | [esm](https://github.com/facebookresearch/esm) |
-| `esm2_t48_15B_UR50D` | ESM | 15B | [esm](https://github.com/facebookresearch/esm) |
-| `progen2-small` | ProGen2 | 151M | [progen](https://github.com/enijkamp/progen2) |
-| `progen2-medium` | ProGen2 | 764M | [progen](https://github.com/enijkamp/progen2) |
-| `progen2-xlarge` | ProGen2 | 6.4B | [progen](https://github.com/enijkamp/progen2) |
-| `proteinbert` | ProteinBERT | 94M | [proteinbert](https://github.com/nadavbra/protein_bert) |
+| Arguments | Model Name | Parameters | No. of Layers | Source |
+|-----------|------------|-------------|-------------|-------------|
+| `esm2_t6_8M_UR50D` | ESM | 8M | 6 | [esm](https://github.com/facebookresearch/esm) |
+| `esm2_t33_650M_UR50D` | ESM | 650M  | 33 | [esm](https://github.com/facebookresearch/esm) |
+| `esm2_t36_3B_UR50D` | ESM | 3B | 36 | [esm](https://github.com/facebookresearch/esm) |
+| `esm2_t48_15B_UR50D` | ESM | 15B | 48 | [esm](https://github.com/facebookresearch/esm) |
+| `progen2-small` | ProGen2 | 151M | 11 | [progen](https://github.com/enijkamp/progen2) |
+| `progen2-medium` | ProGen2 | 764M | 26 | [progen](https://github.com/enijkamp/progen2) |
+| `progen2-xlarge` | ProGen2 | 6.4B | 32 | [progen](https://github.com/enijkamp/progen2) |
+| `proteinbert` | ProteinBERT | 94M | 11 | [proteinbert](https://github.com/nadavbra/protein_bert) |
 
 ## Usage
 
