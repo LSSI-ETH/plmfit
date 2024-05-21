@@ -105,6 +105,11 @@ python3 plmfit --function extract_embeddings \
 - `--layer`: (Optional) Specifies the model layer from which to extract embeddings ('first', 'quarter1', 'middle', 'quarter3', 'last'—default, or a specific layer number).
 - `--reduction`: (Optional) Pooling method for embeddings ('mean'—default, 'bos', 'eos').
 
+The output from the embedding extraction is a .pt file (PyTorch tensor) which contains the numerical representations of the sequences. Each sequence is transformed into an embedding vector, and the file size is determined by the number of sequences and the embedding size, essentially forming a matrix of size Sequences length X Embedding size. This structured data can then be used directly for machine learning models, providing a powerful toolset for predictive analytics and further research.
+
+**Why Extract Embeddings?**
+Extracting embeddings from protein sequences is a foundational step in bioinformatics. It converts complex protein sequences into a simpler, numerical format that machine learning models can easily process. By doing so, researchers can capture the intrinsic properties of proteins in a way that highlights their biological functionalities and interactions. This process is particularly useful for tasks such as protein classification, structure prediction, and function annotation.
+
 ### Fine-Tuning Models
 
 Fine-tune supported PLMs using various techniques with the following command:
@@ -127,6 +132,25 @@ python3 -u plmfit --function fine_tuning \
 - `--target_layers`: Targets specific layers ('all' or 'last'), not applicable for 'feature_extraction'.
 - `--head_config`: JSON configuration file for the head, defining the task (regression, classification, domain adaptation).
 - Additional parameters similar to embedding extraction command.
+
+**Understanding Fine-Tuning Methods:**
+1. Feature Extraction:
+   Description: This method involves extracting embeddings with a pre-trained model before fine-tuning a new head on these embeddings. It is less computationally intensive as it does not require updating the weights of the pre-trained model.
+   Prerequisite: Embedding extraction must be completed first, as it uses these embeddings as input.
+   Pros: Efficient in terms of computation; reduces the risk of overfitting on small datasets.
+   Cons: May not capture as complex patterns as methods that update deeper model layers.
+2. Full Fine-Tuning:
+   Description: The layers of the model are updated during training. This method is suitable for tasks where the new dataset is large and significantly different from the data the model was initially trained on.
+   Pros: Can significantly improve model performance on the task-specific data.
+   Cons: Requires more computational resources; higher risk of overfitting on small datasets.
+3. LoRA (Low-Rank Adaptation):
+   Description: Modifies only a small part of the model's weights in a low-rank format, reducing the number of parameters that need to be updated.
+   Pros: Less resource-intensive compared to full fine-tuning; can be effective even with smaller amounts of training data.
+   Cons: Might not capture as wide a range of adaptations as full fine-tuning.
+4. Bottleneck Adapters:
+   Description: Introduces small bottleneck layers within the model that are trained while keeping the majority of the model's weights fixed.
+   Pros: Allows for more targeted model updates without the need for extensive retraining of the entire network.
+   Cons: May require careful tuning of the bottleneck architecture to achieve desired improvements.
 
 ### Train One Hot Encoding Models
 
