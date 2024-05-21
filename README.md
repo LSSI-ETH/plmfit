@@ -134,23 +134,23 @@ python3 -u plmfit --function fine_tuning \
 - Additional parameters similar to embedding extraction command.
 
 **Understanding Fine-Tuning Methods:**
-1. Feature Extraction:
-   Description: This method involves extracting embeddings with a pre-trained model before fine-tuning a new head on these embeddings. It is less computationally intensive as it does not require updating the weights of the pre-trained model.
-   Prerequisite: Embedding extraction must be completed first, as it uses these embeddings as input.
-   Pros: Efficient in terms of computation; reduces the risk of overfitting on small datasets.
-   Cons: May not capture as complex patterns as methods that update deeper model layers.
-2. Full Fine-Tuning:
-   Description: The layers of the model are updated during training. This method is suitable for tasks where the new dataset is large and significantly different from the data the model was initially trained on.
-   Pros: Can significantly improve model performance on the task-specific data.
-   Cons: Requires more computational resources; higher risk of overfitting on small datasets.
-3. LoRA (Low-Rank Adaptation):
-   Description: Modifies only a small part of the model's weights in a low-rank format, reducing the number of parameters that need to be updated.
-   Pros: Less resource-intensive compared to full fine-tuning; can be effective even with smaller amounts of training data.
-   Cons: Might not capture as wide a range of adaptations as full fine-tuning.
-4. Bottleneck Adapters:
-   Description: Introduces small bottleneck layers within the model that are trained while keeping the majority of the model's weights fixed.
-   Pros: Allows for more targeted model updates without the need for extensive retraining of the entire network.
-   Cons: May require careful tuning of the bottleneck architecture to achieve desired improvements.
+1. **Feature Extraction:**
+   - Description: This method involves extracting embeddings with a pre-trained model before fine-tuning a new head on these embeddings. It is less computationally intensive as it does not require updating the weights of the pre-trained model.
+   - Prerequisite: Embedding extraction must be completed first, as it uses these embeddings as input.
+   - Pros: Efficient in terms of computation; reduces the risk of overfitting on small datasets.
+   - Cons: May not capture as complex patterns as methods that update deeper model layers.
+2. **Full Fine-Tuning:**
+   - Description: The layers of the model are updated during training. This method is suitable for tasks where the new dataset is large and significantly different from the data the model was initially trained on.
+   - Pros: Can significantly improve model performance on the task-specific data.
+   - Cons: Requires more computational resources; higher risk of overfitting on small datasets.
+3. **LoRA (Low-Rank Adaptation):**
+   - Description: Modifies only a small part of the model's weights in a low-rank format, reducing the number of parameters that need to be updated.
+   - Pros: Less resource-intensive compared to full fine-tuning; can be effective even with smaller amounts of training data.
+   - Cons: Might not capture as wide a range of adaptations as full fine-tuning.
+4. **Bottleneck Adapters:**
+   - Description: Introduces small bottleneck layers within the model that are trained while keeping the majority of the model's weights fixed.
+   - Pros: Allows for more targeted model updates without the need for extensive retraining of the entire network.
+   - Cons: May require careful tuning of the bottleneck architecture to achieve desired improvements.
 
 ### Train One Hot Encoding Models
 
