@@ -37,8 +37,8 @@ Before you start, make sure Python 3.10 or higher is installed on your system. I
      source venv/bin/activate
      ```
    - For Scrum (Euler):
+     A virtual environment is not needed, as there is one already at place. Load a python module to subsequently be able to install PLMFit.
      ```bash
-     source venv/bin/activate
      module load gcc/8.2.0 python_gpu/3.11.2
      ```
 
