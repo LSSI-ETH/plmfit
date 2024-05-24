@@ -65,16 +65,16 @@ DATA_DIR='/absolute/path/to/plmfit'
 For detailed data structure and setup, refer to the [data management guide](./plmfit/data/README.md).
 
 ## Supported PLMs
-| Arguments | Model Name | Parameters | Source |
-|-----------|------------|-------------|-------------|
-| `esm2_t6_8M_UR50D` | ESM | 8M | [esm](https://github.com/facebookresearch/esm) |
-| `esm2_t33_650M_UR50D` | ESM | 650M | [esm](https://github.com/facebookresearch/esm) |
-| `esm2_t36_3B_UR50D` | ESM | 3B | [esm](https://github.com/facebookresearch/esm) |
-| `esm2_t48_15B_UR50D` | ESM | 15B | [esm](https://github.com/facebookresearch/esm) |
-| `progen2-small` | ProGen2 | 151M | [progen](https://github.com/enijkamp/progen2) |
-| `progen2-medium` | ProGen2 | 764M | [progen](https://github.com/enijkamp/progen2) |
-| `progen2-xlarge` | ProGen2 | 6.4B | [progen](https://github.com/enijkamp/progen2) |
-| `proteinbert` | ProteinBERT | 94M | [proteinbert](https://github.com/nadavbra/protein_bert) |
+| Arguments | Model Name | Parameters | No. of Layers | Embedding dim. | Source |
+|-----------|------------|-------------|-------------|-------------|-------------|
+| `esm2_t6_8M_UR50D` | ESM | 8M | 6 | 320 | [esm](https://github.com/facebookresearch/esm) |
+| `esm2_t33_650M_UR50D` | ESM | 650M  | 33 | 1280 | [esm](https://github.com/facebookresearch/esm) |
+| `esm2_t36_3B_UR50D` | ESM | 3B | 36 | 2560 | [esm](https://github.com/facebookresearch/esm) |
+| `esm2_t48_15B_UR50D` | ESM | 15B | 48 | 5120 | [esm](https://github.com/facebookresearch/esm) |
+| `progen2-small` | ProGen2 | 151M | 11 | 1024 | [progen](https://github.com/enijkamp/progen2) |
+| `progen2-medium` | ProGen2 | 764M | 26 | 1536 | [progen](https://github.com/enijkamp/progen2) |
+| `progen2-xlarge` | ProGen2 | 6.4B | 32 | 4096 | [progen](https://github.com/enijkamp/progen2) |
+| `proteinbert` | ProteinBERT | 94M | 11 | 768 | [proteinbert](https://github.com/nadavbra/protein_bert) |
 
 ## Usage
 
@@ -134,23 +134,23 @@ python3 -u plmfit --function fine_tuning \
 - Additional parameters similar to embedding extraction command.
 
 **Understanding Fine-Tuning Methods:**
-1. Feature Extraction:
-   Description: This method involves extracting embeddings with a pre-trained model before fine-tuning a new head on these embeddings. It is less computationally intensive as it does not require updating the weights of the pre-trained model.
-   Prerequisite: Embedding extraction must be completed first, as it uses these embeddings as input.
-   Pros: Efficient in terms of computation; reduces the risk of overfitting on small datasets.
-   Cons: May not capture as complex patterns as methods that update deeper model layers.
-2. Full Fine-Tuning:
-   Description: The layers of the model are updated during training. This method is suitable for tasks where the new dataset is large and significantly different from the data the model was initially trained on.
-   Pros: Can significantly improve model performance on the task-specific data.
-   Cons: Requires more computational resources; higher risk of overfitting on small datasets.
-3. LoRA (Low-Rank Adaptation):
-   Description: Modifies only a small part of the model's weights in a low-rank format, reducing the number of parameters that need to be updated.
-   Pros: Less resource-intensive compared to full fine-tuning; can be effective even with smaller amounts of training data.
-   Cons: Might not capture as wide a range of adaptations as full fine-tuning.
-4. Bottleneck Adapters:
-   Description: Introduces small bottleneck layers within the model that are trained while keeping the majority of the model's weights fixed.
-   Pros: Allows for more targeted model updates without the need for extensive retraining of the entire network.
-   Cons: May require careful tuning of the bottleneck architecture to achieve desired improvements.
+1. **Feature Extraction:**
+   - Description: This method involves extracting embeddings with a pre-trained model before fine-tuning a new head on these embeddings. It is less computationally intensive as it does not require updating the weights of the pre-trained model.
+   - Prerequisite: Embedding extraction must be completed first, as it uses these embeddings as input.
+   - Pros: Efficient in terms of computation; reduces the risk of overfitting on small datasets.
+   - Cons: May not capture as complex patterns as methods that update deeper model layers.
+2. **Full Fine-Tuning:**
+   - Description: The layers of the model are updated during training. This method is suitable for tasks where the new dataset is large and significantly different from the data the model was initially trained on.
+   - Pros: Can significantly improve model performance on the task-specific data.
+   - Cons: Requires more computational resources; higher risk of overfitting on small datasets.
+3. **LoRA (Low-Rank Adaptation):**
+   - Description: Modifies only a small part of the model's weights in a low-rank format, reducing the number of parameters that need to be updated.
+   - Pros: Less resource-intensive compared to full fine-tuning; can be effective even with smaller amounts of training data.
+   - Cons: Might not capture as wide a range of adaptations as full fine-tuning.
+4. **Bottleneck Adapters:**
+   - Description: Introduces small bottleneck layers within the model that are trained while keeping the majority of the model's weights fixed.
+   - Pros: Allows for more targeted model updates without the need for extensive retraining of the entire network.
+   - Cons: May require careful tuning of the bottleneck architecture to achieve desired improvements.
 
 ### Train One Hot Encoding Models
 
