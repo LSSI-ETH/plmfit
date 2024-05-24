@@ -711,8 +711,6 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         self.model_parallel = False
         self.device_map = None
 
-        
-
     def set_head(self, head):
         self.classifier = head
 

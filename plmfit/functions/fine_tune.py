@@ -24,6 +24,9 @@ def fine_tune(args, logger):
     model = utils.init_plm(args.plm, logger, task=task)
     assert model != None, 'Model is not initialized'
 
+    if args.beta == "True":
+        model.zeroed_model()
+
     model.experimenting = args.experimenting == "True" # If we are in experimenting mode
     
     model.set_layer_to_use(args.layer)

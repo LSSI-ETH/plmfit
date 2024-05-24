@@ -13,7 +13,7 @@ import torch.nn as nn
 import psutil
 from tokenizers.processors import TemplateProcessing
 from torch.utils.data import Dataset
-from plmfit.models.pretrained_models import Antiberty, BetaESMFamily, ProGenFamily, ProteinBERTFamily, AnkhFamily
+from plmfit.models.pretrained_models import Antiberty, ESMFamily, ProGenFamily, ProteinBERTFamily, AnkhFamily
 from dotenv import load_dotenv 
 
 load_dotenv() 
@@ -552,7 +552,7 @@ def init_plm(model_name, logger, task='regression'):
 
     elif 'esm' in model_name:
         assert model_name in supported_ESM, 'ESM version is not supported'
-        model = BetaESMFamily(model_name, logger, task)
+        model = ESMFamily(model_name, logger, task)
 
     elif 'ankh' in model_name:
         assert model_name in supported_Ankh, 'Ankh version is not supported'
