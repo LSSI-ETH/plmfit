@@ -246,6 +246,9 @@ class AdapterLayer(nn.Module):
         self.adapter_up = nn.Linear(bottleneck_size, out_features, **kwargs)
         self.dropout = nn.Dropout(adapter_dropout)
 
+        self._init_weights(self.adapter_norm)
+        self._init_weights(self.adapter_down)
+        self._init_weights(self.adapter_up)
 
     def train(self, mode: bool = True):
         self.adapter_down.train(mode)
@@ -272,6 +275,15 @@ class AdapterLayer(nn.Module):
             output = x + self.adapter_scaling * dropped_out
             return output                
 
+    def _init_weights(self, module):
+        """ Initialize the weights """
+        if isinstance(module, nn.Linear):
+            module.weight.data.normal_(mean=0.0, std=0.01)
+        elif isinstance(module, nn.LayerNorm):
+            module.bias.data.zero_()
+            module.weight.data.fill_(1.0)
+        if isinstance(module, nn.Linear) and module.bias is not None:
+            module.bias.data.zero_()
                         
 def get_last_linear_out_features(model):
         # Recursively find the last nn.Linear module
