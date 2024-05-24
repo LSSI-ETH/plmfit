@@ -1,7 +1,4 @@
 function	data_type	plm	reduction	layer	output_dir	gpus	gres	mem-per-cpu
-extract_embeddings	gb1	esm2_t36_3B_UR50D	mean	quarter3	/cluster/scratch/estamkopoulo	1	20g	30g
-extract_embeddings	gb1	esm2_t36_3B_UR50D	bos	first	/cluster/scratch/estamkopoulo	1	20g	30g
-extract_embeddings	gb1	esm2_t36_3B_UR50D	bos	middle	/cluster/scratch/estamkopoulo	1	20g	30g
-extract_embeddings	gb1	esm2_t36_3B_UR50D	bos	last	/cluster/scratch/estamkopoulo	1	20g	30g
-extract_embeddings	gb1	esm2_t36_3B_UR50D	bos	quarter1	/cluster/scratch/estamkopoulo	1	20g	30g
-extract_embeddings	gb1	esm2_t36_3B_UR50D	bos	quarter3	/cluster/scratch/estamkopoulo	1	20g	30g
+extract_embeddings	aav	esm2_t48_15B_UR50D	mean	last	/cluster/scratch/estamkopoulo	1	80g	80g
+extract_embeddings	aav	esm2_t48_15B_UR50D	mean	quarter3	/cluster/scratch/estamkopoulo	1	80g	80g
+extract_embeddings	aav	esm2_t48_15B_UR50D	bos	quarter3	/cluster/scratch/estamkopoulo	1	80g	80g

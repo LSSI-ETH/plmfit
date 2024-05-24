@@ -1,29 +1,25 @@
 {
   "architecture_parameters":
   {
-    "network_type": "mlp",
+    "network_type": "linear",
     "output_dim": 1,
-    "hidden_dim": 1024,
-    "task": "classification",
-    "hidden_activation": "relu",
-    "hidden_dropout": 0.25,
-    "output_activation": "sigmoid"
+    "task": "regression",
+    "dropout": 0
   },
-  "training_parameters":
-  {
+  "training_parameters": {
     "learning_rate": 0.0001,
-    "epochs": 5,
+    "epochs": 12,
     "batch_size": 4,
-    "loss_f": "bce",
+    "loss_f": "mse",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 0.0001,
+    "weight_decay": 0.01,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,
     "scaler": false,
     "gradient_accumulation": 1,
-    "early_stopping": 2,
+    "early_stopping": 5,
     "epoch_sizing": 1.0,
     "model_output": "logits"
   }

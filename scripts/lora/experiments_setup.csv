@@ -1,3 +1,12 @@
 function	ft_method	target_layers	data_type	split	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-fine_tuning	lora	last	gb1	three_vs_rest	progen2-xlarge	linear	regression	lora_linear_head_config.json	last	mean	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	60g	1	16	False
-fine_tuning	lora	last	gb1	three_vs_rest	progen2-xlarge	linear	regression	lora_linear_head_config.json	last	eos	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	60g	1	16	False
+fine_tuning	lora	last	aav	sampled	progen2-xlarge	linear	classification	lora_last_linear_classification_head_config.json	middle	eos	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	45g	1	12	False
+fine_tuning	lora	last	aav	sampled	progen2-xlarge	linear	classification	lora_last_linear_classification_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	45g	1	16	False
+fine_tuning	lora	last	aav	sampled	progen2-xlarge	linear	classification	lora_last_linear_classification_head_config.json	quarter3	eos	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	45g	1	16	False
+fine_tuning	lora	last	aav	sampled	progen2-xlarge	linear	classification	lora_last_linear_classification_head_config.json	last	mean	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	45g	1	24	False
+fine_tuning	lora	last	aav	sampled	progen2-xlarge	linear	classification	lora_last_linear_classification_head_config.json	last	eos	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	45g	1	24	False
+fine_tuning	lora	last	aav	sampled	progen2-xlarge	linear	regression	lora_last_linear_head_config.json	quarter1	eos	/cluster/scratch/estamkopoulo	2	rtx_4090	45g	1	4	False
+fine_tuning	lora	last	aav	sampled	progen2-xlarge	linear	regression	lora_last_linear_head_config.json	middle	eos	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	45g	1	12	False
+fine_tuning	lora	last	aav	sampled	progen2-xlarge	linear	regression	lora_last_linear_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	45g	1	16	False
+fine_tuning	lora	last	aav	sampled	progen2-xlarge	linear	regression	lora_last_linear_head_config.json	quarter3	eos	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	45g	1	16	False
+fine_tuning	lora	last	aav	sampled	progen2-xlarge	linear	regression	lora_last_linear_head_config.json	last	mean	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	45g	1	24	False
+fine_tuning	lora	last	aav	sampled	progen2-xlarge	linear	regression	lora_last_linear_head_config.json	last	eos	/cluster/scratch/estamkopoulo	4	quadro_rtx_6000	45g	1	24	False

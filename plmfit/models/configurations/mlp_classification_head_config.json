@@ -17,7 +17,7 @@
     "loss_f": "bce",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 0.00,
+    "weight_decay": 0.01,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,
