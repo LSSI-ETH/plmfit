@@ -3,6 +3,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import plmfit.shared_utils.utils as utils
+from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
 from sklearn.metrics import roc_curve, auc, roc_auc_score, confusion_matrix, matthews_corrcoef
@@ -18,6 +19,7 @@ from matplotlib.patches import Patch
 from torch.nn.functional import sigmoid
 from sklearn import metrics
 import os
+import plmfit.models.downstream_heads as heads 
 
 def plot_label_distribution(data, label="binary_score", path=None, text="Keep"):
     sns.set(style="whitegrid")
@@ -896,15 +898,25 @@ def plot_dual_bar_chart(data_dict1, data_dict2):
 
 def get_experiment_arguments(experiment_dir):
     # Find the json file that was saved during training
-    for file in os.scandir(experiment_dir):
-        if file.name.endswith('data.json'):
-            with open(file.path, "r") as json_file:
-                saved_json = json.load(json_file)
+    experiment_name = experiment_dir.split('/')[-2]
+    json_path = f'{experiment_dir}/{experiment_name}_data.json'
+    with open(json_path, "r") as json_file:
+        saved_json = json.load(json_file)
     
     return saved_json
 
-def get_test_loader(experiment_dir, species):
-    data = utils.load_dataset("rbd") # Load dataset
+def get_embeddings(experiment_dir):
+    args = get_experiment_arguments(experiment_dir)['arguments']
+    emb_path = args['output_dir'] + '/extract_embeddings'
+    embeddings = utils.load_embeddings(emb_path= emb_path, 
+                                       data_type=args['data_type'], 
+                                       model=args['plm'], 
+                                       layer=args['layer'], 
+                                       reduction=args['reduction'])
+    return embeddings
+
+def get_test_loader(data, embeddings, species, scaler = True):
+    data = data.copy() # Load dataset
 
     if species != False:
         # Ignore indices that don't have labels for the current species
@@ -915,20 +927,17 @@ def get_test_loader(experiment_dir, species):
     split = data['single_strict_split'].copy() # Load the splits
     test_dataset = data[data['single_strict_split'] == 'test']
     mixed_mask = (test_dataset['mixed_split'] == 1).values
-
-    
-
     truths = torch.tensor(data[species].values[split == 'test']).int().cpu()
-    args = get_experiment_arguments(experiment_dir)['arguments']
-    emb_path = args['output_dir'] + '/extract_embeddings'
-    embeddings = utils.load_embeddings(emb_path= emb_path, 
-                                       data_type=args['data_type'], 
-                                       model=args['plm'], 
-                                       layer=args['layer'], 
-                                       reduction=args['reduction'])
-    
-    embs = embeddings[split == 'test'].detach().cpu()
 
+    embs = embeddings[split == 'test'].detach().cpu()
+    X_train = embeddings[split == 'train'].detach().cpu()
+
+    if scaler:
+        scaler = StandardScaler()
+        scaler.fit(X_train)
+        embs = scaler.transform(embs)
+
+    embs = torch.tensor(embs, dtype = torch.float32)
     dataset = torch.utils.data.TensorDataset(embs, truths)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=False)
 
@@ -979,8 +988,34 @@ def create_result_vector(experiment_dir, get_mixed = False):
 
     return result_vector
 
-def make_predictions(experiment_dir, species, model = None):
-    dataloader, mixed_mask = get_test_loader(experiment_dir, species)
+def get_head_model(head_config, experiment_dir, species):
+    network_type = head_config['architecture_parameters']['network_type']
+
+    if network_type == 'linear':
+        pred_model = heads.LinearHead(head_config['architecture_parameters'])
+    elif network_type == 'mlp':
+        pred_model = heads.MLP(head_config['architecture_parameters'])
+
+    if species == False:
+        pred_model.load_state_dict(torch.load(f'{experiment_dir}/trained_model.pt'))
+    else:
+        pred_model.load_state_dict(torch.load(f'{experiment_dir}/{species}/trained_model.pt'))
+
+    return pred_model
+
+def make_predictions(experiment_dir, species, model = None, dataset = None):
+    if dataset == None:
+        embeddings = get_embeddings(experiment_dir)
+        data = utils.load_dataset("rbd")
+    else:
+        embeddings = dataset[0]
+        data = dataset[1]
+
+    dataloader, mixed_mask = get_test_loader(data, embeddings, species)
+
+    if model == None:
+        head_config = get_experiment_arguments(experiment_dir)['head_config']
+        model = get_head_model(head_config, experiment_dir, species)
 
     model.cpu()
     model.eval()
@@ -1005,11 +1040,19 @@ def make_predictions(experiment_dir, species, model = None):
     predictions = (y_pred, y_test, y_pred_m, y_test_m)
     save_predictions(predictions,experiment_dir,species)
 
-def combine_model_predictions(experiment_dir):
+def combine_model_predictions(experiment_dir, dataset = None):
     # At the end of evaluating all the separate models, we want to create a result vector
     y_pred = create_result_vector(experiment_dir, get_mixed = False)
     y_pred_m = create_result_vector(experiment_dir, get_mixed = True)
-    dataloader, mixed_mask = get_test_loader(experiment_dir, species = False)
+
+    if dataset == None:
+        embeddings = get_embeddings(experiment_dir)
+        data = utils.load_dataset("rbd")
+    else:
+        embeddings = dataset[0]
+        data = dataset[1]
+
+    dataloader, mixed_mask = get_test_loader(data, embeddings, species = False)
     y_test = np.array(dataloader.dataset.tensors[1])
     y_test_m = y_test[mixed_mask]
     predictions = (y_pred, y_test, y_pred_m, y_test_m)
@@ -1032,14 +1075,11 @@ def create_results(experiment_dir):
 
     results = evaluate_predictions(y_test, y_pred)
     mixed_results = evaluate_predictions(y_test_m, y_pred_m)
+    all_results = {'results': results, 'mixed_results': mixed_results}
 
     file_path = f'{experiment_dir}/results.json'
     with open(file_path, "w") as json_file:
-            json.dump(results, json_file, indent=4)
-
-    file_path = f'{experiment_dir}/mixed_results.json'
-    with open(file_path, "w") as json_file:
-            json.dump(mixed_results, json_file, indent=4)
+            json.dump(all_results, json_file, indent=4)
 
     plot_path = f'{experiment_dir}/plots'
     os.makedirs(plot_path, exist_ok= True)
