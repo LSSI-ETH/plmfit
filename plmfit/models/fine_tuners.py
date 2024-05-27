@@ -12,6 +12,7 @@ import psutil
 import os
 import json
 import plmfit.shared_utils.custom_loss_functions as custom_loss_functions
+from plmfit.shared_utils.linear_block import LinearBlock
 
 class FineTuner(ABC):
     def __init__(self, training_config, logger = None):

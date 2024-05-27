@@ -22,6 +22,7 @@ TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING = {
     "progen": ["qkv_proj"],
     "esm": ["query", "key", "value"],
     "bert": ["query", "key", "value"],
+    "linear": ["query", "key", "value"],
 }
 
 # TODO adapt this to our plms
