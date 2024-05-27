@@ -53,7 +53,7 @@ class HyperTuner:
         old_epoch_sizing = temp_config['training_parameters']['epoch_sizing']
         temp_config['training_parameters']['epochs'] = 10
         temp_config['training_parameters']['early_stopping'] = 2
-        temp_config['training_parameters']['epoch_sizing'] = 0.25
+        temp_config['training_parameters']['epoch_sizing'] = 1.0
 
         self.current_loss = self.function_to_run(config=temp_config, logger=self.logger, **self.run_args)
         self.current_loss = 0.0 - self.current_loss
