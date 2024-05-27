@@ -19,8 +19,8 @@ def fine_tune(args, logger):
     if args.experimenting == "True": data = data.sample(100)
     
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
-    split = None if args.split == 'sampled' and 'sampled' not in data else data.get(args.split)
-
+    split = None if args.split == 'sampled' and 'sampled' not in data else data.get(args.split).values
+    logger.log(split)
     model = utils.init_plm(args.plm, logger, task=task)
     assert model != None, 'Model is not initialized'
 
@@ -98,7 +98,8 @@ def fine_tune(args, logger):
     elif task == 'regression':
         fig = data_explore.plot_actual_vs_predicted(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
         logger.save_plot(fig, 'actual_vs_predicted')
-
+    # TODO
+    # Add evaluation plots
 def downstream_prep(model, args, data, split, task, head_config):
     network_type = head_config['architecture_parameters']['network_type']
     if network_type == 'linear':
@@ -114,8 +115,17 @@ def downstream_prep(model, args, data, split, task, head_config):
     model.py_model.reduction = args.reduction
 
     encs = model.categorical_encode(data)
+    logger.log(encs)
+    logger.log(encs.shape)
+    if task == 'regression':
+        scores = data['score'].values
+    elif task == 'multilabel_classification':
+        species = ["mouse","cattle","ihbat","human"]
+        scores = data[species].values
+        split = data
+    else: 
+        scores = data['binary_score'].values
 
-    scores = data['score'].values if task == 'regression' else data['binary_score'].values
     training_params = head_config['training_parameters']
     data_loaders = utils.create_data_loaders(
             encs, scores, scaler=training_params['scaler'], 

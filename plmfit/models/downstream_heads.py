@@ -15,11 +15,13 @@ class LinearHead(nn.Module):
             # Initialize biases to zero
             init.zeros_(self.linear.bias)
 
-            self.activation = get_activation_function(config['output_activation'])
+            self.activation = None
+            if 'output_activation' in config:
+                self.activation = get_activation_function(config['output_activation'])
     
     def forward(self, x):
         x = self.linear(x)
-        if self.task == 'classification':
+        if self.task == 'classification' and self.activation != None:
             x= self.activation(x)
         return x
 

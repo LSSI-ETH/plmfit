@@ -6,6 +6,7 @@ import time
 import json
 from deepspeed.ops.adam import DeepSpeedCPUAdam
 from plmfit.shared_utils import utils
+from plmfit.shared_utils.custom_loss_functions import WeightedBCELoss
 from deepspeed.profiling.flops_profiler.profiler import FlopsProfiler
 
 class LightningModel(L.LightningModule):
@@ -25,6 +26,9 @@ class LightningModel(L.LightningModule):
         elif self.model.task == 'regression':
             self.train_metric = regression.MeanSquaredError(squared=False)
             self.metric_label = 'rmse'
+        elif self.model.task == 'multilabel_classification':
+            self.train_metric = classification.MultilabelRecall(ignore_index = -1, num_labels = 4)
+            self.metric_label = 'recall'
         elif self.model.task == 'masked_lm':
             self.train_metric = text.Perplexity(ignore_index=-100)
             self.metric_label = 'perplexity'
@@ -233,12 +237,15 @@ class LightningModel(L.LightningModule):
     def on_test_end(self) -> None:
             metrics = self.metrics.get_metrics(device=self.device)
             self.plmfit_logger.log(f'loss: {self.trainer.logged_metrics["test_loss_epoch"]:.4f} {time.time() - self.epoch_start_time:.4f}s')
-            for key, value in metrics['main'].items():
-                self.plmfit_logger.log(f'{key}: {value}')
-            if self.trainer.global_rank == 0:
-                self.plmfit_logger.save_data(metrics['main'], 'metrics')
-                self.metrics.save_metrics(path=f'{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}')
-
+            if metrics != None:
+                for key, value in metrics['main'].items():
+                    self.plmfit_logger.log(f'{key}: {value}')
+                if self.trainer.global_rank == 0:
+                    self.plmfit_logger.save_data(metrics['main'], 'metrics')
+                    self.metrics.save_metrics(path=f'{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}')
+            else:
+                # TODO save predictions and truths as a torch tensor
+                pass
 
     
     def configure_optimizers(self):
@@ -264,6 +271,8 @@ class LightningModel(L.LightningModule):
             return torch.nn.BCEWithLogitsLoss()
         elif self.hparams.loss_f == 'mse':
             return torch.nn.MSELoss()
+        elif self.hparams.loss_f == 'weighted_bce':
+            return WeightedBCELoss()
         else:
             raise ValueError(f"Unsupported loss function: {self.hparams.loss_f}")
     
