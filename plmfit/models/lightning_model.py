@@ -131,9 +131,9 @@ class LightningModel(L.LightningModule):
         if self.plmfit_logger: 
             self.plmfit_logger.log(f'(train) loss: {self.trainer.logged_metrics["train_loss_epoch"]:.4f} {time.time() - self.epoch_start_time:.4f}s')
             self.plmfit_logger.log(f'(train) {self.metric_label}: {self.trainer.logged_metrics[f"train_{self.metric_label}_epoch"]:.4f}')
-        if self.experimenting: 
+        """if self.experimenting: 
             print('Successful test')
-            raise SystemExit('Experiment over')
+            raise SystemExit('Experiment over')"""
         total_time = time.time() - self.start_time
         self.plmfit_logger.log(f'\nMean time per epoch: {total_time/(self.current_epoch+1):.4f}s')
         self.plmfit_logger.log(f'Total training time: {total_time:.1f}s')
@@ -257,6 +257,7 @@ class LightningModel(L.LightningModule):
         if self.hparams.optimizer == 'sgd':
             return torch.optim.SGD(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
         elif self.hparams.optimizer == 'adam':
+            #return torch.optim.Adam(parameters, betas=(0.9, 0.99), lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
             return DeepSpeedCPUAdam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay) if torch.cuda.is_available() else torch.optim.Adam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
         else:
             raise ValueError(f"Unsupported optimizer: {self.hparams.optimizer}")
@@ -410,6 +411,11 @@ class Metrics(torch.nn.Module):
         return self.report
     
     def save_metrics(self, path):
+        if self.task == 'multilabel_classification':
+            torch.save(torch.tensor(self.preds_list),f'{path}_preds.pt')
+            torch.save(torch.tensor(self.actual_list),f'{path}_truths.pt')
+            return
         if self.report is None: self.get_metrics()
         with open(f'{path}_metrics.json', 'w', encoding='utf-8') as f:
                     json.dump(self.report, f, indent=4)
+        

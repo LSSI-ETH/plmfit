@@ -375,6 +375,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         else:
             self.py_model = PlmfitEsmForSequenceClassification.from_pretrained(f'facebook/{esm_version}', output_hidden_states = True)
             self.output_dim = self.py_model.classifier.out_features
+        self.py_model.train()
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.esm.encoder.layer)
         self.emb_layers_dim =  self.py_model.esm.encoder.layer[0].attention.self.query.in_features

@@ -13,7 +13,7 @@ echo "JOB ID: $SLURM_JOBID"
 echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
 
 module load eth_proxy
-module load gcc/8.2.0  python_gpu/3.11.2
+module load gcc/11.4.0  python_gpu/3.11.6
 module load cuda/12.1.1
 
 nvcc --version

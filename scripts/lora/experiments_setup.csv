@@ -1,2 +1,2 @@
 function	ft_method	target_layers	data_type	split	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-fine_tuning	lora	last	rbd	single_strict_split	esm2_t33_650M_UR50D	linear	multilabel_classification	lora_last_linear_multiclassification_head_config.json	first	mean	/cluster/scratch/bsahin	2	titan_rtx	40g	1	8	True
+fine_tuning	lora	all	rbd	single_strict_split	esm2_t33_650M_UR50D	linear	multilabel_classification	lora_last_linear_multiclassification_head_config.json	last	mean	/cluster/scratch/bsahin	1	rtx_4090	40g	1	8	True

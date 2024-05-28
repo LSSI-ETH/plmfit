@@ -16,7 +16,7 @@ def fine_tune(args, logger):
 
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    if args.experimenting == "True": data = data.sample(100)
+    if args.experimenting == "True": data = data.sample(1000)
     
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
     split = None if args.split == 'sampled' and 'sampled' not in data else data.get(args.split).values
@@ -82,13 +82,13 @@ def fine_tune(args, logger):
 
     trainer.fit(model, data_loaders['train'], data_loaders['val'])
 
-    if torch.cuda.is_available(): model = convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
+    if torch.cuda.is_available(): convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
 
     loss_plot = data_explore.create_loss_plot(json_path=f'{logger.base_dir}/{logger.experiment_name}_loss.json')
     logger.save_plot(loss_plot, "training_validation_loss")
 
     # TODO: Testing for lm 
-    if task != 'masked_lm': trainer.test(model=model, ckpt_path=f'{logger.base_dir}/best_model.ckpt', dataloaders=data_loaders['test'])
+    if task != 'masked_lm': trainer.test(model=model, ckpt_path=f'{logger.base_dir}/lightning_logs/best_model.ckpt', dataloaders=data_loaders['test'])
 
     if task == 'classification':
         fig, _ = data_explore.plot_roc_curve(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
@@ -115,14 +115,11 @@ def downstream_prep(model, args, data, split, task, head_config):
     model.py_model.reduction = args.reduction
 
     encs = model.categorical_encode(data)
-    logger.log(encs)
-    logger.log(encs.shape)
     if task == 'regression':
         scores = data['score'].values
     elif task == 'multilabel_classification':
         species = ["mouse","cattle","ihbat","human"]
         scores = data[species].values
-        split = data
     else: 
         scores = data['binary_score'].values
 
