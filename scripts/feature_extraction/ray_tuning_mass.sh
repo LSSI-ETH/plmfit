@@ -15,7 +15,6 @@ while true; do
 done &
 CPU_FREE_PID=$!
 
-# export DATA_DIR='/cluster/home/estamkopoulo/plmfit_workspace/plmfit/plmfit'
 export NCCL_DEBUG=WARN
 export NCCL_P2P_DISABLE=1
 export NCCL_IB_DISABLE=1

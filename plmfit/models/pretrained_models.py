@@ -4,7 +4,7 @@ from plmfit.language_models.proteinbert.modeling_bert import ProteinBertForSeque
 from plmfit.language_models.esm.modeling_esm import PlmfitEsmForSequenceClassification, PlmfitEsmForMaskedLM
 # from plmfit.shared_utils.data_explore import visualize_embeddings
 
-from plmfit.shared_utils.linear_block import LinearBlock
+from plmfit.shared_utils.linear_block import ProGenLinearBlock
 import plmfit.shared_utils.utils as utils
 import torch.nn as nn
 import plmfit.logger as l
@@ -167,10 +167,9 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.config = self.py_model.config
 
     def zeroed_model(self):
-        self.name = 'linear'
         # Neutralize the LayerNorm by setting weights to ones and bias to zeros
         with torch.no_grad():
-            self.py_model.transformer.h = nn.ModuleList([LinearBlock(self.config) for _ in range(self.config.n_layer)])
+            self.py_model.transformer.h = nn.ModuleList([ProGenLinearBlock(self.config) for _ in range(self.config.n_layer)])
             self.py_model.transformer.ln_f.weight.fill_(1.0)
             self.py_model.transformer.ln_f.bias.fill_(0.0)
     
