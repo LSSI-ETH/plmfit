@@ -54,6 +54,9 @@ def main():
     parser.add_argument('--nodes', type=int, default=1)
     parser.add_argument('--beta', default="False")
     parser.add_argument('--experimenting', default="False")
+    parser.add_argument('--zeroed', default="False")
+    parser.add_argument('--garbage', default="False")
+    parser.add_argument('--nulled', default="False")
 
     args = parser.parse_args()
     experiment_dir = args.experiment_dir
