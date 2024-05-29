@@ -13,7 +13,7 @@
     "loss_f": "mse",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 0.0001,
+    "weight_decay": 0.01,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,

@@ -1,2 +1,9 @@
 function	ft_method	target_layers	data_type	split	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-fine_tuning	bottleneck_adapters	last	aav	sampled	progen2-xlarge	linear	classification	lora_last_linear_classification_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	3	rtx_4090	45g	1	12	False
+fine_tuning	bottleneck_adapters	all	aav	sampled	progen2-xlarge	linear	regression	bottleneck_linear_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	3	a100-pcie-40gb	40g	1	48	False
+fine_tuning	bottleneck_adapters	all	aav	sampled	progen2-xlarge	linear	regression	bottleneck_linear_head_config.json	quarter3	eos	/cluster/scratch/estamkopoulo	3	a100_80gb	40g	1	48	False
+fine_tuning	bottleneck_adapters	all	aav	sampled	progen2-xlarge	linear	regression	bottleneck_linear_head_config.json	last	mean	/cluster/scratch/estamkopoulo	4	a100_80gb	40g	1	72	False
+fine_tuning	bottleneck_adapters	all	aav	sampled	progen2-xlarge	linear	regression	bottleneck_linear_head_config.json	last	eos	/cluster/scratch/estamkopoulo	4	a100-pcie-40gb	40g	1	72	False
+fine_tuning	bottleneck_adapters	all	aav	sampled	progen2-xlarge	linear	classification	bottleneck_linear_classification_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	3	a100-pcie-40gb	40g	1	48	False
+fine_tuning	bottleneck_adapters	all	aav	sampled	progen2-xlarge	linear	classification	bottleneck_linear_classification_head_config.json	quarter3	eos	/cluster/scratch/estamkopoulo	3	a100_80gb	40g	1	48	False
+fine_tuning	bottleneck_adapters	all	aav	sampled	progen2-xlarge	linear	classification	bottleneck_linear_classification_head_config.json	last	mean	/cluster/scratch/estamkopoulo	4	a100_80gb	40g	1	72	False
+fine_tuning	bottleneck_adapters	all	aav	sampled	progen2-xlarge	linear	classification	bottleneck_linear_classification_head_config.json	last	eos	/cluster/scratch/estamkopoulo	4	a100-pcie-40gb	40g	1	72	False
