@@ -74,7 +74,7 @@ For detailed data structure and setup, refer to the [data management guide](./pl
 | `progen2-small` | ProGen2 | 151M | 11 | 1024 | [progen](https://github.com/enijkamp/progen2) |
 | `progen2-medium` | ProGen2 | 764M | 26 | 1536 | [progen](https://github.com/enijkamp/progen2) |
 | `progen2-xlarge` | ProGen2 | 6.4B | 32 | 4096 | [progen](https://github.com/enijkamp/progen2) |
-| `proteinbert` | ProteinBERT | 94M | 11 | 768 | [proteinbert](https://github.com/nadavbra/protein_bert) |
+| `proteinbert` | ProteinBERT | 92M | 11 | 768 | [proteinbert](https://github.com/nadavbra/protein_bert) |
 
 ## Usage
 
