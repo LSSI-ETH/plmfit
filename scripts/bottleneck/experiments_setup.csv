@@ -1,0 +1,2 @@
+function	ft_method	target_layers	data_type	split	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
+fine_tuning	lora	all	rbd	single_strict_split	esm2_t33_650M_UR50D	linear	multilabel_classification	bottleneck_last_linear_multiclassification_head_config.json	last	bos	/cluster/scratch/bsahin	8	rtx_2080_ti	24g	1	3	False
