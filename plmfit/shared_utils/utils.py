@@ -99,6 +99,9 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     X_train = convert_or_clone_to_tensor(X_train, dtype=dtype)
     X_val = convert_or_clone_to_tensor(X_val, dtype=dtype)
     X_test = convert_or_clone_to_tensor(X_test, dtype=dtype)
+    # Add to X_test an identifier
+    test_ids = torch.arange(X_test.size(0))
+
     y_train = convert_or_clone_to_tensor(y_train, dtype=torch.float32)
     y_val = convert_or_clone_to_tensor(y_val, dtype=torch.float32)
     y_test = convert_or_clone_to_tensor(y_test, dtype=torch.float32)
@@ -106,7 +109,7 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     # Create DataLoader for training, validation, and testing
     train_dataset = TensorDataset(X_train, y_train)
     val_dataset = TensorDataset(X_val, y_val)
-    test_dataset = TensorDataset(X_test, y_test)
+    test_dataset = TensorDataset(X_test, y_test, test_ids)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=num_workers>0)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=num_workers>0)
@@ -399,12 +402,15 @@ def set_trainable_layers(model: nn.Module, layers_to_train: list):
     for name, layer in model.named_modules():
         # Extract the layer index from the name (assuming standard naming conventions)
         layer_index = None
-        if 'layer' in name:
+        # 'layer' for BERT based PLMs, 'h' for ProGen
+        if 'layer' in name or 'h' in name:
             try:
                 layer_index = int(name.split('layer')[1].split('.')[1])
             except (ValueError, IndexError):
-                continue
-        
+                try:
+                    layer_index = int(name.split('h')[1].split('.')[1])
+                except:
+                    continue
         # If the layer index is in the list of layers to train
         if layer_index is not None:
             if layer_index in layers_to_train:

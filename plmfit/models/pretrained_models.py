@@ -172,6 +172,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             self.py_model.transformer.h = nn.ModuleList([ProGenLinearBlock(self.config) for _ in range(self.config.n_layer)])
             self.py_model.transformer.ln_f.weight.fill_(1.0)
             self.py_model.transformer.ln_f.bias.fill_(0.0)
+            self.logger.log("Zeroed the model with plain linear blocks")
     
     def categorical_encode(self, data, max_length='default'):
         encs = utils.categorical_encode(

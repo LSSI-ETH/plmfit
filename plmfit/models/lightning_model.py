@@ -7,6 +7,8 @@ import json
 from deepspeed.ops.adam import DeepSpeedCPUAdam
 from plmfit.shared_utils import utils
 from deepspeed.profiling.flops_profiler.profiler import FlopsProfiler
+import os
+import torch.distributed as dist
 
 class LightningModel(L.LightningModule):
     def __init__(self,  model, training_config=None, plmfit_logger = None, log_interval=-1, method='lora', experimenting=False):
@@ -33,10 +35,10 @@ class LightningModel(L.LightningModule):
 
         self.metrics = Metrics(self.model.task)
 
-        self.profiler = FlopsProfiler(self)
         self.profiling_interval = 100
 
         self.experimenting = experimenting
+        self.track_validation_after = 0
 
     def forward(self, input, **args):
         output = self.model(input, **args)
@@ -57,6 +59,9 @@ class LightningModel(L.LightningModule):
 
         # To avoid error when min scale is reached
         if torch.cuda.is_available(): self.trainer.strategy.model.optimizer.loss_scaler.raise_error_at_min_scale = False
+        #print all available properties for strategy
+        self.plmfit_logger.log(self.trainer.strategy.model.wall_clock_breakdown())
+        self.profiler = FlopsProfiler(self, ds_engine=self.trainer.strategy.model)
 
     def on_fit_end(self) -> None:
         total_time = time.time() - self.start_time
@@ -80,13 +85,17 @@ class LightningModel(L.LightningModule):
         self.epoch_start_time = time.time()
         self.plmfit_logger.log('\nEpoch {}/{}'.format(self.current_epoch + 1, self.trainer.max_epochs))
         self.plmfit_logger.log('-' * 10)
+        self.on_profiling = False
 
-    def training_step(self, batch, batch_idx):
-        batch_start_time = time.time()
-        on_profiling = batch_idx == 30 and self.experimenting and False
-        if on_profiling:
+    def on_train_batch_start(self, batch, batch_idx):
+        if batch_idx == 0 and self.experimenting: self.batches_start_time = time.time() # To measure precisely the time of the first batch
+        if batch_idx == 99 and self.experimenting:
             self.profiler.start_profile()
             print("FLOPS PROFILING INITIATED...", flush=True)
+            self.plmfit_logger.log(f'Avg iter time: {(time.time() - self.batches_start_time)/100:.4f} s')
+
+    def training_step(self, batch, batch_idx):
+        batch_start_time = time.time()        
         if self.model.task == 'masked_lm':
             input = batch['input_ids']
             attention_mask = batch['attention_mask']
@@ -104,9 +113,8 @@ class LightningModel(L.LightningModule):
                 outputs = outputs.squeeze(dim=1)
             loss = self.loss_function(outputs, labels)
 
-        if on_profiling:
-            self.profiler.print_model_profile(profile_step=batch_idx, output_file=f'{self.plmfit_logger.base_dir}/flops.log')
-            self.profiler.end_profile()
+        
+
         # print(f"Outputs: {outputs.tolist()}")
         # print(f"Labels: {labels.tolist()}")
         # print(f"Loss value: {loss}\n", flush=True)
@@ -120,6 +128,17 @@ class LightningModel(L.LightningModule):
             self.plmfit_logger.log(f'(train) batch : {batch_idx + 1}  / {len(self.trainer.train_dataloader)} | running_loss : {loss} (batch time : {time.time() - batch_start_time:.4f})')
 
         return loss
+    
+    def on_train_batch_end(self, outputs, batch, batch_idx):
+        if batch_idx == 99 and self.experimenting:
+            # self.profiler.print_model_profile(profile_step=batch_idx, output_file=f'{self.plmfit_logger.base_dir}/flops.log')
+            self.profiler.end_profile()
+
+            with open(f'{self.plmfit_logger.base_dir}/flops.log', 'w') as f:
+                f.write(f'Avg iter time: {(time.time() - self.batches_start_time)/100:.4f} s\n')
+
+            print('Successful test')
+            raise SystemExit('Experiment over')
     
     def on_train_epoch_end(self):
         self.log(f'train_{self.metric_label}_epoch', self.train_metric, sync_dist=True)
@@ -188,7 +207,7 @@ class LightningModel(L.LightningModule):
             self.plmfit_logger.log(f'(val) loss: {self.trainer.logged_metrics["val_loss_epoch"]:.4f}')
             self.plmfit_logger.log(f'(val) {self.metric_label}: {self.trainer.logged_metrics[f"val_{self.metric_label}_epoch"]:.4f}')
 
-        if self.trainer.logged_metrics["val_loss_epoch"] < self.best_val_loss:
+        if self.trainer.logged_metrics["val_loss_epoch"] < self.best_val_loss and self.current_epoch >= self.track_validation_after:
             self.best_val_loss = self.trainer.logged_metrics["val_loss_epoch"]
             self.trainer.save_checkpoint(f'{self.plmfit_logger.base_dir}/lightning_logs/best_model.ckpt')
             self.best_epoch = self.current_epoch
@@ -213,7 +232,7 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:    
-            input, labels = batch
+            input, labels, ids = batch
             outputs = self(input)
             if hasattr(outputs, 'logits'):
                 outputs = outputs.logits.squeeze(dim=1)
@@ -222,7 +241,7 @@ class LightningModel(L.LightningModule):
             loss = self.loss_function(outputs, labels)
         self.log('test_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False)
 
-        self.metrics.add(outputs, labels)
+        self.metrics.add(outputs, labels, ids)
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(f'(test) batch : {batch_idx + 1}  / {len(self.trainer.test_dataloaders)} | running_loss : {loss} (batch time : {time.time() - batch_start_time:.4f})')
@@ -231,13 +250,16 @@ class LightningModel(L.LightningModule):
         return loss
     
     def on_test_end(self) -> None:
-            metrics = self.metrics.get_metrics(device=self.device)
-            self.plmfit_logger.log(f'loss: {self.trainer.logged_metrics["test_loss_epoch"]:.4f} {time.time() - self.epoch_start_time:.4f}s')
-            for key, value in metrics['main'].items():
-                self.plmfit_logger.log(f'{key}: {value}')
-            if self.trainer.global_rank == 0:
-                self.plmfit_logger.save_data(metrics['main'], 'metrics')
-                self.metrics.save_metrics(path=f'{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}')
+        self.metrics.preds_list = self.merge_lists(self.metrics.preds_list)
+        self.metrics.actual_list = self.merge_lists(self.metrics.actual_list)
+        self.metrics.ids = self.merge_lists(self.metrics.ids)
+        metrics = self.metrics.get_metrics(device=self.device)
+        self.plmfit_logger.log(f'loss: {self.trainer.logged_metrics["test_loss_epoch"]:.4f} {time.time() - self.epoch_start_time:.4f}s')
+        for key, value in metrics['main'].items():
+            self.plmfit_logger.log(f'{key}: {value}')
+        if self.trainer.global_rank == 0:
+            self.plmfit_logger.save_data(metrics['main'], 'metrics')
+            self.metrics.save_metrics(path=f'{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}')
 
 
     
@@ -292,6 +314,13 @@ class LightningModel(L.LightningModule):
     def epoch_sizing(self):
         return self.handle_bool_float_config_param(self.hparams.epoch_sizing, false_value=1.0, true_value=0.2)
         
+    def merge_lists(self,lists):
+        if dist.is_initialized():
+            all_rank_list = [None for _ in range(dist.get_world_size())]    
+            dist.all_gather_object(all_rank_list,lists)
+            lists = [x for y in all_rank_list for x in y]
+        return lists
+
 
 class Metrics(torch.nn.Module):
     def __init__(self, task: str):
@@ -299,6 +328,7 @@ class Metrics(torch.nn.Module):
         self.task = task
         self.preds_list = []
         self.actual_list = []
+        self.ids = []
         if task == 'classification':
             self.acc = classification.BinaryAccuracy()
             self.roc_auc = classification.BinaryAUROC()
@@ -314,9 +344,10 @@ class Metrics(torch.nn.Module):
         elif task == 'masked_lm':
             self.perplexity = text.Perplexity(ignore_index=-100)
 
-    def add(self, preds, actual):
+    def add(self, preds, actual, ids):
         self.preds_list.extend(preds.tolist()) if len(preds.tolist()) > 1 else self.preds_list.append(preds.item())
         self.actual_list.extend(actual.tolist()) if len(actual.tolist()) > 1 else self.actual_list.append(actual.item())
+        self.ids.extend(ids.tolist()) if len(ids.tolist()) > 1 else self.ids.append(ids.item())
 
     def calculate(self, preds, actual):
         if self.task == 'classification':
@@ -365,6 +396,11 @@ class Metrics(torch.nn.Module):
                 "fpr": fpr.tolist(),
                 "tpr": tpr.tolist(),
                 "roc_auc_val": self.roc_auc.compute().item()
+            },
+            'pred_data': {
+                "preds": self.preds_list,
+                "actual": self.actual_list,
+                "ids": self.ids,
             }
         }
         return self.report
@@ -383,6 +419,7 @@ class Metrics(torch.nn.Module):
             'pred_data': {
                 "preds": self.preds_list,
                 "actual": self.actual_list,
+                "ids": self.ids,
                 "eval_metrics": metrics
             }
         }
@@ -401,6 +438,25 @@ class Metrics(torch.nn.Module):
         return self.report
     
     def save_metrics(self, path):
+        metrics_path = f'{path}_metrics.json'
         if self.report is None: self.get_metrics()
-        with open(f'{path}_metrics.json', 'w', encoding='utf-8') as f:
-                    json.dump(self.report, f, indent=4)
+        
+        # Check if the metrics file already exists
+        if os.path.exists(metrics_path):
+            # Load the existing data
+            with open(metrics_path, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+            
+            # Check if 'pred_data' field exists and update it
+            if 'pred_data' in existing_data:
+                existing_data['pred_data']['preds'].extend(self.report['pred_data']['preds'])
+                existing_data['pred_data']['actual'].extend(self.report['pred_data']['actual'])
+                existing_data['pred_data']['ids'].extend(self.report['pred_data']['ids'])
+                self.report = existing_data
+            else:
+                # If 'pred_data' does not exist, simply prepare to write the current report
+                pass
+        
+        # Write the updated or original report to the file
+        with open(metrics_path, 'w', encoding='utf-8') as f:
+            json.dump(self.report, f, indent=4)
