@@ -1,0 +1,3 @@
+function	ft_method	target_layers	data_type	split	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
+fine_tuning	lora	all	aav	sampled	progen2-small	linear	classification	zero_lora_linear_classification_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	3	rtx_4090	12g	1	12	False
+fine_tuning	lora	all	aav	sampled	progen2-small	linear	regression	zero_lora_linear_head_config.json	quarter3	eos	/cluster/scratch/estamkopoulo	3	rtx_4090	12g	1	12	False

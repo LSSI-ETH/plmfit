@@ -1,5 +1,7 @@
 #!/bin/bash
 #SBATCH --cpus-per-task=1
+export HF_HOME='/cluster/scratch/estamkopoulo/'
+export HF_HUB_CACHE='/cluster/scratch/estamkopoulo/'
 
 export NCCL_DEBUG=WARN
 export NCCL_P2P_DISABLE=1
@@ -14,9 +16,8 @@ echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
 
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
-module load cuda/12.1.1
+module load cuda/12.1.1 ninja/1.10.2
 
-nvcc --version
 nvidia-smi
 nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used --format=csv -l 100 > ${11}/gpu_usage.log 2>&1 &
 # Store the PID of the nvidia-smi background process

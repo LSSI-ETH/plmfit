@@ -3,14 +3,16 @@
   {
     "network_type": "linear",
     "output_dim": 1,
-    "task": "regression",
-    "dropout": 0
+    "task": "classification",
+    "dropout": 0,
+    "output_activation": "sigmoid"
   },
-  "training_parameters": {
+  "training_parameters": 
+  {
     "learning_rate": 0.0001,
-    "epochs": 15,
+    "epochs": 100,
     "batch_size": 4,
-    "loss_f": "mse",
+    "loss_f": "bce",
     "optimizer": "adam",
     "val_split": 0.2,
     "weight_decay": 0.01,
@@ -19,7 +21,7 @@
     "scheduler": false,
     "scaler": false,
     "gradient_accumulation": 1,
-    "early_stopping": 5,
+    "early_stopping": 10,
     "epoch_sizing": 1.0,
     "model_output": "logits"
   }

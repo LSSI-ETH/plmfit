@@ -14,7 +14,7 @@ echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
 
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
-module load cuda/12.1.1 ninja/1.10.2
+module load cuda/12.1.1
 
 nvcc --version
 nvidia-smi
@@ -24,12 +24,12 @@ NVIDIA_SMI_PID=$!
 
 while true; do
   myjobs -j $SLURM_JOBID >> ${11}/task_monitor.log 2>&1
-  sleep 10
+  sleep 1
 done &
 CPU_FREE_PID=$!
 
 srun python3 plmfit --function $1 --ft_method $2 --target_layers $3 --head_config $4 \
         --data_type $5 --split $6 --plm $7 --layer $8 --reduction $9 \
-        --output_dir ${10} --experiment_dir ${11} --experiment_name ${12} --gpus ${13} --nodes ${14} --beta True --experimenting ${15}
+        --output_dir ${10} --experiment_dir ${11} --experiment_name ${12} --gpus ${13} --nodes ${14} --beta True --experimenting ${15} --zeroed True
 kill $NVIDIA_SMI_PID
 kill $CPU_FREE_PID
