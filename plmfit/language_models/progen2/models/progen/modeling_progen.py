@@ -733,7 +733,14 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         torch.cuda.empty_cache()
 
     def trim_model(self, layer_to_use):
-        self.transformer.h = nn.ModuleList(list(self.transformer.h.children())[:layer_to_use + 1])
+        # Step 1: Keep the layers you want
+        kept_layers = list(self.transformer.h.children())[:layer_to_use + 1]
+
+        # Step 2: Delete the original ModuleList to remove references
+        del self.transformer.h
+
+        # Step 3: Reassign the kept layers back to self.transformer.h
+        self.transformer.h = nn.ModuleList(kept_layers)
     
     def forward(
         self,
