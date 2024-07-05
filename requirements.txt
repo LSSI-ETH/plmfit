@@ -1,5 +1,8 @@
-torch>=2.1
+torch==2.2.1
+accelerate==0.27.2
+libaio
 torchmetrics
+torchvision
 pandas
 matplotlib
 numpy
@@ -10,10 +13,10 @@ scikit-learn
 seaborn
 h5py
 lxml
-urllib3==1.26.6
+urllib3
 pyfaidx
 antiberty
-peft
+peft==0.8.2
 PyYAML
 requests
 psutil
@@ -24,7 +27,9 @@ botocore
 boto3
 paramiko
 bayesian-optimization
-lightning
-deepspeed
+lightning==2.2.1
+deepspeed==0.14.0
 Bio
 python-dotenv
+tensorboard
+esm
