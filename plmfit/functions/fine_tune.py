@@ -16,11 +16,10 @@ def fine_tune(args, logger):
 
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    if args.experimenting == "True": data = data.sample(100)
+    # if args.experimenting == "True": data = data.sample(100)
     
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
     split = None if args.split == 'sampled' and 'sampled' not in data else data.get(args.split)
-
     model = utils.init_plm(args.plm, logger, task=task)
     assert model != None, 'Model is not initialized'
 
@@ -50,6 +49,9 @@ def fine_tune(args, logger):
     model = LightningModel(model.py_model, training_params, plmfit_logger=logger, log_interval=100, experimenting=model.experimenting)
     lightning_logger = TensorBoardLogger(save_dir=logger.base_dir, version=0, name="lightning_logs")
 
+    # TODO make this through the configuration defined
+    if args.data_type == 'gb1' and args.split == 'one_vs_rest': model.track_validation_after = 10
+    
     strategy = DeepSpeedStrategy(
         stage=3,
         offload_optimizer=True,
@@ -59,7 +61,6 @@ def fine_tune(args, logger):
         loss_scale_window = 2000,
         min_loss_scale = 0.25
     )
-
     devices = args.gpus if torch.cuda.is_available() else 1
     strategy = strategy if torch.cuda.is_available() else 'auto'
 
@@ -79,9 +80,10 @@ def fine_tune(args, logger):
     )
     if torch.cuda.is_available(): estimate_zero3_model_states_mem_needs_all_live(model, num_gpus_per_node=int(args.gpus), num_nodes=1)
 
+    model.train()
     trainer.fit(model, data_loaders['train'], data_loaders['val'])
 
-    if torch.cuda.is_available(): model = convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
+    if torch.cuda.is_available(): convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
 
     loss_plot = data_explore.create_loss_plot(json_path=f'{logger.base_dir}/{logger.experiment_name}_loss.json')
     logger.save_plot(loss_plot, "training_validation_loss")
