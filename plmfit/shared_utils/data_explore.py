@@ -354,7 +354,7 @@ def evaluate_classification(model, dataloaders_dict, device, model_output='defau
     y_pred_list = []
     y_test_list = []
     with torch.no_grad():
-        for inputs, labels in dataloaders_dict['test']:
+        for inputs, labels, _ in dataloaders_dict['test']:
             inputs, labels = inputs.to(device), labels.to(device)
             if model_output == 'default':
                 outputs = model(inputs).squeeze()
@@ -404,7 +404,7 @@ def evaluate_regression(model, dataloaders_dict, device, model_output='default')
     y_pred_list = []
     y_test_list = []
     with torch.no_grad():
-        for inputs, labels in dataloaders_dict['test']:
+        for inputs, labels, _ in dataloaders_dict['test']:
             inputs, labels = inputs.to(device), labels.to(device)
             if model_output == 'default':
                 outputs = model(inputs).squeeze()
