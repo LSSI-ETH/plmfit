@@ -1,11 +1,2 @@
 function	ft_method	target_layers	data_type	split	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-fine_tuning	lora	all	gb1	one_vs_rest	esm2_t48_15B_UR50D	linear	regression	gb1_lora_linear_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	rtx_3090	70g	1	4	False
-fine_tuning	lora	all	gb1	one_vs_rest	esm2_t48_15B_UR50D	linear	regression	gb1_lora_linear_head_config.json	first	bos	/cluster/scratch/estamkopoulo	1	rtx_3090	70g	1	4	False
-fine_tuning	lora	all	gb1	one_vs_rest	esm2_t48_15B_UR50D	linear	regression	gb1_lora_linear_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	1	rtx_3090	70g	1	4	False
-fine_tuning	lora	all	gb1	one_vs_rest	esm2_t48_15B_UR50D	linear	regression	gb1_lora_linear_head_config.json	quarter1	bos	/cluster/scratch/estamkopoulo	1	rtx_3090	70g	1	4	False
-fine_tuning	lora	all	gb1	one_vs_rest	esm2_t48_15B_UR50D	linear	regression	gb1_lora_linear_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	1	rtx_3090	70g	1	8	False
-fine_tuning	lora	all	gb1	one_vs_rest	esm2_t48_15B_UR50D	linear	regression	gb1_lora_linear_head_config.json	middle	bos	/cluster/scratch/estamkopoulo	1	rtx_3090	70g	1	6	False
-fine_tuning	lora	all	gb1	one_vs_rest	esm2_t48_15B_UR50D	linear	regression	gb1_lora_linear_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	1	a100-pcie-40gb	70g	1	12	False
-fine_tuning	lora	all	gb1	one_vs_rest	esm2_t48_15B_UR50D	linear	regression	gb1_lora_linear_head_config.json	quarter3	bos	/cluster/scratch/estamkopoulo	1	a100-pcie-40gb	70g	1	12	False
-fine_tuning	lora	all	gb1	one_vs_rest	esm2_t48_15B_UR50D	linear	regression	gb1_lora_linear_head_config.json	last	mean	/cluster/scratch/estamkopoulo	2	a100-pcie-40gb	70g	1	16	False
-fine_tuning	lora	all	gb1	one_vs_rest	esm2_t48_15B_UR50D	linear	regression	gb1_lora_linear_head_config.json	last	bos	/cluster/scratch/estamkopoulo	2	a100-pcie-40gb	70g	1	16	False
+fine_tuning	lora	last	meltome	mixed	esm2_t33_650M_UR50D	linear	regression	meltome_lora_last_linear_head_config.json	last	mean	/cluster/scratch/estamkopoulo	2	rtx_4090	12g	1	12	False

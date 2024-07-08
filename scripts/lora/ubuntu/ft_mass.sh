@@ -15,11 +15,6 @@ export RANK=$SLURM_PROCID
 echo "JOB ID: $SLURM_JOBID"
 echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
 
-# export NVCC_APPEND_FLAGS='-allow-unsupported-compiler'
-# export CPPFLAGS=-I/cluster/software/stacks/2024-05/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-13.2.0/python-3.9.18-za4u232vg4ja3l2sons5ynayjmojbugb/include/
-# export C_INCLUDE_PATH='/cluster/software/stacks/2024-05/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-13.2.0/python-3.9.18-za4u232vg4ja3l2sons5ynayjmojbugb/include/python3.9'
-# export CPATH='/cluster/software/stacks/2024-05/spack/opt/spack/linux-ubuntu22.04-x86_64_v3/gcc-13.2.0/python-3.9.18-za4u232vg4ja3l2sons5ynayjmojbugb/include/python3.9:$CPATH'
-
 module load eth_proxy
 module load stack/2024-06 gcc/12.2.0
 module load python/3.11.6 cuda/12.1.1 ninja/1.11.1
