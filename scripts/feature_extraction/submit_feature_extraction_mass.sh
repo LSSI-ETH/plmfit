@@ -24,6 +24,6 @@ do
          --gres=gpumem:${gres} \
          --time="${run_time}:00:00" \
          --nice=1 \
-         scripts/feature_extraction/ray_tuning_mass.sh \
+         scripts/feature_extraction/feature_extraction_mass.sh \
          "$function" "$ft_method" "$head_config" "$ray_tuning" "$data_type" "$split" "$plm" "$layer" "$reduction" "$output_dir" "$experiment_dir" "$experiment_name" "$gpus"
 done
