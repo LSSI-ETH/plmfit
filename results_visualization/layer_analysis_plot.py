@@ -87,11 +87,11 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_fe, axes1.flatten(
 # Set common x-axis label for Feature Extraction plots
 fig1.text(0.5, 0, 'Layers Used', ha='center', va='center')
 
-# Create a single legend below the subplots
+# Create a single legend below the subplots for Feature Extraction
 handles, labels = axes1[0].get_legend_handles_labels()
 # Filter out the dictionary name from labels
 filtered_labels = [label.split(' - ')[0] if 'Baseline' not in label else label for label in labels]
-fig1.legend(handles, filtered_labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=len(filtered_labels), frameon=False)
+fig1.legend(handles, filtered_labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=len(filtered_labels), fontsize='large', frameon=False)
 
 plt.tight_layout()
 plt.show()
@@ -117,8 +117,7 @@ fig2.text(0.5, 0, 'Layers Used', ha='center', va='center')
 
 # Create a single legend for LORA plots
 handles, labels = axes2[0].get_legend_handles_labels()
-fig2.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=len(labels),  frameon=False)
-
+fig2.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=len(labels), fontsize='large', frameon=False)
 
 plt.tight_layout()
 plt.show()
@@ -143,8 +142,7 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_adapters, axes3.fl
 fig3.text(0.5, 0, 'Layers Used', ha='center', va='center')
 
 handles, labels = axes3[0].get_legend_handles_labels()
-fig3.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=len(labels),  frameon=False)
-
+fig3.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=len(labels), fontsize='large', frameon=False)
 
 plt.tight_layout()
 plt.show()
