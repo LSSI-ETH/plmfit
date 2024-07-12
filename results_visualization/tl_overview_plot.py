@@ -1,7 +1,7 @@
 import results_visualization.results_matrices as results_matrices
 import matplotlib.pyplot as plt
 import numpy as np
-
+import pandas as pd
 # Index labeling
 index_tl_techniques = {0: 'FE', 1: 'LoRA', 2: 'LoRA-', 3: 'Adapters', 4: 'Adapters-'}
 
@@ -40,7 +40,6 @@ dict_names = [
     'meltome_mixed_dict'
 ]
 
-# Create subplots
 fig, axes = plt.subplots(nrows=1, ncols=5, figsize=(25, 5), sharey=True)
 
 # Plot each dataset
@@ -61,20 +60,82 @@ for ax, data, baseline, name in zip(axes, datasets, baselines, dict_names):
     
     ax.set_xticks(range(len(index_tl_techniques)))
     ax.set_xticklabels([index_tl_techniques[i] for i in range(len(index_tl_techniques))])
-    ax.set_xlabel('Techniques')
     ax.grid(True)
     ax.set_title(name.replace('_', ' ').capitalize())
 
+# Remove x-labels for each subplot
+for ax in axes:
+    ax.set_xlabel('')
+
 # Add a single legend below the subplots
 handles, labels = ax.get_legend_handles_labels()
-fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.15), ncol=len(labels), fontsize='large', frameon=False)
+fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=len(labels), fontsize='large', frameon=False)
 
-# Set common y-axis label and title
-fig.text(0.5, 0.04, 'Techniques', ha='center', va='center')
-fig.text(0.04, 0.5, 'Values', ha='center', va='center', rotation='vertical')
-fig.suptitle('Scatter Plot of Protein Language Models Performance with Noise', y=1.02)
+# Set common y-axis label
+fig.text(0, 0.5, 'Evaluation', ha='center', va='center', rotation='vertical')
 
 plt.tight_layout()
 plt.show()
 
 
+
+# Custom colors for legend and bars
+custom_colors = {
+    'Baseline': 'green',
+    'FE': 'gray',
+    'LoRA': 'brown',
+    'LoRA-': 'lightcoral',
+    'Adapters': 'peru',
+    'Adapters-': 'peachpuff'
+}
+# Plotting
+fig, axes = plt.subplots(nrows=1, ncols=len(datasets), figsize=(20, 5), sharey=True)
+
+for ax, data, baseline, dict_name in zip(axes, datasets, baselines, dict_names):
+    # Extracting data into a DataFrame
+    plot_data = []
+    models = list(data.keys())
+    for model in models:
+        for i, value in enumerate(data[model]):
+            plot_data.append([model, index_tl_techniques[i], value])
+
+    df = pd.DataFrame(plot_data, columns=['Model', 'Technique', 'Value'])
+
+    # Prepare data for plotting
+    num_models = len(models)
+    num_techniques = len(index_tl_techniques)
+    bar_width = 0.2  # Width of each bar
+    bar_positions = np.arange(num_models) * 1.5  # Positions for the bars, multiplied by 1.5 for separation
+
+    # Plotting
+    for i, technique in enumerate(index_tl_techniques.values()):
+        # Calculate x positions for bars in the group
+        x_positions = bar_positions + i * bar_width
+
+        # Select data for current technique
+        df_tech = df[df['Technique'] == technique]
+
+        # Plot bars for current technique with custom colors
+        ax.bar(x_positions, df_tech['Value'], width=bar_width, label=technique, alpha=0.7, color=custom_colors[technique])
+
+    # Plotting the baseline (green line)
+    ax.axhline(y=baseline, color='green', linestyle='--', label='Baseline')
+
+    # Set x-axis labels for each group of barplots (Protein Language Models)
+    ax.set_xticks(bar_positions + (num_techniques / 2 - 0.5) * bar_width)
+    ax.set_xticklabels(models, rotation=45, ha='right')
+
+    ax.set_xlabel('')
+
+    ax.set_title(dict_name.replace('_', ' ').capitalize())
+
+# Adding common y-axis label
+axes[0].set_ylabel('Values')
+
+# Combine legends into a single legend outside the subplots
+handles, labels = axes[-1].get_legend_handles_labels()
+fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=num_techniques + 1, frameon=False)
+
+# Adjust layout
+plt.tight_layout()
+plt.show()
