@@ -1,0 +1,15 @@
+{
+  "n_heads": 8,
+  "n_layers": 2,
+  "emb_dim": 16,
+  "d_hid": 64,
+  "dropout": 0.2,
+  "ed_cut_off": 5,
+  "lr": 0.001,
+  "batch_size": 16,
+  "head": "emb_sum",
+  "optimizer": "adam",
+  "sampler": "weighted",
+  "warmup": 0,
+  "scheduler": "attn_original"
+}
