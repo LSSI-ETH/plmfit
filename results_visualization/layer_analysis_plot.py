@@ -60,12 +60,13 @@ baselines = [
     results_matrices.meltome_mixed_dict['ohe_baseline']
 ]
 
+
 dict_names = [
-    'aav_sampled_dict',
-    'aav_one_vs_rest_dict',
-    'gb1_three_vs_rest_dict',
-    'gb1_one_vs_rest_dict',
-    'meltome_mixed_dict'
+    'AAV - sampled',
+    'AAV - one_vs_rest',
+    'GB1 - three_vs_rest',
+    'GB1 - one_vs_rest',
+    'Meltome - mixed'
 ]
 
 
@@ -79,22 +80,20 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_fe, axes1.flatten(
     # Plot baseline as green dotted line
     ax.axhline(y=baseline, color='green', linestyle='--', label='Baseline')
 
-    ax.set_title(f'{name.capitalize()} - Feature Extraction ')
+    ax.set_title(f'{name}',fontsize = 22)
     ax.set_xlabel('')
-    ax.set_ylabel('Performance Metric')
+    ax.set_xticklabels([])
+    ax.tick_params(axis='x', which='both', labelsize=17)
+    ax.tick_params(axis='y', which='both', labelsize=17)
+    ax.set_ylabel('Feature extracton - Performance',fontsize = 18)
     ax.legend().remove()  # Remove individual legend from subplot
 
 # Set common x-axis label for Feature Extraction plots
-fig1.text(0.5, 0, 'Layers Used', ha='center', va='center')
 
-# Create a single legend below the subplots
-handles, labels = axes1[0].get_legend_handles_labels()
-# Filter out the dictionary name from labels
-filtered_labels = [label.split(' - ')[0] if 'Baseline' not in label else label for label in labels]
-fig1.legend(handles, filtered_labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=len(filtered_labels), frameon=False)
+
 
 plt.tight_layout()
-plt.show()
+plt.savefig('results_visualization/fe_layer_analysis.png',bbox_inches='tight', dpi=300)
 
 # Create subplots for LORA
 fig2, axes2 = plt.subplots(nrows=1, ncols=5, figsize=(25, 5), sharey=True)
@@ -107,21 +106,18 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_lora, axes2.flatte
     # Plot baseline as green dotted line
     ax.axhline(y=baseline, color='green', linestyle='--', label='OHE - baseline')
 
-    ax.set_title(f'{name.capitalize()} - LoRA ')
+
     ax.set_xlabel('')
-    ax.set_ylabel('Performance Metric')
+    ax.set_xticklabels([])
+    ax.tick_params(axis='x', which='both', labelsize=17)
+    ax.tick_params(axis='y', which='both', labelsize=17)
+    ax.set_ylabel('LoRA - Performance',fontsize = 20)
     ax.legend().remove()  
 
-# Set common x-axis label for LORA plots
-fig2.text(0.5, 0, 'Layers Used', ha='center', va='center')
-
-# Create a single legend for LORA plots
-handles, labels = axes2[0].get_legend_handles_labels()
-fig2.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=len(labels),  frameon=False)
 
 
 plt.tight_layout()
-plt.show()
+plt.savefig('results_visualization/lora_layer_analysis.png',bbox_inches='tight', dpi=300)
 
 # Create subplots for Adapters
 fig3, axes3 = plt.subplots(nrows=1, ncols=5, figsize=(25, 5), sharey=True)
@@ -134,17 +130,19 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_adapters, axes3.fl
     # Plot baseline as green dotted line
     ax.axhline(y=baseline, color='green', linestyle='--', label='Baseline')
 
-    ax.set_title(f'{name.capitalize()} - Adapters ')
+    ax.tick_params(axis='x', which='both', labelsize=17)
+    ax.tick_params(axis='y', which='both', labelsize=17)
     ax.set_xlabel('')
+    ax.set_ylabel('Adapters - Performance',fontsize = 20)
     ax.legend().remove()  
 
 
 # Set common x-axis label for Adapters plots
-fig3.text(0.5, 0, 'Layers Used', ha='center', va='center')
+fig3.text(0.5, -0.02, ' % of Layers used', ha='center', va='center', fontsize = 14)
 
 handles, labels = axes3[0].get_legend_handles_labels()
-fig3.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=len(labels),  frameon=False)
+fig3.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.17), ncol=len(labels),  frameon=False,fontsize='16')
 
 
 plt.tight_layout()
-plt.show()
+plt.savefig('results_visualization/adapters_layer_analysis.png',bbox_inches='tight', dpi=300)

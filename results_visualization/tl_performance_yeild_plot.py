@@ -20,13 +20,12 @@ baselines = [
 ]
 
 dict_names = [
-    'aav_sampled_dict',
-    'aav_one_vs_rest_dict',
-    'gb1_three_vs_rest_dict',
-    'gb1_one_vs_rest_dict',
-    'meltome_mixed_dict'
+    'AAV - sampled',
+    'AAV - one_vs_rest',
+    'GB1 - three_vs_rest',
+    'GB1 - one_vs_rest',
+    'Meltome - mixed'
 ]
-
 
 # Prepare the data for plotting
 plot_data = []
@@ -58,9 +57,13 @@ for i, task in enumerate(dict_names):
         for pc in parts_positive['bodies']:
             pc.set_facecolor('green')
             pc.set_edgecolor('black')
+            pc.set_linewidth(1)  # Set edge linewidth to 1
             pc.set_alpha(0.7)
-        for part in ['cmedians', 'cbars', 'cmins', 'cmaxes']:
-            parts_positive[part].set_color('black')
+
+        # Annotate maximum value above violin plot
+        max_value = np.max(positive_data)
+        ax.text(i, max_value + 0.5, f'{max_value:.2f}%', ha='center', va='bottom', color='green', fontsize=10)
+        
         legend_labels.append('Increase')
     
     if not negative_data.empty:
@@ -68,20 +71,32 @@ for i, task in enumerate(dict_names):
         for pc in parts_negative['bodies']:
             pc.set_facecolor('red')
             pc.set_edgecolor('black')
+            pc.set_linewidth(1)  # Set edge linewidth to 1
             pc.set_alpha(0.7)
-        for part in ['cmedians', 'cbars', 'cmins', 'cmaxes']:
-            parts_negative[part].set_color('black')
+            
+        # Annotate minimum value below violin plot
+        min_value = np.min(negative_data)
+        ax.text(i, min_value - 0.9, f'{min_value:.2f}%', ha='center', va='top', color='red', fontsize=10)
+        
         legend_labels.append('Decrease')
-
-# Draw a black dotted line at y=0
-#ax.axhline(y=0, color='black', linestyle='--')
-
+    
+    # Customizing lines (mean, median, max, min)
+    for partname in ['cbars', 'cmins', 'cmaxes', 'cmedians']:
+        if not positive_data.empty:
+            vp = parts_positive[partname]
+            vp.set_edgecolor('black')  # Set edge color to black
+            vp.set_linewidth(0.5)  # Set linewidth to 0.5
+        if not negative_data.empty:
+            vn = parts_negative[partname]
+            vn.set_edgecolor('black')  # Set edge color to black
+            vn.set_linewidth(0.5)  # Set linewidth to 0.5
+            
 # Set labels and title
-ax.set_xlabel('Tasks')
-ax.set_ylabel('Percentage Difference from Baseline')
-ax.set_title('Percentage Change from Baseline across Tasks')
+#ax.set_xlabel('Tasks')
+ax.set_ylabel('% difference in performance',fontsize=15)
+ax.set_title(' Per task TL performance yield compared to OHE baselines' ,fontsize=20)
 ax.set_xticks(positions)
-ax.set_xticklabels([name.replace('_', ' ').capitalize() for name in dict_names])
+ax.set_xticklabels([name for name in dict_names],fontsize=14)
 
 # Adding legend with increased font size
 green_patch = plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='green', markersize=10, label='Increase')
@@ -89,4 +104,7 @@ red_patch = plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='red', m
 ax.legend(handles=[green_patch, red_patch], loc='upper left', fontsize='large')
 
 plt.tight_layout()
-plt.show()
+plt.savefig('results_visualization/violin_plot.png', dpi=300)
+
+
+

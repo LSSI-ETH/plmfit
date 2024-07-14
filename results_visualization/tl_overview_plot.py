@@ -33,12 +33,13 @@ baselines = [
 
 # Names for each dataset
 dict_names = [
-    'aav_sampled_dict',
-    'aav_one_vs_rest_dict',
-    'gb1_three_vs_rest_dict',
-    'gb1_one_vs_rest_dict',
-    'meltome_mixed_dict'
+    'AAV - sampled',
+    'AAV - one_vs_rest',
+    'GB1 - three_vs_rest',
+    'GB1 - one_vs_rest',
+    'Meltome - mixed'
 ]
+
 
 fig, axes = plt.subplots(nrows=1, ncols=5, figsize=(25, 5), sharey=True)
 
@@ -56,12 +57,12 @@ for ax, data, baseline, name in zip(axes, datasets, baselines, dict_names):
         ax.scatter(x_noise, values, label=model_name, color=color, marker=marker, s=100)  # Increased marker size
     
     # Plot the baseline
-    ax.axhline(y=baseline, color='green', linestyle='--', label='Baseline')
+    ax.axhline(y=baseline, color='green', linestyle='--', label='OHE baseline')
     
     ax.set_xticks(range(len(index_tl_techniques)))
-    ax.set_xticklabels([index_tl_techniques[i] for i in range(len(index_tl_techniques))])
+    ax.set_xticklabels([index_tl_techniques[i] for i in range(len(index_tl_techniques))],fontsize = 13)
     ax.grid(True)
-    ax.set_title(name.replace('_', ' ').capitalize())
+    ax.set_title(name,fontsize = 20)
 
 # Remove x-labels for each subplot
 for ax in axes:
@@ -69,13 +70,13 @@ for ax in axes:
 
 # Add a single legend below the subplots
 handles, labels = ax.get_legend_handles_labels()
-fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=len(labels), fontsize='large', frameon=False)
+fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.2), ncol=len(labels), fontsize='16', frameon=False)
 
 # Set common y-axis label
-fig.text(0, 0.5, 'Evaluation', ha='center', va='center', rotation='vertical')
+fig.text(0, 0.5, 'Performance', ha='center', va='center', rotation='vertical',fontsize = 16)
 
 plt.tight_layout()
-plt.show()
+plt.savefig('results_visualization/til_overview.png',bbox_inches='tight', dpi=300)
 
 
 
@@ -89,7 +90,7 @@ custom_colors = {
     'Adapters-': 'peachpuff'
 }
 # Plotting
-fig, axes = plt.subplots(nrows=1, ncols=len(datasets), figsize=(20, 5), sharey=True)
+fig, axes = plt.subplots(nrows=1, ncols=len(datasets), figsize=(25, 5), sharey=True)
 
 for ax, data, baseline, dict_name in zip(axes, datasets, baselines, dict_names):
     # Extracting data into a DataFrame
@@ -119,23 +120,23 @@ for ax, data, baseline, dict_name in zip(axes, datasets, baselines, dict_names):
         ax.bar(x_positions, df_tech['Value'], width=bar_width, label=technique, alpha=0.7, color=custom_colors[technique])
 
     # Plotting the baseline (green line)
-    ax.axhline(y=baseline, color='green', linestyle='--', label='Baseline')
+    ax.axhline(y=baseline, color='green', linestyle='--', label='OHE - baseline')
 
     # Set x-axis labels for each group of barplots (Protein Language Models)
     ax.set_xticks(bar_positions + (num_techniques / 2 - 0.5) * bar_width)
     ax.set_xticklabels(models, rotation=45, ha='right')
-
+    ax.set_title(name,fontsize = 20)
     ax.set_xlabel('')
 
-    ax.set_title(dict_name.replace('_', ' ').capitalize())
+    #ax.set_title(dict_name.replace('_', ' ').capitalize())
 
 # Adding common y-axis label
-axes[0].set_ylabel('Values')
+axes[0].set_ylabel('Performance', fontsize = 16)
 
 # Combine legends into a single legend outside the subplots
 handles, labels = axes[-1].get_legend_handles_labels()
-fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.1), ncol=num_techniques + 1, frameon=False)
+fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.2), ncol=num_techniques + 1, frameon=False,fontsize='16')
 
 # Adjust layout
 plt.tight_layout()
-plt.show()
+plt.savefig('results_visualization/perf_trainable.png', bbox_inches='tight',dpi=300)
