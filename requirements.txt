@@ -33,3 +33,4 @@ Bio
 python-dotenv
 tensorboard
 esm
+blosum

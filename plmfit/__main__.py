@@ -24,6 +24,11 @@ def run_onehot(args, logger):
     from plmfit.functions import onehot
     onehot(args, logger)
 
+# TODO: Lightning implementation
+def run_blosum(args, logger):
+    from plmfit.functions import blosum
+    blosum(args, logger)
+
 def run_predict(args, logger):
     raise NotImplementedError("Function not supported (yet)")
 
@@ -77,6 +82,7 @@ def main():
             if args.ft_method == 'feature_extraction': run_feature_extraction(args, logger) # TODO: Add this to fine tuning function as well
             else: run_fine_tuning(args, logger)
         elif args.function == 'one_hot': run_onehot(args, logger)
+        elif args.function == 'blosum': run_blosum(args, logger)
         elif args.function == 'predict' or args.function == 'generate': run_predict(args, logger)
         else: raise NotImplementedError('Function not supported (yet)')
         logger.log("\n\nEnd of process", force_send=True)
