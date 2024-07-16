@@ -248,11 +248,13 @@ def load_transformer_tokenizer(model_name, tokenizer):
 def one_hot_encode(seqs):
     return torch.tensor([0])
 
-def blosum62_encode(sequences, pad_to_length):
+def blosum62_encode(sequences, pad_to_length, logger=None):
     # Load the BLOSUM62 matrix from your custom library
     BLOSUM62 = bl.BLOSUM(62)
     encoded_sequences = []
+    i = 0
     for seq in sequences:
+        i = i + 1
         encoded_seq = []
         for acid in seq:
             # Fetch the BLOSUM62 row for the current amino acid
@@ -274,7 +276,8 @@ def blosum62_encode(sequences, pad_to_length):
             padding = np.zeros((row_padding, pad_to_length))
             # Append padded rows to the encoded sequence
             encoded_seq = np.vstack((encoded_seq, padding))
-        
+        if logger is not None and i % 1000 == 0:
+            logger.log(f'Encoded sequence {i}')
         encoded_sequences.append(encoded_seq)
 
     return encoded_sequences

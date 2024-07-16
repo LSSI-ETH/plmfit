@@ -1,3 +1,2 @@
 function	data_type	split	head	task	head_config	ray_tuning	output_dir	gpus	gres	mem-per-cpu	nodes
-one_hot	rbd	1_vs_many	linear	classification	linear_classification_head_config.json	True	/cluster/scratch/estamkopoulo	1	10g	80g	1
-one_hot	rbd	1_vs_many	mlp	classification	mlp_classification_head_config.json	True	/cluster/scratch/estamkopoulo	1	10g	80g	1
+blosum	aav	one_vs_many	linear	regression	mlp_head_config.json	True	/cluster/scratch/estamkopoulo	1	10g	400g	1

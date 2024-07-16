@@ -13,7 +13,7 @@ def blosum(args, logger):
     
     logger.log("Initializing BLOSUM62 encoding...")
     max_len = data['len'].max()
-    encs = utils.blosum62_encode(data['aa_seq'].values, pad_to_length=max_len)
+    encs = utils.blosum62_encode(data['aa_seq'].values, pad_to_length=max_len, logger=logger)
     encs = torch.tensor(encs, dtype=torch.float32)
     encs = encs.reshape(encs.shape[0], -1)
     logger.log(f"BLOSUM62 encoding completed!\nEncoded sequences shape: {encs.shape}")
