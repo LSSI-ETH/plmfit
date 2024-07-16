@@ -15,9 +15,10 @@ from tokenizers.processors import TemplateProcessing
 from torch.utils.data import Dataset
 from plmfit.models.pretrained_models import Antiberty, ESMFamily, ProGenFamily, ProteinBERTFamily, AnkhFamily
 from dotenv import load_dotenv 
+import blosum as bl
 
 load_dotenv() 
-path = os.getenv('DATA_DIR', './plmfit/plmfit')
+path = os.getenv('DATA_DIR', './plmfit')
 data_dir = f'{path}/data'
 config_dir = f'{path}/models/configurations'
 
@@ -246,6 +247,37 @@ def load_transformer_tokenizer(model_name, tokenizer):
 
 def one_hot_encode(seqs):
     return torch.tensor([0])
+
+def blosum62_encode(sequences, pad_to_length):
+    # Load the BLOSUM62 matrix from your custom library
+    BLOSUM62 = bl.BLOSUM(62)
+    encoded_sequences = []
+    for seq in sequences:
+        encoded_seq = []
+        for acid in seq:
+            # Fetch the BLOSUM62 row for the current amino acid
+            row = BLOSUM62[acid]
+            # Extract scores for the sequence from the row corresponding to each amino acid
+            encoded_row = [row.get(aa, 0) for aa in seq]  # default to 0 if pair not found
+            
+            # Pad the encoded row to ensure all rows have the same number of columns if the sequence is shorter
+            if len(encoded_row) < pad_to_length:
+                encoded_row = np.pad(encoded_row, (0, pad_to_length - len(encoded_row)), mode='constant', constant_values=0)
+            
+            encoded_seq.append(encoded_row)
+        
+        # Pad the encoded sequence if it has fewer rows than `pad_to_length`
+        if len(encoded_seq) < pad_to_length:
+            # Calculate padding needed for rows
+            row_padding = pad_to_length - len(encoded_seq)
+            # Create a padding of zeros for missing rows
+            padding = np.zeros((row_padding, pad_to_length))
+            # Append padded rows to the encoded sequence
+            encoded_seq = np.vstack((encoded_seq, padding))
+        
+        encoded_sequences.append(encoded_seq)
+
+    return encoded_sequences
 
 
 def categorical_encode(seqs, tokenizer, max_len, add_bos=False, add_eos=False, logger = None, model_name='progen2'):
