@@ -1,2 +1,2 @@
 function	ft_method	target_layers	data_type	split	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-fine_tuning	lora	last	meltome	mixed	esm2_t33_650M_UR50D	linear	regression	meltome_lora_last_linear_head_config.json	last	mean	/cluster/scratch/estamkopoulo	2	rtx_4090	12g	1	12	False
+fine_tuning	lora	last	meltome	mixed	esm2_t48_15B_UR50D	linear	regression	meltome_lora_last_linear_head_config.json	middle	bos	/cluster/scratch/estamkopoulo	4	titan_rtx	30g	1	20	False

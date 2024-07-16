@@ -338,7 +338,7 @@ def categorical_encode(seqs, tokenizer, max_len, add_bos=False, add_eos=False, l
             if itr == 0 and logger is not None:
                 logger.log(f'First sequence tokens: {seq_tokens[0].tolist()}')
     elif 'esm' in model_name:
-        seq_tokens =  tokenizer.get_vocab()['<pad>'] * torch.ones((len(seqs) , max_len + 2) , dtype = int) ### Adding  to max_len because ESMTokenizer adds cls and eos tokens in the begging and the neding of aa_seq
+        seq_tokens =  tokenizer.get_vocab()['<pad>'] * torch.ones((len(seqs) , int(max_len) + 2) , dtype = int) ### Adding  to max_len because ESMTokenizer adds cls and eos tokens in the begging and the neding of aa_seq
         for itr , seq in enumerate(seqs):
             tok_seq = torch.tensor(tokenizer.encode(seq))
             seq_tokens[itr][:tok_seq.shape[0]] = tok_seq
