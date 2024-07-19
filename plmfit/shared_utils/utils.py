@@ -248,11 +248,13 @@ def load_transformer_tokenizer(model_name, tokenizer):
 def one_hot_encode(seqs):
     return torch.tensor([0])
 
-def blosum62_encode(sequences, pad_to_length):
+def blosum62_encode(sequences, pad_to_length, logger=None):
     # Load the BLOSUM62 matrix from your custom library
     BLOSUM62 = bl.BLOSUM(62)
     encoded_sequences = []
+    i = 0
     for seq in sequences:
+        i = i + 1
         encoded_seq = []
         for acid in seq:
             # Fetch the BLOSUM62 row for the current amino acid
@@ -274,7 +276,8 @@ def blosum62_encode(sequences, pad_to_length):
             padding = np.zeros((row_padding, pad_to_length))
             # Append padded rows to the encoded sequence
             encoded_seq = np.vstack((encoded_seq, padding))
-        
+        if logger is not None and i % 1000 == 0:
+            logger.log(f'Encoded sequence {i}')
         encoded_sequences.append(encoded_seq)
 
     return encoded_sequences
@@ -338,7 +341,7 @@ def categorical_encode(seqs, tokenizer, max_len, add_bos=False, add_eos=False, l
             if itr == 0 and logger is not None:
                 logger.log(f'First sequence tokens: {seq_tokens[0].tolist()}')
     elif 'esm' in model_name:
-        seq_tokens =  tokenizer.get_vocab()['<pad>'] * torch.ones((len(seqs) , max_len + 2) , dtype = int) ### Adding  to max_len because ESMTokenizer adds cls and eos tokens in the begging and the neding of aa_seq
+        seq_tokens =  tokenizer.get_vocab()['<pad>'] * torch.ones((len(seqs) , int(max_len) + 2) , dtype = int) ### Adding  to max_len because ESMTokenizer adds cls and eos tokens in the begging and the neding of aa_seq
         for itr , seq in enumerate(seqs):
             tok_seq = torch.tensor(tokenizer.encode(seq))
             seq_tokens[itr][:tok_seq.shape[0]] = tok_seq
