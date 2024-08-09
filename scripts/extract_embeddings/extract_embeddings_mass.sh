@@ -6,9 +6,11 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --time=16:00:00
 
+
 export DATA_DIR='/cluster/home/srenwick/plmfit_workspace/plmfit/plmfit'
-module load eth_proxy
-module load gcc/8.2.0  python_gpu/3.11.2
+module load stack/2024-05
+module load gcc/13.2.0
+module load python/3.9.18_cuda
 
 nvcc --version
 nvidia-smi
