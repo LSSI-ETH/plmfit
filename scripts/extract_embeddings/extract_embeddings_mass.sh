@@ -6,7 +6,7 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --time=16:00:00
 
-export DATA_DIR='/cluster/home/estamkopoulo/plmfit_workspace/plmfit/plmfit'
+export DATA_DIR='/cluster/home/srenwick/plmfit_workspace/plmfit/plmfit'
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
 
