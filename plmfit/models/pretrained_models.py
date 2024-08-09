@@ -427,6 +427,8 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                                 for pos in mut_pos[1:]:
                                     out[lay][:,f_pos] = torch.add(out[lay][:,f_pos],out[lay][:,pos])
                                 embs[j,k,i : i+ batch_size, : ] = torch.div(out[lay][:,f_pos],n_pos)
+                            elif reduction[k] == 'none':
+                                embs[j,k, i : i+batch_size, : , : ] = out[lay]
                             else:
                                 raise 'Unsupported reduction option'
                     del out
