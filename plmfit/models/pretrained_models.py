@@ -464,6 +464,10 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         start_enc_time = time.time()
         self.logger.log(f' Encoding {data.shape[0]} sequences....')
         encs = self.categorical_encode(data['aa_seq'].values, self.tokenizer,max(data['len'].values)) 
+        
+        # To reshape embs when unpooled
+        max_seq_len = max(data['len'].values) + 2 # Includes bos and eos
+        
         self.logger.log(f' Encoding completed! {time.time() -  start_enc_time:.4f}s')
         encs = encs.to(device)
         
@@ -477,13 +481,23 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         layer[layer == "first"] = 1
         layer[layer == "middle"] = self.no_layers//2 + 1
         layer = layer.astype(int)
+        self.logger.log(f'Im right before the first reduction section')
         reduction = reduction.split("_")
+        self.logger.log(f'reduction variable = {reduction}')
         
-        embs = torch.zeros(len(layer),len(reduction),len(seq_dataset), self.emb_layers_dim).to(device) ### FIX: Find embeddings dimension either hard coded for model or real the pytorch model of ProGen. Maybe add reduction dimension as well
+        if 'none' in reduction:
+            self.logger.log('Im starting to make the embs variable')
+            embs = torch.zeros(len(layer),len(reduction),len(seq_dataset), max_seq_len, self.emb_layers_dim)
+            #embs = torch.zeros(len(seq_dataset), self.emb_layers_dim, max_seq_len).to(device) #Testing to see if less dimensions help reduce the size
+            self.logger.log('I made the empty embs torch')
+        else:
+            embs = torch.zeros(len(layer),len(reduction),len(seq_dataset), self.emb_layers_dim).to(device) ### FIX: Find embeddings dimension either hard coded for model or real the pytorch model of ProGen. Maybe add reduction dimension as well
         
         self.py_model = self.py_model.to(device)
         self.py_model.eval()
         
+        self.logger.log('Im about to go into the big loop')
+
         i = 0
         with torch.no_grad():
             with torch.cuda.amp.autocast(enabled= fp16):
@@ -516,7 +530,10 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                                     pooled_emb = torch.mean(out[lay][seq, list(indices)], dim=0)
                                     pooled_batch.append(pooled_emb) #TODO: Check what happens when there are no mutations
                                 embs[j,k,i : i+ batch_size, : ] = torch.stack(pooled_batch, dim=0)
-                                    
+                            elif reduction[k] == 'none':
+                                #self.logger.log(f"embs: {embs.shape}, out[lay]: {out[lay].shape}, embs_section: {embs[j,k, i : i+batch_size, : , : ].shape}")
+                                #self.logger.log(f'Embedding {i+batch_size}/{len(seq_dataset)}')
+                                embs[j,k, i : i+batch_size, : , : ] = out[lay]
                             else:
                                 raise 'Unsupported reduction option'
                     del out
@@ -528,10 +545,15 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         for j in range(len(layer)):
             lay = layer[j]
             for k in range(len(reduction)):
-                tmp = embs[j,k].detach().clone()
-                torch.save(tmp,f'{self.logger.base_dir}/{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt')
-                self.logger.log(f'Saved embeddings ({tmp.shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt" ({time.time() - start_enc_time:.2f}s)')
-                del tmp
+                
+                if reduction[k] == 'none':
+                    torch.save(embs[j,k],f'{self.logger.base_dir}/{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt')
+                else:
+                    tmp = embs[j,k].detach().clone()
+                    torch.save(tmp,f'{self.logger.base_dir}/{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt')
+                    del tmp
+                self.logger.log(f'Saved embeddings ({embs[j,k].shape[1]}-d) as "{data_type}_{self.version}_embs_layer{layer[j]}_{reduction[k]}.pt" ({time.time() - start_enc_time:.2f}s)')
+                
         return
 
     

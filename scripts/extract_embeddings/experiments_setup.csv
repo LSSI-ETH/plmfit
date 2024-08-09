@@ -1,2 +1,2 @@
 function	data_type	plm	reduction	layer	output_dir	gpus	gres	mem-per-cpu
-extract_embeddings	rbd	esm2_t33_650M_UR50D	mean	middle	/cluster/scratch/srenwick	1	80g	100ryPg
+extract_embeddings	JH8rbd	esm2_t33_650M_UR50D	none	middle	/cluster/scratch/srenwick	1	24g	200g
