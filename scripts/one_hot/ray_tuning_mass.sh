@@ -5,8 +5,8 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gpus-per-node=1
-#SBATCH --gres=gpumem:10g
-#SBATCH --time=20:00:00          # total run time limit (HH:MM:SS)
+#SBATCH --gres=gpumem:24g
+#SBATCH --time=24:00:00          # total run time limit (HH:MM:SS)
 
 module load eth_proxy
 module load stack/2024-06 gcc/12.2.0

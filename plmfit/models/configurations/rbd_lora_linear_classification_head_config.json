@@ -10,7 +10,7 @@
   "training_parameters": 
   {
     "learning_rate": 0.0001,
-    "epochs": 50,
+    "epochs": 150,
     "batch_size": 4,
     "loss_f": "bce",
     "optimizer": "adam",
@@ -21,7 +21,7 @@
     "scheduler": false,
     "scaler": false,
     "gradient_accumulation": 1,
-    "early_stopping": 50,
+    "early_stopping": 150,
     "epoch_sizing": 1.0,
     "model_output": "logits"
   }

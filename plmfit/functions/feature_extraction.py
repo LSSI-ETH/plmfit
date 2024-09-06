@@ -11,6 +11,7 @@ def feature_extraction(args, logger):
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
     split = None if args.split == 'sampled' and 'sampled' not in data else data.get(args.split)
     head_config = utils.load_config(args.head_config)
+    weights = None if args.weights is None else data.get(args.weights)
 
     ### TODO : Extract embeddings if do not exist
     embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings', data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
@@ -37,6 +38,7 @@ def feature_extraction(args, logger):
             scores=scores,
             logger=logger,
             split=split,
+            weights=weights,
             experiment_dir=args.experiment_dir
         )
 
@@ -45,7 +47,8 @@ def feature_extraction(args, logger):
         embeddings=embeddings, 
         scores=scores,
         logger=logger,
-        split=split
+        split=split,
+        weights=weights
     )
 
 # def feature_extraction_lightning(config, args, logger, on_ray_tuning=False):
@@ -131,12 +134,12 @@ def feature_extraction(args, logger):
 #         logger.save_plot(fig, 'actual_vs_predicted')
 
 
-def runner(config, embeddings, scores, logger, split=None, on_ray_tuning=False, num_workers=0):
+def runner(config, embeddings, scores, logger, split=None, on_ray_tuning=False, num_workers=0, weights=None):
     head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
 
     training_params = head_config['training_parameters']
     data_loaders = utils.create_data_loaders(
-            embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=num_workers)
+            embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=num_workers, weights=weights)
      
     if not on_ray_tuning:
         logger.save_data(head_config, 'head_config')
@@ -157,7 +160,7 @@ def runner(config, embeddings, scores, logger, split=None, on_ray_tuning=False, 
 
     return final_loss
 
-def ray_tuning(function_to_run, config, embeddings, scores, logger, experiment_dir, split=None):
+def ray_tuning(function_to_run, config, embeddings, scores, logger, experiment_dir, split=None, weights=None):
 
     network_type = config['architecture_parameters']['network_type']
     trials = 500 if network_type == 'mlp' else 100
@@ -177,6 +180,7 @@ def ray_tuning(function_to_run, config, embeddings, scores, logger, experiment_d
         scores=scores,
         logger=logger,
         split=split, 
+        weights=weights,
         on_ray_tuning=True
     )
     

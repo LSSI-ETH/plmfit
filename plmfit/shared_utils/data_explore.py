@@ -362,14 +362,17 @@ def evaluate_classification(model, dataloaders_dict, device, model_output='defau
                 outputs = model(inputs).logits.squeeze()
             else:
                 raise f'Model output "{model_output}" not defined'
-            if outputs.dim() > 1:
-                outputs = outputs.squeeze()
-            if labels.dim() > 1:
-                labels = labels.squeeze()
-            y_pred = outputs
-            y_pred_list.extend(y_pred.detach().cpu().numpy())
-            y_test_list.extend(labels.detach().cpu().numpy())
+            # Ensure outputs and labels are at least 1D
+            outputs = outputs.squeeze()
+            labels = labels.squeeze()
 
+            # Use np.atleast_1d to ensure the arrays are at least 1D
+            y_pred_list.append(np.atleast_1d(outputs.detach().cpu().numpy()))
+            y_test_list.append(np.atleast_1d(labels.detach().cpu().numpy()))
+
+    y_pred_list = np.concatenate(y_pred_list).tolist()
+    y_test_list = np.concatenate(y_test_list).tolist()
+    
     # Calculate metrics
     acc = binary_accuracy(torch.tensor(y_test_list), torch.tensor(y_pred_list))
     roc_auc = roc_auc_score(y_test_list, y_pred_list)
@@ -388,13 +391,17 @@ def evaluate_classification(model, dataloaders_dict, device, model_output='defau
         "false_negatives": int(cm[1][0]),
         "true_positives": int(cm[1][1])
     }
-
+    
     # Log evaluation metrics
     eval_metrics = {
         "accuracy": acc.item(),
         "roc_auc": roc_auc,
         "mcc": mcc,
-        "confusion_matrix": cm_dict
+        "confusion_matrix": cm_dict,
+        "testing_data" : {
+            "y_test": y_test_list,
+            "y_pred": y_pred_list
+        }
     }
 
     return eval_metrics, fig, cm_fig, roc_auc_data

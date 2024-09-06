@@ -12,6 +12,7 @@ import psutil
 import os
 import json
 import plmfit.shared_utils.custom_loss_functions as custom_loss_functions
+import plmfit.shared_utils.utils as utils
 
 class FineTuner(ABC):
     def __init__(self, training_config, logger = None):
@@ -78,7 +79,7 @@ class FullRetrainFineTuner(FineTuner):
         utils.get_parameters(model.py_model, True)
         utils.get_parameters(model.head, True)
 
-    def train(self, model, dataloaders_dict, log_interval = -1, on_ray_tuning=False):
+    def train(self, model, dataloaders_dict, log_interval = -1, on_ray_tuning=False, blosum=False):
         if on_ray_tuning: self.logger.mute = True
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         memory_usage = psutil.virtual_memory()
@@ -136,6 +137,14 @@ class FullRetrainFineTuner(FineTuner):
                         batch_start_time = time.time()
                         optimizer.zero_grad()
                         input, labels = training_data
+                        if isinstance(labels, tuple):
+                            labels, weights = labels
+                            weights = weights.to(device)
+                        else:
+                            weights = None  # Assign None to weights if labels is not a tuple
+
+
+                        # if blosum: input = utils.blosum62_encode(input, pad_to_length=1024, logger=self.logger)
                         input = input.to(device)
                         labels = labels.to(device)
                         if self.model_output == 'default':
@@ -144,7 +153,12 @@ class FullRetrainFineTuner(FineTuner):
                             outputs = model(input).logits.squeeze(dim=1)
                         else:
                             raise f'Model output "{self.model_output}" not defined'
-                        loss = loss_function(outputs, labels)
+                        if weights is None:
+                            loss = loss_function(outputs, labels)
+                        else:
+                            entropy_loss = loss_function(reduction='none')
+                            loss = entropy_loss(outputs, labels)
+                            loss = (loss*weights).mean()
                         if phase == 'train':
                             loss.backward()
                             optimizer.step()

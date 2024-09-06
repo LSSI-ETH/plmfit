@@ -24,6 +24,6 @@
     "scaler": false,
     "gradient_accumulation": false,
     "epoch_sizing": false,
-    "early_stopping": 10
+    "early_stopping": 30
   }
 }

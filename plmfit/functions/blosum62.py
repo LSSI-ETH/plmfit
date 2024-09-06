@@ -6,7 +6,7 @@ from plmfit.models.hyperparameter_tuner import HyperTuner
 def blosum(args, logger):
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    # data = data[:100]
+    # data = data[:10000]
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
     split = None if args.split == 'sampled' and 'sampled' not in data else data.get(args.split)
     head_config = utils.load_config(args.head_config)
@@ -14,7 +14,6 @@ def blosum(args, logger):
     logger.log("Initializing BLOSUM62 encoding...")
     max_len = data['len'].max()
     encs = utils.blosum62_encode(data['aa_seq'].values, pad_to_length=max_len, logger=logger)
-    encs = torch.tensor(encs, dtype=torch.float32)
     encs = encs.reshape(encs.shape[0], -1)
     logger.log(f"BLOSUM62 encoding completed!\nEncoded sequences shape: {encs.shape}")
 
@@ -72,7 +71,7 @@ def runner(config, encodings, scores, logger, split=None, on_ray_tuning=False, n
     
     utils.set_trainable_parameters(pred_model)
     fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
-    final_loss = fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning)
+    final_loss = fine_tuner.train(pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning, blosum=True)
 
     return final_loss
 

@@ -7,14 +7,14 @@
 #SBATCH --time=70:00:00
 echo "JOB ID: $SLURM_JOBID"
 
-export HF_HOME='/cluster/scratch/dshlesin/'
-export HF_HUB_CACHE='/cluster/scratch/dshlesin/'
+export HF_HOME='/cluster/scratch/estamkopoulo/'
+export HF_HUB_CACHE='/cluster/scratch/estamkopoulo/'
 
 module load eth_proxy
 module load stack/2024-06 gcc/12.2.0
 module load python/3.11.6 cuda/12.1.1 ninja/1.11.1
-source /cluster/home/dshlesin/envs/myenv_plm/bin/activate
-export DATA_DIR='/cluster/scratch/dshlesin/Manuscript/plmfit/plmfit'
+
+export DATA_DIR='/cluster/home/estamkopoulo/plmfit_workspace/plmfit/plmfit'
 nvcc --version
 nvidia-smi
 nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used --format=csv -l 1 > ${7}/gpu_usage.log 2>&1 &

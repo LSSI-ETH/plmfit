@@ -39,6 +39,7 @@ class LightningModel(L.LightningModule):
 
         self.experimenting = experimenting
         self.track_validation_after = 0
+        self.track_training_loss = False
 
     def forward(self, input, **args):
         output = self.model(input, **args)
@@ -207,7 +208,7 @@ class LightningModel(L.LightningModule):
             self.plmfit_logger.log(f'(val) loss: {self.trainer.logged_metrics["val_loss_epoch"]:.4f}')
             self.plmfit_logger.log(f'(val) {self.metric_label}: {self.trainer.logged_metrics[f"val_{self.metric_label}_epoch"]:.4f}')
 
-        if self.trainer.logged_metrics["val_loss_epoch"] < self.best_val_loss and self.current_epoch >= self.track_validation_after:
+        if self.trainer.logged_metrics["val_loss_epoch"] < self.best_val_loss and self.current_epoch >= self.track_validation_after or self.track_validation_after == -1:
             self.best_val_loss = self.trainer.logged_metrics["val_loss_epoch"]
             self.trainer.save_checkpoint(f'{self.plmfit_logger.base_dir}/lightning_logs/best_model.ckpt')
             self.best_epoch = self.current_epoch

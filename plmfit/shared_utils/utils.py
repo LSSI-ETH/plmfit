@@ -54,7 +54,7 @@ def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2
         return None
 
 
-def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32, num_workers=0):
+def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32, num_workers=0, weights=None):
     """
     Create DataLoader objects for training, validation, and testing.
 
@@ -77,17 +77,31 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
                 dataset, scores, test_size=test_size, random_state=42)
         X_train, X_val, y_train, y_val = train_test_split(
                 X_train, y_train, test_size=validation_size/(1-test_size), random_state=42)
-    
+
+        if weights is not None:
+            # Splitting with weights for the initial train-test split
+            X_train, X_test, y_train, y_test, weights_train, weights_test = train_test_split(
+                    dataset, scores, weights, test_size=test_size, random_state=42)
+            
+            # Splitting with weights for the train-validation split
+            X_train, X_val, y_train, y_val, weights_train, weights_val = train_test_split(
+                    X_train, y_train, weights_train, test_size=validation_size/(1-test_size), random_state=42)
+            
     else:
         # Use the provided split
         X_train, X_val, X_test = dataset[split == 'train'], dataset[split == 'validation'], dataset[split == 'test']
         y_train, y_val, y_test = scores[split == 'train'], scores[split == 'validation'], scores[split == 'test']
+        if weights is not None: weights_train, weights_val, weights_test = weights[split == 'train'], weights[split == 'validation'], weights[split == 'test']
 
         # Check if the validation set is empty and split the training data if necessary
         if X_val.shape[0] == 0 or y_val.shape[0] == 0:
             X_train, X_val, y_train, y_val = train_test_split(
                 X_train, y_train, test_size=validation_size, random_state=42
             )
+            if weights is not None:
+                X_train, X_val, y_train, y_val, weights_train, weights_val = train_test_split(
+                    X_train, y_train, weights_train, test_size=validation_size, random_state=42
+                )
 
     # Scale the features if scaler is provided
     if scaler:
@@ -107,10 +121,20 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
     y_val = convert_or_clone_to_tensor(y_val, dtype=torch.float32)
     y_test = convert_or_clone_to_tensor(y_test, dtype=torch.float32)
 
+    if weights is not None:
+        weights_train = convert_or_clone_to_tensor(weights_train, dtype=torch.float32)
+        weights_val = convert_or_clone_to_tensor(weights_val, dtype=torch.float32)
+        weights_test = convert_or_clone_to_tensor(weights_test, dtype=torch.float32)
+
     # Create DataLoader for training, validation, and testing
-    train_dataset = TensorDataset(X_train, y_train)
-    val_dataset = TensorDataset(X_val, y_val)
-    test_dataset = TensorDataset(X_test, y_test, test_ids)
+    if weights is not None:
+        train_dataset = TensorDataset(X_train, y_train, weights_train)
+        val_dataset = TensorDataset(X_val, y_val, weights_val)
+        test_dataset = TensorDataset(X_test, y_test, test_ids, weights_test)
+    else:
+        train_dataset = TensorDataset(X_train, y_train)
+        val_dataset = TensorDataset(X_val, y_val)
+        test_dataset = TensorDataset(X_test, y_test, test_ids)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=num_workers>0)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=num_workers>0)
@@ -254,7 +278,7 @@ def blosum62_encode(sequences, pad_to_length, logger=None):
     encoded_sequences = []
     i = 0
     for seq in sequences:
-        i = i + 1
+        i += 1
         encoded_seq = []
         for acid in seq:
             # Fetch the BLOSUM62 row for the current amino acid
@@ -262,25 +286,28 @@ def blosum62_encode(sequences, pad_to_length, logger=None):
             # Extract scores for the sequence from the row corresponding to each amino acid
             encoded_row = [row.get(aa, 0) for aa in seq]  # default to 0 if pair not found
             
-            # Pad the encoded row to ensure all rows have the same number of columns if the sequence is shorter
-            if len(encoded_row) < pad_to_length:
-                encoded_row = np.pad(encoded_row, (0, pad_to_length - len(encoded_row)), mode='constant', constant_values=0)
+            # Convert list to torch tensor and pad the encoded row to ensure all rows have the same number of columns
+            encoded_row = torch.tensor(encoded_row, dtype=torch.int8)
+            if encoded_row.size(0) < pad_to_length:
+                encoded_row = torch.nn.functional.pad(encoded_row, (0, pad_to_length - encoded_row.size(0)), mode='constant', value=0)
             
             encoded_seq.append(encoded_row)
         
+        # Stack all rows to create a 2D tensor for each sequence
+        encoded_seq = torch.stack(encoded_seq)
+        
         # Pad the encoded sequence if it has fewer rows than `pad_to_length`
-        if len(encoded_seq) < pad_to_length:
-            # Calculate padding needed for rows
-            row_padding = pad_to_length - len(encoded_seq)
-            # Create a padding of zeros for missing rows
-            padding = np.zeros((row_padding, pad_to_length))
-            # Append padded rows to the encoded sequence
-            encoded_seq = np.vstack((encoded_seq, padding))
+        if encoded_seq.size(0) < pad_to_length:
+            padding = torch.zeros((pad_to_length - encoded_seq.size(0), pad_to_length))
+            encoded_seq = torch.cat((encoded_seq, padding), dim=0)
+        
         if logger is not None and i % 1000 == 0:
             logger.log(f'Encoded sequence {i}')
+        
         encoded_sequences.append(encoded_seq)
 
-    return encoded_sequences
+    # Stack all sequence tensors to create a 3D tensor for the batch
+    return torch.stack(encoded_sequences)
 
 
 def categorical_encode(seqs, tokenizer, max_len, add_bos=False, add_eos=False, logger = None, model_name='progen2'):

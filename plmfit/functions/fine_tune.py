@@ -51,6 +51,8 @@ def fine_tune(args, logger):
 
     # TODO make this through the configuration defined
     if args.data_type == 'gb1' and args.split == 'one_vs_rest': model.track_validation_after = 10
+    if args.data_type == 'rbd' and args.split == 'one_vs_rest': model.track_validation_after = -1
+    if args.data_type == 'herH3' and args.split == 'one_vs_rest': model.track_validation_after = -1
     
     strategy = DeepSpeedStrategy(
         stage=3,

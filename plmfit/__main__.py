@@ -62,6 +62,7 @@ def main():
     parser.add_argument('--zeroed', default="False")
     parser.add_argument('--garbage', default="False")
     parser.add_argument('--nulled', default="False")
+    parser.add_argument('--weights', default=None)
 
     args = parser.parse_args()
     experiment_dir = args.experiment_dir
