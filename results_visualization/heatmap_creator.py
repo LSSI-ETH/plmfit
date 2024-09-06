@@ -6,6 +6,7 @@ import seaborn as sns
 import json
 import tempfile
 import getpass
+from tqdm import tqdm
 
 
 def establish_ssh_sftp_sessions(hostname, username, key_path=None):
@@ -13,7 +14,7 @@ def establish_ssh_sftp_sessions(hostname, username, key_path=None):
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     if key_path and os.path.exists(key_path):
         print("Logging in with private key...")
-        private_key = paramiko.Ed25519Key.from_private_key_file(key_path)
+        private_key = paramiko.RSAKey.from_private_key_file(key_path)
         ssh.connect(hostname, username=username, pkey=private_key)
     else:
         print("Private key not found or not specified. Falling back to password authentication...")
@@ -40,8 +41,8 @@ def find_and_download_json_files(ssh, sftp, base_folder, data_type, task_type, t
 
 def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='regression', method_type='feature_extraction', use_mlp=False):
     # Ensure the categorical order
-    model_order = ['proteinbert', 'progen2-small',
-                   'progen2-medium', 'progen2-xlarge']
+    model_order = ['proteinbert', 'progen2-small', 'esm2_t33_650M_UR50D',
+                   'progen2-medium', 'esm2_t36_3B_UR50D', 'progen2-xlarge', 'esm2_t48_15B_UR50D']
     layer_order = ['first', 'quarter1', 'middle', 'quarter3', 'last']
     reduction_order = ['mean', 'cls']
     head_order = ['linear'] if not use_mlp else ['linear', 'mlp']
@@ -133,9 +134,9 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
 
     # Plotting the heatmap with the color scale adjusted from -1 to 1
     # Slightly larger figure size for better readability
-    plt.figure(figsize=(10, 10))
+    plt.figure(figsize=(20 if use_mlp else 12, 10))
     sns.set(font_scale=1.05)  # Adjust font scale for better readability
-    ax = sns.heatmap(heatmap_data, annot=True, cmap="RdBu_r", fmt=".2f", linewidths=.5,
+    ax = sns.heatmap(heatmap_data, annot=True, cmap="RdBu_r", fmt=".3f", linewidths=.5,
                      cbar_kws={'label': column_name}, center=0, vmin=-1, vmax=1)
     # Main title and subtitle setup
     main_title = f'{data_type.upper()} - {task_type.upper()} Task | {method_type}'
@@ -154,48 +155,134 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
     plt.ylabel('Layer + Reduction', fontsize=14)  # Explicit y-axis label
     plt.tight_layout(pad=3)  # Adjust layout to not cut off labels
 
-    plt.show()
+    # default name for saving same as title
+    plt.savefig(f"./results/{data_type}_{task_type}_{method_type}_heatmap.png")
+    # print(f"Heatmap '{main_title}' saved")
+    # plt.show()
 
     # Optionally, save the table to a CSV file
     output_csv = os.path.join(
         f"{data_type}_{task_type}_{method_type}_metrics_summary.csv")
     df.to_csv(output_csv, index=False)
-    print(f"Summary table saved to {output_csv}")
+    # print(f"Summary table saved to {output_csv}")
 
 
 def main():
     use_cache = False
-    use_mlp = True
     hostname = 'euler.ethz.ch'
-    username = 'estamkopoulo'
-    key_path = '/Users/tbikias/Desktop/vaggelis/Config/.ssh/id_ed25519_euler'
-    base_folder = '$SCRATCH/fine_tuning/'
-    method_type = 'feature_extraction'
-    submethod_type = ''
-    data_type = 'aav'
-    split = 'sampled'
-    task_type = 'classification'
 
-    path = f'{base_folder}{method_type}{submethod_type}'
-    if use_cache:
-        collect_metrics(csv_file=f"{data_type}_{task_type}_{method_type}_metrics_summary.csv",
-                        data_type=data_type, task_type=task_type)
-        return
+    ssh_details = [
+        {'username': 'estamkopoulo', 'key_path': '/Users/vaggelis/Projects/Config/.ssh/id_rsa_euler',
+            'base_folder': '/cluster/scratch/estamkopoulo/fine_tuning/'},
+        {'username': 'tbikias', 'key_path': '/Users/vaggelis/Projects/Config/.ssh/id_rsa_euler_thomas',
+            'base_folder': '/cluster/scratch/tbikias/plmfit/fine_tuning/'}
+    ]
 
-    ssh, sftp = establish_ssh_sftp_sessions(
-        hostname, username, key_path=key_path)
+    parameter_sets = [
+        {'method_type': 'feature_extraction', 'data_type': 'meltome',
+         'split': 'mixed', 'use_mlp': True, 'task_type': 'regression'},
+        {'method_type': 'feature_extraction', 'data_type': 'aav',
+         'split': 'one_vs_many', 'use_mlp': True, 'task_type': 'regression'},
+        {'method_type': 'feature_extraction', 'data_type': 'aav',
+         'split': 'sampled', 'use_mlp': True, 'task_type': 'regression'},
+        {'method_type': 'feature_extraction', 'data_type': 'gb1',
+         'split': 'one_vs_rest', 'use_mlp': True, 'task_type': 'regression'},
+        {'method_type': 'feature_extraction', 'data_type': 'gb1',
+         'split': 'three_vs_rest', 'use_mlp': True, 'task_type': 'regression'},
+        {'method_type': 'feature_extraction', 'data_type': 'herH3',
+         'split': 'one_vs_rest', 'use_mlp': True, 'task_type': 'classification'},
+        {'method_type': 'feature_extraction', 'data_type': 'rbd',
+         'split': 'one_vs_rest', 'use_mlp': True, 'task_type': 'classification'},
+        {'method_type': 'lora_all', 'data_type': 'meltome',
+            'split': 'mixed', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'lora_last', 'data_type': 'meltome',
+            'split': 'mixed', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'bottleneck_adapters_all',
+            'data_type': 'meltome', 'split': 'mixed', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'bottleneck_adapters_last',
+            'data_type': 'meltome', 'split': 'mixed', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'lora_all', 'data_type': 'aav',
+            'split': 'one_vs_many', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'lora_last', 'data_type': 'aav',
+            'split': 'one_vs_many', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'bottleneck_adapters_all',
+            'data_type': 'aav', 'split': 'one_vs_many', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'bottleneck_adapters_last',
+            'data_type': 'aav', 'split': 'one_vs_many', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'lora_all', 'data_type': 'aav',
+            'split': 'sampled', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'lora_last', 'data_type': 'aav',
+            'split': 'sampled', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'bottleneck_adapters_all',
+            'data_type': 'aav', 'split': 'sampled', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'bottleneck_adapters_last',
+            'data_type': 'aav', 'split': 'sampled', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'lora_all',
+            'data_type': 'gb1', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'lora_last',
+            'data_type': 'gb1', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'bottleneck_adapters_all',
+            'data_type': 'gb1', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'bottleneck_adapters_last',
+            'data_type': 'gb1', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'lora_all',
+            'data_type': 'gb1', 'split': 'three_vs_rest', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'lora_last',
+            'data_type': 'gb1', 'split': 'three_vs_rest', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'bottleneck_adapters_all',
+            'data_type': 'gb1', 'split': 'three_vs_rest', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'bottleneck_adapters_last',
+            'data_type': 'gb1', 'split': 'three_vs_rest', 'use_mlp': False, 'task_type': 'regression'},
+        {'method_type': 'lora_all',
+            'data_type': 'herH3', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'classification'},
+        {'method_type': 'lora_last',
+            'data_type': 'herH3', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'classification'},
+        {'method_type': 'bottleneck_adapters_all',
+            'data_type': 'herH3', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'classification'},
+        {'method_type': 'bottleneck_adapters_last',
+            'data_type': 'herH3', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'classification'},
+        {'method_type': 'lora_all',
+            'data_type': 'rbd', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'classification'},
+        {'method_type': 'lora_last',
+            'data_type': 'rbd', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'classification'},
+        {'method_type': 'bottleneck_adapters_all',
+            'data_type': 'rbd', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'classification'},
+        # {'method_type': 'bottleneck_adapters_last',
+        #     'data_type': 'rbd', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'classification'}
+    ]
 
-    # Create a temporary directory to store downloaded files
-    with tempfile.TemporaryDirectory() as temp_dir:
-        json_files = find_and_download_json_files(
-            ssh, sftp, path, data_type+'_'+split, task_type, temp_dir)
-        collect_metrics(json_files=json_files, data_type=data_type+'_'+split,
-                        task_type=task_type, method_type=method_type+submethod_type, use_mlp=use_mlp)
+    for details in ssh_details:
+        details['ssh'], details['sftp'] = establish_ssh_sftp_sessions(
+            hostname, details['username'], key_path=details['key_path'])
 
-    # Close SSH and SFTP sessions
-    sftp.close()
-    ssh.close()
+    for params in tqdm(parameter_sets, desc="Processing parameter sets"):
+        method_type = params['method_type']
+        data_type = params['data_type']
+        split = params['split']
+        use_mlp = params['use_mlp']
+        task_type = params['task_type']
 
+        if use_cache:
+            collect_metrics(csv_file=f"{data_type}_{task_type}_{method_type}_metrics_summary.csv",
+                            data_type=data_type, task_type=task_type)
+            continue
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            all_json_files = []
+            for details in ssh_details:
+                path = f'{details["base_folder"]}{method_type}'
+
+                json_files = find_and_download_json_files(
+                    details['ssh'], details['sftp'], path, data_type+'_'+split, task_type, temp_dir)
+                all_json_files.extend(json_files)
+
+                
+            collect_metrics(json_files=all_json_files, data_type=data_type+'_'+split,
+                            task_type=task_type, method_type=method_type, use_mlp=use_mlp)
+
+    for details in ssh_details:
+        details['sftp'].close()
+        details['ssh'].close()
 
 if __name__ == "__main__":
     main()
