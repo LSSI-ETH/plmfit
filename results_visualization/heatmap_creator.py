@@ -162,7 +162,7 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
 
     # Optionally, save the table to a CSV file
     output_csv = os.path.join(
-        f"{data_type}_{task_type}_{method_type}_metrics_summary.csv")
+        f"./results/csv/{data_type}_{task_type}_{method_type}_metrics_summary.csv")
     df.to_csv(output_csv, index=False)
     # print(f"Summary table saved to {output_csv}")
 
@@ -247,8 +247,8 @@ def main():
             'data_type': 'rbd', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'classification'},
         {'method_type': 'bottleneck_adapters_all',
             'data_type': 'rbd', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'classification'},
-        # {'method_type': 'bottleneck_adapters_last',
-        #     'data_type': 'rbd', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'classification'}
+        {'method_type': 'bottleneck_adapters_last',
+            'data_type': 'rbd', 'split': 'one_vs_rest', 'use_mlp': False, 'task_type': 'classification'}
     ]
 
     for details in ssh_details:
