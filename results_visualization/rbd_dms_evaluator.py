@@ -11,24 +11,44 @@ def calc_mcc(group, pred_col):
     return pd.Series({'MCC': mcc})
 
 
+file_name_lora = 'rbd_one_vs_rest_progen2-small_lora_middle_mean_linear_classification_metrics.json'
+file_name_ada = 'rbd_one_vs_rest_esm2_t33_650M_UR50D_bottleneck_adapters_quarter1_bos_linear_classification_metrics.json'
+file_name_fe = 'rbd_one_vs_rest_progen2-xlarge_feature_extraction_quarter3_mean_linear_classification_data.json'
+file_name_ohe = 'rbd_one_vs_rest_mlp_classification_data.json'
+
 # Load the JSON files
-with open('./results_visualization/rbd_one_vs_rest_progen2-small_lora_middle_mean_linear_classification_metrics.json', 'r') as file:
+with open(f'./results_visualization/{file_name_lora}', 'r') as file:
     lora_data = json.load(file)
 
-with open('./results_visualization/rbd_one_vs_rest_esm2_t33_650M_UR50D_bottleneck_adapters_quarter1_bos_linear_classification_metrics.json', 'r') as file:
+with open(f'./results_visualization/{file_name_ada}', 'r') as file:
     ada_data = json.load(file)
 
-with open('./results_visualization/rbd_one_vs_rest_progen2-small_feature_extraction_middle_mean_linear_classification_data.json', 'r') as file:
+with open(f'./results_visualization/{file_name_fe}', 'r') as file:
     fe_data = json.load(file)
 
-# with open('./results_visualization/aav_one_vs_many_mlp_regression_pred_vs_true.json', 'r') as file:
-#     ohe_data = json.load(file)
+with open(f'./results_visualization/{file_name_ohe}', 'r') as file:
+    ohe_data = json.load(file)
+
+
+# Create a DataFrame with the file names
+file_names_df = pd.DataFrame([{
+    'MCC_LoRA': file_name_lora,
+    'MCC_Ada': file_name_ada,
+    'MCC_FE': file_name_fe,
+    'MCC_OHE': file_name_ohe
+}])
 
 # Extract the 'pred' array
 lora_pred_scores = lora_data['pred_data']['preds']
 ada_pred_scores = ada_data['pred_data']['preds']
 fe_pred_scores = fe_data['metrics']['testing_data']['y_pred']
-# ohe_pred_scores = ohe_data['y_pred']
+ohe_pred_scores = ohe_data['metrics']['testing_data']['y_pred']
+
+lora_pred_order = lora_data['pred_data']['ids']
+ada_pred_order = ada_data['pred_data']['ids']
+
+lora_pred_scores = [x for _, x in sorted(zip(lora_pred_order, lora_pred_scores))]
+ada_pred_scores = [x for _, x in sorted(zip(ada_pred_order, ada_pred_scores))]
 
 # Load the dataset
 dataset = pd.read_csv('./plmfit/data/rbd/rbd_data_full.csv')
@@ -39,21 +59,20 @@ test_data = dataset[dataset['one_vs_rest'] == 'test']
 test_data['lora_pred_score'] = np.round(np.array(lora_pred_scores))
 test_data['ada_pred_score'] = np.round(np.array(ada_pred_scores))
 test_data['fe_pred_score'] = np.round(np.array(fe_pred_scores))
-# test_data['ohe_pred_score'] = ohe_pred_scores
+test_data['ohe_pred_score'] = np.round(np.array(ohe_pred_scores))
 
 # Ensure 'no_mut' is in numerical form and label everything over 20 as 20+
 test_data['no_mut'] = test_data['no_mut'].astype(float)
 # test_data['no_mut'] = test_data['no_mut'].apply(lambda x: 20 if x > 20 else x)
 
-# cols_to_keep = ['no_mut', 'binary_score', 'lora_pred_score', 'ada_pred_score', 'fe_pred_score', 'ohe_pred_score']
-cols_to_keep = ['no_mut', 'binary_score', 'lora_pred_score', 'ada_pred_score', 'fe_pred_score']
+cols_to_keep = ['no_mut', 'binary_score', 'lora_pred_score', 'ada_pred_score', 'fe_pred_score', 'ohe_pred_score']
 test_data = test_data[cols_to_keep]
 
 # Calculate Spearman correlations for each edit distance group
 correlations_lora = test_data.groupby('no_mut').apply(calc_mcc, 'lora_pred_score')
 correlations_ada = test_data.groupby('no_mut').apply(calc_mcc, 'ada_pred_score')
 correlations_fe = test_data.groupby('no_mut').apply(calc_mcc, 'fe_pred_score')
-# correlations_ohe = test_data.groupby('no_mut').apply(calc_spearman, 'ohe_pred_score')
+correlations_ohe = test_data.groupby('no_mut').apply(calc_mcc, 'ohe_pred_score')
 
 # Interpolate for smoothing
 def interpolate_smooth(x, y, kind='cubic', num=500):
@@ -74,7 +93,7 @@ def plot_with_fill(ax, x, y, label, color, alpha=0.05):
 plot_with_fill(axs[0], correlations_lora.index, correlations_lora['MCC'], 'LoRA', 'blue')
 plot_with_fill(axs[0], correlations_ada.index, correlations_ada['MCC'], 'Ada', 'orange')
 plot_with_fill(axs[0], correlations_fe.index, correlations_fe['MCC'], 'FE', 'green')
-# plot_with_fill(axs[0], correlations_ohe.index, correlations_ohe['Correlation'], correlations_ohe['P-value'], 'OHE', 'red')
+plot_with_fill(axs[0], correlations_ohe.index, correlations_ohe['MCC'], 'OHE', 'red')
 
 axs[0].set_xlabel('Edit Distance')
 axs[0].set_ylabel("MCC")
@@ -100,6 +119,23 @@ axs[1].legend()
 str_month_list = ['2', '4', '6', '8']
 axs[1].set_xticks([2, 4, 6, 8])
 axs[1].set_xticklabels(str_month_list)
+
+correlations_lora.rename(columns={'MCC': 'MCC_LoRA'}, inplace=True)
+correlations_ada.rename(columns={'MCC': 'MCC_Ada'}, inplace=True)
+correlations_fe.rename(columns={'MCC': 'MCC_FE'}, inplace=True)
+correlations_ohe.rename(columns={'MCC': 'MCC_OHE'}, inplace=True)
+
+# Combine all MCCs into a single DataFrame
+combined_mcc = pd.concat(
+    [correlations_lora, correlations_ada, correlations_fe, correlations_ohe], axis=1)
+
+combined_mcc_with_filenames = pd.concat(
+    [file_names_df, combined_mcc], ignore_index=False)
+
+# Save the combined DataFrame to a CSV file
+combined_mcc_with_filenames.to_csv('./results/rbd_mcc_by_edit_distance.csv')
+
+
 
 plt.tight_layout()
 plt.show()

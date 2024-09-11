@@ -8,18 +8,32 @@ def calc_spearman(group, pred_col):
     correlation, p_value = stats.spearmanr(group['score'], group[pred_col])
     return pd.Series({'Correlation': correlation, 'P-value': p_value})
 
+
+file_name_lora = 'aav_one_vs_many_progen2-small_lora_last_mean_linear_regression_metrics.json'
+file_name_ada = 'aav_one_vs_many_progen2-small_bottleneck_adapters_last_mean_linear_regression_metrics.json'
+file_name_fe = 'aav_one_vs_many_esm2_t48_15B_UR50D_feature_extraction_quarter1_mean_linear_regression_pred_vs_true.json'
+file_name_ohe = 'aav_one_vs_many_mlp_regression_pred_vs_true.json'
+
 # Load the JSON files
-with open('./results_visualization/aav_one_vs_many_progen2-small_lora_last_mean_linear_regression_metrics.json', 'r') as file:
+with open(f'./results_visualization/{file_name_lora}', 'r') as file:
     lora_data = json.load(file)
 
-with open('./results_visualization/aav_one_vs_many_progen2-small_bottleneck_adapters_last_mean_linear_regression_metrics.json', 'r') as file:
+with open(f'./results_visualization/{file_name_ada}', 'r') as file:
     ada_data = json.load(file)
 
-with open('./results_visualization/aav_one_vs_many_progen2-medium_feature_extraction_quarter3_mean_linear_regression_pred_vs_true.json', 'r') as file:
+with open(f'./results_visualization/{file_name_fe}', 'r') as file:
     fe_data = json.load(file)
 
-with open('./results_visualization/aav_one_vs_many_mlp_regression_pred_vs_true.json', 'r') as file:
+with open(f'./results_visualization/{file_name_ohe}', 'r') as file:
     ohe_data = json.load(file)
+
+# Create a DataFrame with the file names
+file_names_df = pd.DataFrame([{
+    'LoRA': file_name_lora,
+    'Ada': file_name_ada,
+    'FE': file_name_fe,
+    'OHE': file_name_ohe
+}])
 
 # Extract the 'pred' array
 lora_pred_scores = lora_data['pred_data']['preds']
@@ -96,6 +110,27 @@ axs[1].legend()
 str_month_list = ['2','5','10','15','20+']
 axs[1].set_xticks([2, 5, 10, 15, 20])
 axs[1].set_xticklabels(str_month_list)
+
+correlations_lora.rename(
+    columns={'Correlation': 'LoRA', 'P-value': 'LoRA-P'}, inplace=True)
+correlations_ada.rename(
+    columns={'Correlation': 'Ada', 'P-value': 'Ada-P'}, inplace=True)
+correlations_fe.rename(
+    columns={'Correlation': 'FE', 'P-value': 'FE-P'}, inplace=True)
+correlations_ohe.rename(
+    columns={'Correlation': 'OHE', 'P-value': 'OHE-P'}, inplace=True)
+
+# Combine all Spearmans into a single DataFrame
+combined_corr = pd.concat(
+    [correlations_lora, correlations_ada, correlations_fe, correlations_ohe], axis=1)
+
+combined_corr_with_filenames = pd.concat(
+    [file_names_df, combined_corr], ignore_index=False)
+
+# Save the combined DataFrame to a CSV file
+combined_corr_with_filenames.to_csv('./results/aav_corr_by_edit_distance.csv')
+
+
 
 plt.tight_layout()
 plt.show()

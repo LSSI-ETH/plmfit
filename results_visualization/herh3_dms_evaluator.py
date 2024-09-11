@@ -11,24 +11,46 @@ def calc_mcc(group, pred_col):
     return pd.Series({'MCC': mcc})
 
 
+file_name_lora = 'herH3_one_vs_rest_progen2-xlarge_lora_last_mean_linear_classification_metrics.json'
+file_name_ada = 'herH3_one_vs_rest_progen2-medium_bottleneck_adapters_quarter3_mean_linear_classification_metrics.json'
+file_name_fe = 'herH3_one_vs_rest_esm2_t48_15B_UR50D_feature_extraction_quarter1_bos_linear_classification_data.json'
+file_name_ohe = 'herH3_one_vs_rest_linear_classification_data.json'
+
+
 # Load the JSON files
-with open('./results_visualization/herH3_one_vs_rest_progen2-xlarge_lora_last_mean_linear_classification_metrics.json', 'r') as file:
+with open(f'./results_visualization/{file_name_lora}', 'r') as file:
     lora_data = json.load(file)
 
-with open('./results_visualization/herH3_one_vs_rest_progen2-xlarge_bottleneck_adapters_quarter1_mean_linear_classification_metrics.json', 'r') as file:
+with open(f'./results_visualization/{file_name_ada}', 'r') as file:
     ada_data = json.load(file)
 
-with open('./results_visualization/herH3_one_vs_rest_esm2_t48_15B_UR50D_feature_extraction_quarter1_bos_linear_classification_data.json', 'r') as file:
+with open(f'./results_visualization/{file_name_fe}', 'r') as file:
     fe_data = json.load(file)
 
-with open('./results_visualization/herH3_one_vs_rest_linear_classification_data.json', 'r') as file:
+with open(f'./results_visualization/{file_name_ohe}', 'r') as file:
     ohe_data = json.load(file)
+
+# Create a DataFrame with the file names
+file_names_df = pd.DataFrame([{
+    'MCC_LoRA': file_name_lora,
+    'MCC_Ada': file_name_ada,
+    'MCC_FE': file_name_fe,
+    'MCC_OHE': file_name_ohe
+}])
+
 
 # Extract the 'pred' array
 lora_pred_scores = lora_data['pred_data']['preds']
 ada_pred_scores = ada_data['pred_data']['preds']
 fe_pred_scores = fe_data['metrics']['testing_data']['y_pred']
 ohe_pred_scores = ohe_data['metrics']['testing_data']['y_pred']
+
+
+lora_pred_order = lora_data['pred_data']['ids']
+ada_pred_order = ada_data['pred_data']['ids']
+
+lora_pred_scores = [x for _, x in sorted(zip(lora_pred_order, lora_pred_scores))]
+ada_pred_scores = [x for _, x in sorted(zip(ada_pred_order, ada_pred_scores))]
 
 # Load the dataset
 dataset = pd.read_csv('./plmfit/data/herH3/herH3_data_full.csv')
@@ -99,6 +121,24 @@ axs[1].legend()
 str_month_list = ['2', '4', '6', '8']
 axs[1].set_xticks([2, 4, 6, 8])
 axs[1].set_xticklabels(str_month_list)
+
+
+correlations_lora.rename(columns={'MCC': 'MCC_LoRA'}, inplace=True)
+correlations_ada.rename(columns={'MCC': 'MCC_Ada'}, inplace=True)
+correlations_fe.rename(columns={'MCC': 'MCC_FE'}, inplace=True)
+correlations_ohe.rename(columns={'MCC': 'MCC_OHE'}, inplace=True)
+
+# Combine all MCCs into a single DataFrame
+combined_mcc = pd.concat(
+    [correlations_lora, correlations_ada, correlations_fe, correlations_ohe], axis=1)
+
+combined_mcc_with_filenames = pd.concat(
+    [file_names_df, combined_mcc], ignore_index=False)
+
+# Save the combined DataFrame to a CSV file
+combined_mcc_with_filenames.to_csv('./results/herH3_mcc_by_edit_distance.csv')
+
+
 
 plt.tight_layout()
 plt.show()

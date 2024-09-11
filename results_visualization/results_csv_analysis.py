@@ -13,6 +13,8 @@ task_mapping = {
     'rbd_one_vs_rest': 'RBD one-vs-rest'
 }
 
+task_reverse_mapping = {v: k for k, v in task_mapping.items()}
+
 # List of fine-tuning techniques and their abbreviations
 fine_tuning_techniques = {
     'feature_extraction': 'FE',
@@ -21,6 +23,8 @@ fine_tuning_techniques = {
     'bottleneck_adapters_all': 'Adapters',
     'bottleneck_adapters_last': 'Adapters-'
 }
+
+fine_tuning_techniques_reverse = {v: k for k, v in fine_tuning_techniques.items()}
 
 # Desired order for PLMs and TLs
 plm_order = ['proteinbert', 'progen2-small', 'esm2_t33_650M_UR50D',
@@ -105,6 +109,39 @@ def generate_layer_analysis(parsed_results):
 
     return layer_analysis
 
+# find the best model and layer combo for each task and for each TL and print the model with the corresponding layer, the performance and the info
+def find_best_model(parsed_results):
+    # load csv 'combined_results.csv' which has gpu and cpu information for each experiment
+    combined_results = pd.read_csv('./results_visualization/combined_results.csv')
+
+    for task in task_mapping.values():
+        task_results = [df[df['Task'] == task] for df in parsed_results]
+        task_results = pd.concat(task_results)
+
+        for tl in tl_order:
+            tl_results = task_results[task_results['TL'] == tl]
+            max_metric = tl_results['Metric'].max()
+            best_model = tl_results[tl_results['Metric'] == max_metric]['Model Name'].values[0]
+            best_layer = tl_results[tl_results['Metric'] == max_metric]['Layer'].values[0]
+            
+            # Find the max GPU usage for the best model and layer combo
+            gpu_usage_row = combined_results[
+                (combined_results['great_grandparent_folder'] == fine_tuning_techniques_reverse[tl]) &
+                (
+                    combined_results['grandparent_folder'].str.contains(f'{task_reverse_mapping[task]}_{best_model}_bottleneck_adapters_{best_layer}') |
+                    combined_results['grandparent_folder'].str.contains(f'{task_reverse_mapping[task]}_{best_model}_lora_{best_layer}') |
+                    combined_results['grandparent_folder'].str.contains(
+                        f'{task_reverse_mapping[task]}_{best_model}_feature_extraction_{best_layer}')
+                )
+            ]
+
+            if not gpu_usage_row.empty:
+                gpu_usage = gpu_usage_row['gpu_max_usage'].values[0]
+                print(
+                    f"Best model for {task} with {tl} is {best_model} with layer {best_layer} --- a performance of {max_metric} and a Max GPU usage of {gpu_usage}")
+            else:
+                print(
+                    f"Best model for {task} with {tl} is {best_model} with layer {best_layer} --- a performance of {max_metric}")
 
 def write_tables_to_csv(summary_tables, layer_analysis, filename):
     with open(filename, 'w') as f:
@@ -123,12 +160,13 @@ def main():
     directory = 'results/csv'
     parsed_results = parse_csv_files(directory)
 
-    # Process the parsed results as needed
-    for result in parsed_results:
-        print(result)
+    # # Process the parsed results as needed
+    # for result in parsed_results:
+    #     print(result)
 
     summary_tables = generate_summary_table(parsed_results)
     layer_analysis = generate_layer_analysis(parsed_results)
+    find_best_model(parsed_results)
     
     # Write the tables to a CSV file
     write_tables_to_csv(summary_tables, layer_analysis, './results/analysis_results.csv')
