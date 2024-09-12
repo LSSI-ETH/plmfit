@@ -153,3 +153,37 @@ if __name__ == '__main__':
     else:
 
         raise ValueError('Function is not supported')
+
+
+
+import random
+
+# Initialize the list with 10,000 integers with value 0
+my_list = [0] * 1000000
+
+# Assign one random element the value 1
+my_list[random.randint(0, 999999)] = 1
+
+# Outer loop to count how many inner loops find 1 within the first 5 iterations
+outer_loop_count = 0
+inner_loop_count = 0
+
+while True:  # Continue until we find a successful inner loop
+    inner_loop_count = 0
+    found_1 = False
+    
+    while True:  # Only allow the inner loop to run for 5 iterations
+        inner_loop_count += 1
+        random_index = random.randint(0, 999999)
+        
+        if my_list[random_index] == 1:
+            found_1 = True
+            print(inner_loop_count)
+            break  # Exit the inner loop if 1 is found
+    
+    outer_loop_count += 1
+    
+    if  inner_loop_count < 500:
+         break  # Count this as a successful inner loop
+
+print(f"Number of outer loops required: {outer_loop_count}")
