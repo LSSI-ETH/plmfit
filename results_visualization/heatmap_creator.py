@@ -179,6 +179,8 @@ def main():
     ]
 
     parameter_sets = [
+        {'method_type': 'feature_extraction', 'data_type': 'rbd',
+         'split': 'sampled', 'use_mlp': True, 'task_type': 'classification'},
         {'method_type': 'feature_extraction', 'data_type': 'meltome',
          'split': 'mixed', 'use_mlp': True, 'task_type': 'regression'},
         {'method_type': 'feature_extraction', 'data_type': 'aav',
