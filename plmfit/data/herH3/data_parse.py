@@ -56,9 +56,7 @@ for pos in range(len(wildtype)):
             data.append([mutated_seq, score])
 
 # Create a DataFrame from the data list
-dms = pd.DataFrame(data, columns=['AASeq', 'binary_score'])
-
-
+dms = pd.DataFrame(data, columns=["AASeq", "AgClass"])
 
 
 # File paths for the dataset and FASTA file
@@ -82,9 +80,11 @@ pos_data = pd.read_csv(
 neg_data = pd.read_csv(
     os.path.join(script_dir, csv_path_negative)
 )
+print(dms["AgClass"].value_counts())
 print(pos_data['AgClass'].value_counts())
 print(neg_data['AgClass'].value_counts())
-data = pd.concat([pos_data, neg_data])
+data = pd.concat([dms, pos_data, neg_data])
+data.drop_duplicates(subset="AASeq", keep="first", inplace=True)
 
 data.rename(columns={"AgClass": "binary_score"}, inplace=True)
 
@@ -100,7 +100,6 @@ data['one_vs_rest'] = np.where(data['no_mut'] <= 1, 'train', 'test')
 # Split features and target
 X = data.drop('binary_score', axis=1)
 y = data['binary_score']
-
 
 
 # Separate True and False class indices
@@ -144,13 +143,13 @@ for idx_name, indices in zip(['train_index', 'val_index', 'test_index'], [train_
 
 # Output class distribution for each split
 print("\nClass distribution in train set:")
-print(data[data['sampled'] == 'train']['binary_score'].value_counts())
+print(data[data["one_vs_rest"] == "train"]["binary_score"].value_counts())
 
 print("\nClass distribution in validation set:")
-print(data[data['sampled'] == 'validation']['binary_score'].value_counts())
+print(data[data["one_vs_rest"] == "validation"]["binary_score"].value_counts())
 
 print("\nClass distribution in test set:")
-print(data[data['sampled'] == 'test']['binary_score'].value_counts())
+print(data[data["one_vs_rest"] == "test"]["binary_score"].value_counts())
 
 data['aa_seq'] = data.apply(lambda x: wildtype[:mutated_region_start] + x['AASeq'] + wildtype[mutated_region_end:], axis=1)
 
@@ -174,5 +173,3 @@ new_data.drop_duplicates(subset="aa_seq", keep="first", inplace=True)
 
 # Save the new DataFrame to a CSV file
 new_data.to_csv(os.path.join(script_dir, "herH3_data_full.csv"), index=False)
-
-

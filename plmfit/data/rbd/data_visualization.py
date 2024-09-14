@@ -43,9 +43,9 @@ for i in tqdm(range(seq_count)):
 os.makedirs(os.path.join(script_dir, "plots"), exist_ok = True)
 
 # Plot for label distribution
-data["label"] = data["label"].map(bool)
+data["binary_score"] = data["binary_score"].map(bool)
 save_path =  os.path.join(script_dir, "plots/labels.png")
-plot_label_distribution(data, label="label", path=save_path, text="Binding")
+plot_label_distribution(data, label="binary_score", path=save_path, text="Binding")
 
 # Plot for distribution of number of mutations
 mut_count_data = pd.DataFrame({"number_of_mutations":mut_counts})

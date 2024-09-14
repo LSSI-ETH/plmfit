@@ -32,5 +32,5 @@ deepspeed==0.14.0
 Bio
 python-dotenv
 tensorboard
-esm
+# esm
 blosum

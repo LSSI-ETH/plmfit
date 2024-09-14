@@ -55,15 +55,29 @@ for idx_name, indices in zip(['train_index', 'val_index', 'test_index'], [train_
         not_found = set(indices) - set(data.index)
         raise KeyError(f"{not_found} not found in the data for {idx_name}")
 
+data["one_vs_rest"] = np.where(data["no_mut"] > 1, "test", data["one_vs_rest"])
+data["one_vs_rest"] = np.where(data['binary_score'] == -1, "", data["one_vs_rest"])
+
+# For the one_vs_rest column, keep only the first 15,000 'test' samples with binary_score 1 and 15,000 with binary_score 0
+test_indices = data[data["one_vs_rest"] == "test"].index
+test_indices_1 = test_indices[data.loc[test_indices, "binary_score"] == 1]
+test_indices_0 = test_indices[data.loc[test_indices, "binary_score"] == 0]
+print("\nNumber of True class samples in test set:", len(test_indices_1[:15000]))
+print("Number of False class samples in test set:", len(test_indices_0))
+# Keep only the first 15,000 of each
+selected_test_indices = test_indices_1[:15000].union(test_indices_0[:15000])
+print("Number of selected test samples:", len(selected_test_indices))
+data.loc[test_indices.difference(selected_test_indices), "one_vs_rest"] = ""
+
 # Output class distribution for each split
 print("\nClass distribution in train set:")
-print(data[data['sampled'] == 'train']['binary_score'].value_counts())
+print(data[data['one_vs_rest'] == 'train']['binary_score'].value_counts())
 
 print("\nClass distribution in validation set:")
-print(data[data['sampled'] == 'validation']['binary_score'].value_counts())
+print(data[data["one_vs_rest"] == "validation"]["binary_score"].value_counts())
 
 print("\nClass distribution in test set:")
-print(data[data['sampled'] == 'test']['binary_score'].value_counts())
+print(data[data["one_vs_rest"] == "test"]["binary_score"].value_counts())
 
 # Export to csv
 data.to_csv(os.path.join(script_dir, csv_path), index=False)
