@@ -203,6 +203,8 @@ def get_activation_function(name):
         return nn.ReLU()
     elif name == 'sigmoid':
         return nn.Sigmoid()
+    elif name == 'softmax':
+        return nn.Softmax()
     elif name == 'tanh':
         return nn.Tanh()
     # Add more activation functions as needed

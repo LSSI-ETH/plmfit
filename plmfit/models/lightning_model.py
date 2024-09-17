@@ -22,7 +22,8 @@ class LightningModel(L.LightningModule):
         self.method = method
         
         if self.model.task == 'classification':
-            self.train_metric = classification.BinaryAccuracy()
+            if self.hparams.no_classes == 1: self.train_metric = classification.BinaryAccuracy()
+            else: self.train_metric = classification.MulticlassAccuracy(num_classes=self.hparams.no_classes)
             self.metric_label = 'accuracy'
         elif self.model.task == 'regression':
             self.train_metric = regression.MeanSquaredError(squared=False)
@@ -33,7 +34,7 @@ class LightningModel(L.LightningModule):
         
         self.val_metric = self.train_metric.clone()
 
-        self.metrics = Metrics(self.model.task)
+        self.metrics = Metrics(self.model.task, no_classes=1 if 'no_classes' not in self.hparams else self.hparams.no_classes)
 
         self.profiling_interval = 100
 
@@ -108,10 +109,19 @@ class LightningModel(L.LightningModule):
         else:    
             input, labels = batch
             outputs = self(input)
-            if hasattr(outputs, 'logits'):
-                outputs = outputs.logits.squeeze(dim=1)
+
+            # No squeezing, leave logits as is for CrossEntropyLoss
+            if self.model.task == 'classification' and self.hparams.no_classes > 1:
+                if hasattr(outputs, 'logits'):
+                    outputs = outputs.logits
+                labels = torch.nn.functional.one_hot(labels.long(), num_classes=self.hparams.no_classes)
+                labels = labels.float()
+
             else:
-                outputs = outputs.squeeze(dim=1)
+                if hasattr(outputs, 'logits'):
+                    outputs = outputs.logits.squeeze(dim=1)
+                else:
+                    outputs = outputs.squeeze(dim=1)
             loss = self.loss_function(outputs, labels)
 
         
@@ -185,10 +195,19 @@ class LightningModel(L.LightningModule):
         else:    
             input, labels = batch
             outputs = self(input)
-            if hasattr(outputs, 'logits'):
-                outputs = outputs.logits.squeeze(dim=1)
+
+            # No squeezing, leave logits as is for CrossEntropyLoss
+            if self.model.task == 'classification' and self.hparams.no_classes > 1:
+                if hasattr(outputs, 'logits'):
+                    outputs = outputs.logits
+                labels = torch.nn.functional.one_hot(labels.long(), num_classes=self.hparams.no_classes)
+                labels = labels.float()
+                    
             else:
-                outputs = outputs.squeeze(dim=1)
+                if hasattr(outputs, 'logits'):
+                    outputs = outputs.logits.squeeze(dim=1)
+                else:
+                    outputs = outputs.squeeze(dim=1)
             loss = self.loss_function(outputs, labels)
 
         self.log('val_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
@@ -235,10 +254,18 @@ class LightningModel(L.LightningModule):
         else:    
             input, labels, ids = batch
             outputs = self(input)
-            if hasattr(outputs, 'logits'):
-                outputs = outputs.logits.squeeze(dim=1)
+
+            # No squeezing, leave logits as is for CrossEntropyLoss
+            if self.model.task == 'classification' and self.hparams.no_classes > 1:
+                if hasattr(outputs, 'logits'):
+                    outputs = outputs.logits
+                labels = torch.nn.functional.one_hot(labels.long(), num_classes=self.hparams.no_classes)
+                labels = labels.float()     
             else:
-                outputs = outputs.squeeze(dim=1)
+                if hasattr(outputs, 'logits'):
+                    outputs = outputs.logits.squeeze(dim=1)
+                else:
+                    outputs = outputs.squeeze(dim=1)
             loss = self.loss_function(outputs, labels)
         self.log('test_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False)
 
@@ -287,6 +314,8 @@ class LightningModel(L.LightningModule):
             return torch.nn.BCEWithLogitsLoss()
         elif self.hparams.loss_f == 'mse':
             return torch.nn.MSELoss()
+        elif self.hparams.loss_f == 'cross_entropy':  # Add cross-entropy loss for multiclass
+            return torch.nn.CrossEntropyLoss()
         else:
             raise ValueError(f"Unsupported loss function: {self.hparams.loss_f}")
     
@@ -324,18 +353,24 @@ class LightningModel(L.LightningModule):
 
 
 class Metrics(torch.nn.Module):
-    def __init__(self, task: str):
+    def __init__(self, task: str, no_classes=1):
         super().__init__()
         self.task = task
         self.preds_list = []
         self.actual_list = []
         self.ids = []
         if task == 'classification':
-            self.acc = classification.BinaryAccuracy()
-            self.roc_auc = classification.BinaryAUROC()
-            self.mcc = classification.BinaryMatthewsCorrCoef()
-            self.cm = classification.BinaryConfusionMatrix()
-            self.roc = classification.BinaryROC()
+            self.no_classes=no_classes
+            if self.no_classes == 1:
+                self.acc = classification.BinaryAccuracy()
+                self.roc_auc = classification.BinaryAUROC()
+                self.mcc = classification.BinaryMatthewsCorrCoef()
+                self.cm = classification.BinaryConfusionMatrix()
+                self.roc = classification.BinaryROC()
+            else:
+                self.acc = classification.MulticlassAccuracy(num_classes=self.no_classes)
+                self.mcc = classification.MulticlassMatthewsCorrCoef(num_classes=self.no_classes)
+                self.cm = classification.MulticlassConfusionMatrix(num_classes=self.no_classes)
         elif task == 'regression':
             self.mse = regression.MeanSquaredError()
             self.rmse = regression.MeanSquaredError(squared=False)
@@ -360,10 +395,10 @@ class Metrics(torch.nn.Module):
 
     def calc_classification_metrics(self, preds, actual):
         self.acc.update(preds, actual)
-        self.roc_auc.update(preds, actual)
+        if self.no_classes == 1: self.roc_auc.update(preds, actual)
         self.mcc.update(preds, actual)
         self.cm.update(preds, actual)
-        self.roc.update(preds, actual.int())
+        if self.no_classes == 1: self.roc.update(preds, actual.int())
 
     def calc_regression_metrics(self, preds, actual):
         self.mse.update(preds, actual)
@@ -385,25 +420,39 @@ class Metrics(torch.nn.Module):
             return self.get_masked_lm_metrics()
 
     def get_classification_metrics(self):
-        fpr, tpr, thresholds = list(self.roc.compute())
-        self.report = {
-            'main': {
-                'accuracy': self.acc.compute().item(),
-                'roc_auc': self.roc_auc.compute().item(),
-                'mcc': self.mcc.compute().item(),
-                'confusion_matrix': self.cm.compute().tolist()
-            },
-            'roc_auc_data': {
-                "fpr": fpr.tolist(),
-                "tpr": tpr.tolist(),
-                "roc_auc_val": self.roc_auc.compute().item()
-            },
-            'pred_data': {
-                "preds": self.preds_list,
-                "actual": self.actual_list,
-                "ids": self.ids,
+        if self.no_classes == 1: 
+            fpr, tpr, thresholds = list(self.roc.compute())
+            self.report = {
+                'main': {
+                    'accuracy': self.acc.compute().item(),
+                    'roc_auc': self.roc_auc.compute().item(),
+                    'mcc': self.mcc.compute().item(),
+                    'confusion_matrix': self.cm.compute().tolist()
+                },
+                'roc_auc_data': {
+                    "fpr": fpr.tolist(),
+                    "tpr": tpr.tolist(),
+                    "roc_auc_val": self.roc_auc.compute().item()
+                },
+                'pred_data': {
+                    "preds": self.preds_list,
+                    "actual": self.actual_list,
+                    "ids": self.ids,
+                }
             }
-        }
+        else:
+            self.report = {
+                'main': {
+                    'accuracy': self.acc.compute().item(),
+                    'mcc': self.mcc.compute().item(),
+                    'confusion_matrix': self.cm.compute().tolist()
+                },
+                'pred_data': {
+                    "preds": self.preds_list,
+                    "actual": self.actual_list,
+                    "ids": self.ids,
+                }
+            }
         return self.report
     
     def get_regression_metrics(self):

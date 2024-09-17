@@ -9,6 +9,7 @@ from deepspeed.runtime.zero.stage3 import estimate_zero3_model_states_mem_needs_
 from plmfit.models.lightning_model import LightningModel
 from lightning.pytorch.strategies import DeepSpeedStrategy
 import ast
+import shutil
 
 def fine_tune(args, logger):
     head_config = utils.load_config(args.head_config)
@@ -16,6 +17,7 @@ def fine_tune(args, logger):
 
     # Load dataset
     data = utils.load_dataset(args.data_type)
+    # data = data.sample(1000)
     # if args.experimenting == "True": data = data.sample(100)
     
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
@@ -85,7 +87,8 @@ def fine_tune(args, logger):
     model.train()
     trainer.fit(model, data_loaders['train'], data_loaders['val'])
 
-    if torch.cuda.is_available(): convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
+    if torch.cuda.is_available(): 
+        convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
 
     loss_plot = data_explore.create_loss_plot(json_path=f'{logger.base_dir}/{logger.experiment_name}_loss.json')
     logger.save_plot(loss_plot, "training_validation_loss")
@@ -94,13 +97,18 @@ def fine_tune(args, logger):
     if task != 'masked_lm': trainer.test(model=model, ckpt_path=f'{logger.base_dir}/best_model.ckpt', dataloaders=data_loaders['test'])
 
     if task == 'classification':
-        fig, _ = data_explore.plot_roc_curve(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
-        logger.save_plot(fig, 'roc_curve')
+        if head_config['architecture_parameters']['output_dim'] == 1:
+            fig, _ = data_explore.plot_roc_curve(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
+            logger.save_plot(fig, 'roc_curve')
         fig = data_explore.plot_confusion_matrix_heatmap(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
         logger.save_plot(fig, 'confusion_matrix')
     elif task == 'regression':
         fig = data_explore.plot_actual_vs_predicted(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
         logger.save_plot(fig, 'actual_vs_predicted')
+    
+    if torch.cuda.is_available():
+        shutil.rmtree(f'{logger.base_dir}/lightning_logs/best_model.ckpt')
+        shutil.rmtree(f'{logger.base_dir}/lightning_logs/version_0/checkpoints')
 
 def downstream_prep(model, args, data, split, task, head_config):
     network_type = head_config['architecture_parameters']['network_type']
@@ -118,7 +126,18 @@ def downstream_prep(model, args, data, split, task, head_config):
 
     encs = model.categorical_encode(data)
 
-    scores = data['score'].values if task == 'regression' else data['binary_score'].values
+    if task == 'regression':
+        scores = data['score'].values 
+    elif task == 'classification':
+        if 'binary_score' in data:
+            scores = data['binary_score'].values
+        elif 'label' in data:
+            scores = data['label'].values
+        else:
+            raise KeyError("Neither 'binary_score' nor 'label' found in data")
+    else:
+        raise ValueError('Task not supported')
+
     training_params = head_config['training_parameters']
     data_loaders = utils.create_data_loaders(
             encs, scores, scaler=training_params['scaler'], 
