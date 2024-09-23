@@ -125,10 +125,6 @@ class LightningModel(L.LightningModule):
             loss = self.loss_function(outputs, labels)
 
         
-
-        # print(f"Outputs: {outputs.tolist()}")
-        # print(f"Labels: {labels.tolist()}")
-        # print(f"Loss value: {loss}\n", flush=True)
         if self.trainer.precision == 16 and loss < 6.10e-5: loss = 6.10e-5 # Theoretical min loss value for float-16
         self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 

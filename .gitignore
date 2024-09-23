@@ -190,3 +190,4 @@ plmfit/data/*/models/*
 test/
 default/
 output/
+*.tsv

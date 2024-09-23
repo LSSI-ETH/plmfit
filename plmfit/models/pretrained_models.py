@@ -147,8 +147,8 @@ class Antiberty(IPretrainedProteinLanguageModel):
         logger.log(
             f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt" ({time.time() - start_emb_time:.2f}s)')
         return
-                
-        
+
+
 class ProGenFamily(IPretrainedProteinLanguageModel):
 
     tokenizer: Tokenizer
@@ -156,8 +156,11 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
     def __init__(self, progen_model_name: str, logger : l.Logger):
         super().__init__(logger)
         self.name = progen_model_name
-        self.py_model:ProGenForSequenceClassification = ProGenForSequenceClassification.from_pretrained(
-            f'{utils.path}/language_models/progen2/checkpoints/{progen_model_name}')
+        self.py_model: ProGenForSequenceClassification = (
+            ProGenForSequenceClassification.from_pretrained(
+                f"{utils.plmfit_path}/language_models/progen2/checkpoints/{progen_model_name}"
+            )
+        )
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.transformer.h)
         self.output_dim = self.py_model.classifier.out_features
@@ -173,7 +176,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
             self.py_model.transformer.ln_f.weight.fill_(1.0)
             self.py_model.transformer.ln_f.bias.fill_(0.0)
             self.logger.log("Zeroed the model with plain linear blocks")
-    
+
     def categorical_encode(self, data, max_length='default'):
         encs = utils.categorical_encode(
             data['aa_seq'].values, self.tokenizer, max(data['len'].values) if max_length=='default' else max_length, add_bos=True, add_eos=True, logger=self.logger)
@@ -202,7 +205,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 
             else:
                 self.logger.log(f'No gpu found rolling device back to {device}')
-                
+
             data = utils.load_dataset(data_type)
 
             start_enc_time = time.time()
@@ -264,7 +267,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                             normalized_outputs = F.softmax(out, dim=-1)
                             # Calculate entropy across the feature dimension
                             entropy = -torch.sum(normalized_outputs * torch.log(normalized_outputs + 1e-10), dim=-1)
-                            
+
                             # Apply softmax to L2 norms to get weights for each token
                             weights = F.softmax(l2_norms, dim=1)
                             print(weights)
@@ -275,8 +278,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                                 # print(f"First batch weighted mean vector: {weighted_mean}")
                                 self.logger.log(f"Weighted Mean of first batch: {weighted_mean.numpy()}")
                                 # visualize_embeddings(weighted_mean, use_heatmap=False)
-                                
-            
+
                         elif reduction == 'sum':
                             embs[i: i + current_batch_size, :] = torch.sum(out, dim=1)
                         elif reduction == 'bos':
@@ -285,17 +287,17 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                         elif reduction == 'eos':
                             # Initialize a tensor to store the selected embeddings
                             selected_embs = torch.zeros(current_batch_size, out.shape[2], device=out.device)
-                            
+
                             # Iterate over each sequence in the batch
                             for seq_idx in range(current_batch_size):
                                 # Find the positions of the token with ID equal to 2 in the current sequence
                                 token_positions = (batch[0][seq_idx] == 2).nonzero(as_tuple=True)[0]
-                                
+
                                 # Check if the token ID is present in the sequence
                                 if len(token_positions) > 0:
                                     # Select the position of the last occurrence of the token
                                     last_position = token_positions[-1].item()
-                                    
+
                                     # Select the embeddings for the last occurrence of the token
                                     selected_embs[seq_idx, :] = out[seq_idx, last_position, :]
                                 else:
@@ -305,7 +307,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
                                     # Here, we use the embeddings of the last token as a fallback.
                                     selected_embs[seq_idx, :] = out[seq_idx, -1, :]
                                     self.logger.log(f'EOS token not found for sequence {i}')
-                            
+
                             # Update the embeddings tensor with the selected embeddings
                             embs[i: i + current_batch_size, :] = selected_embs
                             if i == 2:
@@ -582,7 +584,7 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
 
             else:
                 self.logger.log(f'No gpu found rolling device back to {device}')
-                
+
             data = utils.load_dataset(data_type)
             # data = data.sample(10)
             start_enc_time = time.time()
@@ -636,17 +638,17 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
                         elif reduction == 'eos':
                             # Initialize a tensor to store the selected embeddings
                             selected_embs = torch.zeros(current_batch_size, out.shape[2], device=out.device)
-                            
+
                             # Iterate over each sequence in the batch
                             for seq_idx in range(current_batch_size):
                                 # Find the positions of the token with ID equal to 2 in the current sequence
                                 token_positions = (batch[0][seq_idx] == 2).nonzero(as_tuple=True)[0]
-                                
+
                                 # Check if the token ID is present in the sequence
                                 if len(token_positions) > 0:
                                     # Select the position of the last occurrence of the token
                                     last_position = token_positions[-1].item()
-                                    
+
                                     # Select the embeddings for the last occurrence of the token
                                     selected_embs[seq_idx, :] = out[seq_idx, last_position, :]
                                 else:
@@ -656,7 +658,7 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
                                     # Here, we use the embeddings of the last token as a fallback.
                                     selected_embs[seq_idx, :] = out[seq_idx, -1, :]
                                     self.logger.log(f'EOS token not found for sequence {i}')
-                            
+
                             # Update the embeddings tensor with the selected embeddings
                             embs[i: i + current_batch_size, :] = selected_embs
                         elif utils.convert_to_number(reduction) is not None:
@@ -692,7 +694,7 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
             t = torch.load(f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
             self.logger.log(
                 f'Saved embeddings ({t.shape[1]}-d) as "{self.logger.experiment_name}.pt" ({time.time() - start_enc_time:.2f}s)')
-            
+
             if torch.cuda.is_available(): torch.cuda.memory._dump_snapshot(f'{self.logger.base_dir}/memory_profiler.pickle')
             if torch.cuda.is_available(): torch.cuda.memory._record_memory_history(enabled=None)
             return
@@ -702,11 +704,12 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
             stack_trace = traceback.format_exc()
             self.logger.log(stack_trace)
 
-
     def fine_tune(self, data_type, fine_tuner, train_split_name, optimizer, loss_f):
         # Implementation for BERT...
         pass
 
+
+# TODO: Implement AnkhFamily in modern PLMFit
 class AnkhFamily(IPretrainedProteinLanguageModel):
     
     tokenizer : AutoTokenizer

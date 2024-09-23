@@ -15,7 +15,7 @@ try:
     env_exists = POST_URL is not None and TOKEN is not None and USER is not None
 except:
     env_exists = False
-    print(f"No environment file 'env.py' detected or USER/TOKEN/POST_URL not set up correctly, reverting back to local logger")
+    print(f"No environment file '.env' detected or USER/TOKEN/POST_URL not set up correctly, reverting back to local logger")
 
 class Logger():
     _instance = None  # Private class variable to hold the instance

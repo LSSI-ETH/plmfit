@@ -18,15 +18,15 @@ from dotenv import load_dotenv
 import blosum as bl
 
 load_dotenv() 
-path = os.getenv('DATA_DIR', './plmfit')
-data_dir = f'{path}/data'
-config_dir = f'{path}/models/configurations'
+plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
+data_dir = os.getenv("DATA_DIR", "./data")
+config_dir = os.getenv("CONFIG_DIR", "./config")
 
 def set_path(base_path):
     global path, data_dir, config_dir
     path = base_path
-    data_dir = f'{base_path}/data'
-    config_dir = f'{base_path}/models/configurations'
+    data_dir = os.getenv("DATA_DIR", "./data")
+    config_dir = os.getenv("CONFIG_DIR", "./config")
 
 def load_dataset(data_type):
     return pd.read_csv(f'{data_dir}/{data_type}/{data_type}_data_full.csv')
@@ -149,7 +149,7 @@ def convert_or_clone_to_tensor(data, dtype):
         return data.detach().clone().to(dtype=dtype)
     else:
         raise TypeError("Input data must be either a NumPy array or a PyTorch tensor.")
-    
+
 def get_epoch_dataloaders(dataloader, epoch_size=0):
     if epoch_size == 0:
         return dataloader
@@ -178,7 +178,7 @@ def get_epoch_dataloaders(dataloader, epoch_size=0):
 
 def load_config(config_file_name):
     """
-    Load a head configuration file from the plmfit/models/configurations directory.
+    Load a head configuration file from config directory.
 
     Parameters:
         config_file_name (str): Name of the head configuration file.
@@ -194,7 +194,6 @@ def load_config(config_file_name):
         config = json.load(file)
 
     return config
-    
 
 
 def get_activation_function(name):
@@ -212,7 +211,7 @@ def get_activation_function(name):
         raise f"Unsupported activation function: {name}"
 
 def get_wild_type(data_type):
-    file = f'{path}/data/{data_type}'
+    file = f"{data_dir}/{data_type}"
     wild_type_f = open(f'{file}/wild_type.json')
     wt = json.load(wild_type_f)['wild_type']
     return wt
@@ -698,7 +697,6 @@ def masking_collator(tokenizer, features, mlm_probability=0.15, mutation_boost_f
     }
 
 
-
 class MaskedLMDataset(Dataset):
     def __init__(self, encodings, tokenizer, mlm_probability, mutation_boost_factor=6.66):
         self.encodings = encodings
@@ -713,7 +711,7 @@ class MaskedLMDataset(Dataset):
         item = {key: val[idx].clone().detach() for key, val in self.encodings.items()}
         masked_inputs = masking_collator(self.tokenizer, item, self.mlm_probability, self.mutation_boost_factor)
         return masked_inputs
-    
+
 def create_mlm_data_loaders(data, tokenizer, batch_size=16, mlm_probability=0.15, mutation_boost_factor=6.66, split_ratios=(0.7, 0.15, 0.15)):
     dataset = MaskedLMDataset(data, tokenizer, mlm_probability, mutation_boost_factor)
     

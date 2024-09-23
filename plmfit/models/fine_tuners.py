@@ -287,7 +287,7 @@ class FullRetrainFineTuner(FineTuner):
 class LowRankAdaptationFineTuner(FineTuner):
     def __init__(self, training_config, logger = None):
         super().__init__(training_config, logger)
-        peft_config = utils.load_config('lora_config.json')
+        peft_config = utils.load_config('peft/lora_config.json')
         self.logger.save_data(peft_config, 'lora_config')
             
         self.peft_config = LoraConfig(
@@ -314,9 +314,9 @@ class LowRankAdaptationFineTuner(FineTuner):
 class BottleneckAdaptersFineTuner(FineTuner):
     def __init__(self, training_config, logger = None):
         super().__init__(training_config, logger)
-        peft_config = utils.load_config('bottleneck_config.json')
-        self.logger.save_data(peft_config, 'bottleneck_config')
-            
+        peft_config = utils.load_config('peft/bottleneck_adapters_config.json')
+        self.logger.save_data(peft_config, "bottleneck_adapters_config")
+
         self.peft_config = BottleneckConfig(
             bottleneck_size = peft_config['bottleneck_size'],
             non_linearity = peft_config['non_linearity'],
