@@ -7,10 +7,10 @@ from plmfit.models.hyperparameter_tuner import HyperTuner
 def feature_extraction(args, logger):
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    
+
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
     split = None if args.split == 'sampled' and 'sampled' not in data else data.get(args.split)
-    head_config = utils.load_config(args.head_config)
+    head_config = utils.load_config(f"training/{args.head_config}")
     weights = None if args.weights is None else data.get(args.weights)
 
     ### TODO : Extract embeddings if do not exist
@@ -56,7 +56,7 @@ def feature_extraction(args, logger):
 #     data = utils.load_dataset(args.data_type)
 #     head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
 #     split = None if args.split is None else data[args.split]
-    
+
 #     # Load embeddings and scores
 #     ### TODO : Load embeddings if do not exist
 #     embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings', data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
@@ -68,7 +68,7 @@ def feature_extraction(args, logger):
 #     training_params = head_config['training_parameters']
 #     data_loaders = utils.create_data_loaders(
 #             embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=NUM_WORKERS)
-    
+
 #     logger.save_data(vars(args), 'arguments')
 #     logger.save_data(head_config, 'head_config')
 
@@ -81,9 +81,9 @@ def feature_extraction(args, logger):
 #         pred_model = heads.MLP(head_config['architecture_parameters'])
 #     else:
 #         raise ValueError('Head type not supported')
-    
+
 #     utils.set_trainable_parameters(pred_model)
-    
+
 #     model = LightningModel(pred_model, head_config['training_parameters'], plmfit_logger=logger, log_interval=100)
 #     lightning_logger = TensorBoardLogger(save_dir=logger.base_dir, version=0, name="lightning_logs")
 
@@ -101,9 +101,9 @@ def feature_extraction(args, logger):
 
 #     trainer = L.Trainer(
 #         default_root_dir=logger.base_dir,
-#         logger=lightning_logger, 
-#         max_epochs=model.hparams.epochs, 
-#         enable_progress_bar=False, 
+#         logger=lightning_logger,
+#         max_epochs=model.hparams.epochs,
+#         enable_progress_bar=False,
 #         accumulate_grad_batches=model.gradient_accumulation_steps(),
 #         gradient_clip_val=model.gradient_clipping(),
 #         limit_train_batches=model.epoch_sizing(),
@@ -118,7 +118,7 @@ def feature_extraction(args, logger):
 #     trainer.fit(model, data_loaders['train'], data_loaders['val'])
 
 #     model = convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
-    
+
 #     trainer.test(model=model, ckpt_path=f'{logger.base_dir}/best_model.ckpt', dataloaders=data_loaders['test'])
 
 #     loss_plot = data_explore.create_loss_plot(json_path=f'{logger.base_dir}/{logger.experiment_name}_loss.json')

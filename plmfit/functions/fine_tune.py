@@ -12,7 +12,7 @@ import ast
 import shutil
 
 def fine_tune(args, logger):
-    head_config = utils.load_config(args.head_config)
+    head_config = utils.load_config(f'training/{args.head_config}')
     task = head_config['architecture_parameters']['task']
 
     # Load dataset

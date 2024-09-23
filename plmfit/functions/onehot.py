@@ -10,7 +10,7 @@ def onehot(args, logger):
     data = utils.load_dataset(args.data_type)
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
     split = None if args.split == 'sampled' and 'sampled' not in data else data.get(args.split)
-    head_config = utils.load_config(args.head_config)
+    head_config = utils.load_config(f"training/{args.head_config}")
 
     tokenizer = utils.load_tokenizer('proteinbert') # Use same tokenizer as proteinbert
     encs = utils.categorical_encode(
@@ -28,7 +28,7 @@ def onehot(args, logger):
     else:
         raise f"Task type {head_config['architecture_parameters']['task']} not supported."
     scores = torch.tensor(scores, dtype=torch.float32)
-    
+
     logger.save_data(vars(args), 'arguments')
 
     if args.ray_tuning == 'True': 
