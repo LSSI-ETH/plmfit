@@ -1,17 +1,25 @@
 #!/bin/bash
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=4
-#SBATCH --tasks-per-node=1
-#SBATCH --time=16:00:00
+echo "JOB ID: $SLURM_JOBID"
 
 module load eth_proxy
-module load gcc/8.2.0  python_gpu/3.11.2
-
-export DATA_DIR='/cluster/home/estamkopoulo/plmfit_workspace/plmfit/plmfit'
+module load stack/2024-06 gcc/12.2.0
+module load python/3.11.6 cuda/12.1.1 ninja/1.11.1
 
 nvcc --version
 nvidia-smi
-python3 plmfit.py --function $1 --ft_method $2 --head_config $3 \
-        --data_type $5 --plm $6 --layer $7 --reduction $8 \
-        --output_dir ${9} --experiment_dir ${10} --experiment_name ${11}
+nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used --format=csv -l 1 > ${11}/gpu_usage.log 2>&1 &
+# Store the PID of the nvidia-smi background process
+NVIDIA_SMI_PID=$!
+
+while true; do
+  myjobs -j $SLURM_JOBID >> ${11}/task_monitor.log 2>&1
+  sleep 1
+done &
+CPU_FREE_PID=$!
+
+python3 plmfit --function $1 --ft_method $2 --head_config $3 --ray_tuning $4 \
+        --data_type $5 --split $6 --plm $7 --layer $8 --reduction $9 \
+        --output_dir ${10} --experiment_dir ${11} --experiment_name ${12} --beta True
+
+kill $NVIDIA_SMI_PID
+kill $CPU_FREE_PID

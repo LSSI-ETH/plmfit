@@ -1,0 +1,2 @@
+function	ft_method	target_layers	data_type	split	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
+fine_tuning	full	last	aav	one_vs_many	proteinbert	linear	classification	aav_bottleneck_linear_classification_head_config.json	last	bos	/cluster/scratch/estamkopoulo	1	rtx_2080_ti	8g	1	8	False

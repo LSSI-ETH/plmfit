@@ -24,7 +24,7 @@ import math
 import torch
 from torch import nn
 from torch.utils.checkpoint import checkpoint
-from transformers.modeling_outputs import SequenceClassifierOutputWithPast
+from transformers.modeling_outputs import SequenceClassifierOutputWithPast, MaskedLMOutput
 
 from .modeling_utils import ProteinConfig
 from .modeling_utils import ProteinModel
@@ -79,6 +79,8 @@ class ProteinBertConfig(ProteinConfig):
             layer_norm_eps: The epsilon used by LayerNorm.
     """
     pretrained_config_archive_map = BERT_PRETRAINED_CONFIG_ARCHIVE_MAP
+    
+    model_type = "bert"
 
     def __init__(self,
                  vocab_size: int = 30,
@@ -107,6 +109,7 @@ class ProteinBertConfig(ProteinConfig):
         self.type_vocab_size = type_vocab_size
         self.initializer_range = initializer_range
         self.layer_norm_eps = layer_norm_eps
+        self.model_type = "bert"
 
 
 class ProteinBertEmbeddings(nn.Module):
@@ -429,7 +432,6 @@ class ProteinBertModel(ProteinBertAbstractModel):
                 input_mask=None):
         if input_mask is None:
             input_mask = torch.ones_like(input_ids)
-
         # We create a 3D attention mask from a 2D tensor mask.
         # Sizes are [batch_size, 1, 1, to_seq_length]
         # So we can broadcast to [batch_size, num_heads, from_seq_length, to_seq_length]
@@ -445,7 +447,6 @@ class ProteinBertModel(ProteinBertAbstractModel):
         extended_attention_mask = extended_attention_mask.to(
             dtype=next(self.parameters()).dtype)  # fp16 compatibility
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
-
         embedding_output = self.embeddings(input_ids)
         encoder_outputs = self.encoder(embedding_output,
                                        extended_attention_mask,
@@ -466,7 +467,7 @@ class ProteinBertForMaskedLM(ProteinBertAbstractModel):
         self.bert = ProteinBertModel(config)
         self.mlm = MLMHead(
             config.hidden_size, config.vocab_size, config.hidden_act, config.layer_norm_eps,
-            ignore_index=-1)
+            ignore_index=-100)
 
         self.init_weights()
         self.tie_weights()
@@ -477,19 +478,22 @@ class ProteinBertForMaskedLM(ProteinBertAbstractModel):
         """
         self._tie_or_clone_weights(self.mlm.decoder,
                                    self.bert.embeddings.word_embeddings)
+        
+    def trim_model(self, layer_to_use):
+        self.bert.encoder.layer = nn.ModuleList(list(self.bert.encoder.layer.children())[:layer_to_use + 1])
 
     def forward(self,
                 input_ids,
-                input_mask=None,
-                targets=None):
-
-        outputs = self.bert(input_ids, input_mask=input_mask)
+                attention_mask=None,
+                labels=None):
+        outputs = self.bert(input_ids, input_mask=attention_mask)
 
         sequence_output, pooled_output = outputs[:2]
         # add hidden states and attention if they are here
-        outputs = self.mlm(sequence_output, targets) + outputs[2:]
-        # (loss), prediction_scores, (hidden_states), (attentions)
-        return outputs
+        mlm_output = self.mlm(sequence_output, labels)
+        mlm_output.hidden_states = outputs[2:]
+        
+        return mlm_output
 
 
 class ProteinBertForValuePrediction(ProteinBertAbstractModel):
@@ -526,15 +530,10 @@ class ProteinBertForSequenceClassification(ProteinBertAbstractModel):
     def set_head(self, head):
         self.classifier = head
 
-    def unset_trainable_parameters_after_layer_to_use(self):
-        # Set layers after self.layer_to_use to non-trainable
-        if self.layer_to_use == -1: return
-        for i, layer in enumerate(self.bert.encoder.layer):
-            if i > self.layer_to_use - 1: # Adjusted by 1 because in 'h' the initial embeddings are not accounted for
-                for param in layer.parameters():
-                    param.requires_grad = False
+    def trim_model(self, layer_to_use):
+        self.bert.encoder.layer = nn.ModuleList(list(self.bert.encoder.layer.children())[:layer_to_use + 1])
 
-    def forward(self, input_ids, input_mask=None, targets=None, meta=None):
+    def forward(self, input_ids, input_mask=None, targets=None):
         if input_ids is not None:
             input_ids = input_ids.int()
         outputs = self.bert(input_ids, input_mask=input_mask)
@@ -543,8 +542,6 @@ class ProteinBertForSequenceClassification(ProteinBertAbstractModel):
         sequence_output = outputs[0]
         # The third element of outputs is the hidden states from all layers
         all_hidden_states = outputs[2]
-        if self.layer_to_use != -1:
-            sequence_output = all_hidden_states[self.layer_to_use]
         pooled_output = self.bert.pooler(sequence_output, pooling_method=self.reduction)
 
         logits = self.classifier(pooled_output)

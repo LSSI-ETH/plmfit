@@ -1,0 +1,3 @@
+function	ft_method	target_layers	data_type	split	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
+fine_tuning	bottleneck_adapters	all	aav	sampled	progen2-xlarge	linear	classification	bottleneck_linear_classification_head_config.json	last	mean	/cluster/scratch/estamkopoulo	3	a100-pcie-40gb	40g	1	72	False
+fine_tuning	bottleneck_adapters	all	aav	sampled	progen2-xlarge	linear	classification	bottleneck_linear_classification_head_config.json	last	eos	/cluster/scratch/estamkopoulo	3	a100-pcie-40gb	40g	1	72	False

@@ -15,7 +15,7 @@
 module load eth_proxy
 module load gcc/8.2.0  python_gpu/3.11.2
 
-python3 plmfit.py --function fine_tuning --ft_method feature_extraction \
+python3 plmfit --function fine_tuning --ft_method feature_extraction \
         --head mlp --head_config config_mlp.json \
         --layer last --reduction mean --data_type aav --plm progen2-xlarge \
         --batch_size 128 --epochs 200 --lr 1e-6 --weight_decay 1e-6 \

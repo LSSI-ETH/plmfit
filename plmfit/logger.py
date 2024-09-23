@@ -7,11 +7,15 @@ import torch
 import requests
 import traceback
 try:
-    import env
-    env_exists = True
+    from dotenv import load_dotenv 
+    load_dotenv()
+    POST_URL = os.getenv('POST_URL')
+    TOKEN = os.getenv('TOKEN')
+    USER = os.getenv('USER')
+    env_exists = POST_URL is not None and TOKEN is not None and USER is not None
 except:
     env_exists = False
-    print(f"No environment file 'env.py' detected, reverting back to local logger")
+    print(f"No environment file 'env.py' detected or USER/TOKEN/POST_URL not set up correctly, reverting back to local logger")
 
 class Logger():
     _instance = None  # Private class variable to hold the instance
@@ -38,9 +42,9 @@ class Logger():
         self.mute = False
         
         if log_to_server:
-            self.server_url = env.POST_URL
-            self.token = env.TOKEN
-            self.user = env.USER
+            self.server_url = POST_URL
+            self.token = TOKEN
+            self.user = USER
             self.server_path = f'/{self.user}/{base_dir}' if server_path == '' else f'/{self.user}/{server_path}'
             self.last_post_time = None  # Track the last time a post was made
 

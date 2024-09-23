@@ -319,26 +319,41 @@ def plot_actual_vs_predicted(y_test_list=None, y_pred_list=None, axis_range=[0, 
     plt.tight_layout()
     return fig
 
-def plot_confusion_matrix_heatmap(cm=None, json_path=None):
+def plot_confusion_matrix_heatmap(cm=None, json_path=None, class_names=None):
     """
     Plots a confusion matrix heatmap.
+    
+    Args:
+    - cm: Confusion matrix as a 2D numpy array. If None, json_path should be provided.
+    - json_path: Path to a JSON file containing the confusion matrix data.
+    - class_names: List of class names. If None, class names will be generated based on the confusion matrix shape.
     """
+    # Load confusion matrix from JSON if provided
     if json_path:
         with open(json_path, 'r') as file:
             json_data = json.load(file)
             cm = json_data['main']['confusion_matrix']
             cm = np.array(cm)
+
+    # Calculate the percentage of each value in the confusion matrix
     cm_percentage = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-    class_names = [0, 1]
-    fig, ax = plt.subplots(figsize=(6, 6))
+
+    # If class names are not provided, generate based on confusion matrix size
+    if class_names is None:
+        class_names = [f"Class {i}" for i in range(cm.shape[0])]
+
+    # Create heatmap figure
+    fig, ax = plt.subplots(figsize=(8, 8))  # Increase figure size for better visibility in multiclass
     sns.heatmap(cm_percentage, annot=True, fmt=".2%", cmap='Blues', cbar=False, 
                 xticklabels=class_names, yticklabels=class_names, ax=ax)
+
+    # Set labels and title
     plt.ylabel('Actual')
     plt.xlabel('Predicted')
     plt.title('Confusion Matrix Heatmap')
     plt.tight_layout()
-    return fig
 
+    return fig
 
 
 def binary_accuracy(y_true, y_pred):
@@ -362,14 +377,17 @@ def evaluate_classification(model, dataloaders_dict, device, model_output='defau
                 outputs = model(inputs).logits.squeeze()
             else:
                 raise f'Model output "{model_output}" not defined'
-            if outputs.dim() > 1:
-                outputs = outputs.squeeze()
-            if labels.dim() > 1:
-                labels = labels.squeeze()
-            y_pred = outputs
-            y_pred_list.extend(y_pred.detach().cpu().numpy())
-            y_test_list.extend(labels.detach().cpu().numpy())
+            # Ensure outputs and labels are at least 1D
+            outputs = outputs.squeeze()
+            labels = labels.squeeze()
 
+            # Use np.atleast_1d to ensure the arrays are at least 1D
+            y_pred_list.append(np.atleast_1d(outputs.detach().cpu().numpy()))
+            y_test_list.append(np.atleast_1d(labels.detach().cpu().numpy()))
+
+    y_pred_list = np.concatenate(y_pred_list).tolist()
+    y_test_list = np.concatenate(y_test_list).tolist()
+    
     # Calculate metrics
     acc = binary_accuracy(torch.tensor(y_test_list), torch.tensor(y_pred_list))
     roc_auc = roc_auc_score(y_test_list, y_pred_list)
@@ -388,13 +406,17 @@ def evaluate_classification(model, dataloaders_dict, device, model_output='defau
         "false_negatives": int(cm[1][0]),
         "true_positives": int(cm[1][1])
     }
-
+    
     # Log evaluation metrics
     eval_metrics = {
         "accuracy": acc.item(),
         "roc_auc": roc_auc,
         "mcc": mcc,
-        "confusion_matrix": cm_dict
+        "confusion_matrix": cm_dict,
+        "testing_data" : {
+            "y_test": y_test_list,
+            "y_pred": y_pred_list
+        }
     }
 
     return eval_metrics, fig, cm_fig, roc_auc_data
@@ -450,3 +472,36 @@ def evaluate_regression(model, dataloaders_dict, device, model_output='default')
     }
 
     return eval_metrics, fig, testing_data
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+
+def visualize_embeddings(embeddings, title="Embeddings Visualization", use_heatmap=False):
+    """
+    Visualizes embeddings using line plots or a heatmap.
+    
+    Args:
+    embeddings (Tensor): The embeddings tensor to visualize.
+    title (str): The title for the plot.
+    use_heatmap (bool): Flag to determine if a heatmap is used for visualization.
+    """
+    embeddings = embeddings.detach().cpu().numpy()  # Ensure tensor is on CPU and convert to NumPy array
+
+    plt.figure(figsize=(10, 8))
+    if use_heatmap:
+        plt.imshow(embeddings, aspect='auto', interpolation='none', cmap='viridis')
+        plt.colorbar()
+        plt.xlabel('Dimension')
+        plt.ylabel('Tokens')
+        plt.title(title)
+    else:
+        for i in range(embeddings.shape[0]):
+            plt.plot(embeddings[i], label=f'Token {i}')
+        plt.legend()
+        plt.title(title)
+        plt.xlabel('Dimension')
+        plt.ylabel('Value')
+    
+    plt.grid(True)
+    plt.show()

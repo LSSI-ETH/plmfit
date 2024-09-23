@@ -1,45 +1,26 @@
-function	ft_method	data_type	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-fine_tuning	lora	aav	proteinbert	linear	classification	lora_linear_classification_head_config.json	quarter3	bos	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	12g	1	10	False
-fine_tuning	lora	aav	proteinbert	linear	classification	lora_linear_classification_head_config.json	quarter1	bos	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	12g	1	10	False
-fine_tuning	lora	aav	proteinbert	linear	classification	lora_linear_classification_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	12g	1	10	False
-fine_tuning	lora	aav	proteinbert	linear	classification	lora_linear_classification_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	12g	1	10	False
-fine_tuning	lora	aav	proteinbert	mlp	classification	lora_mlp_classification_head_config.json	quarter3	bos	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	12g	1	10	False
-fine_tuning	lora	aav	proteinbert	mlp	classification	lora_mlp_classification_head_config.json	quarter1	bos	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	12g	1	10	False
-fine_tuning	lora	aav	proteinbert	mlp	classification	lora_mlp_classification_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	12g	1	10	False
-fine_tuning	lora	aav	proteinbert	mlp	classification	lora_mlp_classification_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	12g	1	10	False
-fine_tuning	lora	aav	progen2-small	linear	classification	lora_linear_classification_head_config.json	quarter3	eos	/cluster/scratch/estamkopoulo	1	rtx_4090	12g	1	12	False
-fine_tuning	lora	aav	progen2-small	linear	classification	lora_linear_classification_head_config.json	quarter1	eos	/cluster/scratch/estamkopoulo	1	rtx_4090	12g	1	12	False
-fine_tuning	lora	aav	progen2-small	linear	classification	lora_linear_classification_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	1	rtx_4090	12g	1	12	False
-fine_tuning	lora	aav	progen2-small	linear	classification	lora_linear_classification_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	1	rtx_4090	12g	1	12	False
-fine_tuning	lora	aav	progen2-small	mlp	classification	lora_mlp_classification_head_config.json	quarter3	eos	/cluster/scratch/estamkopoulo	1	rtx_4090	12g	1	12	False
-fine_tuning	lora	aav	progen2-small	mlp	classification	lora_mlp_classification_head_config.json	quarter1	eos	/cluster/scratch/estamkopoulo	1	rtx_4090	12g	1	12	False
-fine_tuning	lora	aav	progen2-small	mlp	classification	lora_mlp_classification_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	1	titan_rtx	12g	1	12	False
-fine_tuning	lora	aav	progen2-small	mlp	classification	lora_mlp_classification_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	1	titan_rtx	12g	1	12	False
-fine_tuning	lora	aav	progen2-medium	linear	classification	lora_linear_classification_head_config.json	quarter3	eos	/cluster/scratch/estamkopoulo	6	titan_rtx	18g	1	8	False
-fine_tuning	lora	aav	progen2-medium	linear	classification	lora_linear_classification_head_config.json	quarter1	eos	/cluster/scratch/estamkopoulo	6	titan_rtx	18g	1	8	False
-fine_tuning	lora	aav	progen2-medium	linear	classification	lora_linear_classification_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	6	quadro_rtx_6000	18g	1	8	False
-fine_tuning	lora	aav	progen2-medium	linear	classification	lora_linear_classification_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	6	quadro_rtx_6000	18g	1	8	False
-fine_tuning	lora	aav	progen2-medium	mlp	classification	lora_mlp_classification_head_config.json	quarter3	eos	/cluster/scratch/estamkopoulo	6	rtx_4090	18g	1	8	False
-fine_tuning	lora	aav	progen2-medium	mlp	classification	lora_mlp_classification_head_config.json	quarter1	eos	/cluster/scratch/estamkopoulo	6	rtx_4090	18g	1	8	False
-fine_tuning	lora	aav	progen2-medium	mlp	classification	lora_mlp_classification_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	6	titan_rtx	18g	1	8	False
-fine_tuning	lora	aav	progen2-medium	mlp	classification	lora_mlp_classification_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	6	titan_rtx	18g	1	8	False
-fine_tuning	lora	aav	progen2-xlarge	linear	classification	lora_linear_classification_head_config.json	last	eos	/cluster/scratch/estamkopoulo	4	a100_80gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	linear	classification	lora_linear_classification_head_config.json	quarter3	eos	/cluster/scratch/estamkopoulo	4	a100-pcie-40gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	linear	classification	lora_linear_classification_head_config.json	middle	eos	/cluster/scratch/estamkopoulo	4	a100_80gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	linear	classification	lora_linear_classification_head_config.json	quarter1	eos	/cluster/scratch/estamkopoulo	4	a100-pcie-40gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	linear	classification	lora_linear_classification_head_config.json	first	eos	/cluster/scratch/estamkopoulo	4	a100_80gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	linear	classification	lora_linear_classification_head_config.json	last	mean	/cluster/scratch/estamkopoulo	4	a100_80gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	linear	classification	lora_linear_classification_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	4	a100-pcie-40gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	linear	classification	lora_linear_classification_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	4	a100_80gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	linear	classification	lora_linear_classification_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	4	a100-pcie-40gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	linear	classification	lora_linear_classification_head_config.json	first	mean	/cluster/scratch/estamkopoulo	4	a100_80gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	mlp	classification	lora_mlp_classification_head_config.json	last	eos	/cluster/scratch/estamkopoulo	4	a100_80gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	mlp	classification	lora_mlp_classification_head_config.json	quarter3	eos	/cluster/scratch/estamkopoulo	4	a100-pcie-40gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	mlp	classification	lora_mlp_classification_head_config.json	middle	eos	/cluster/scratch/estamkopoulo	4	a100_80gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	mlp	classification	lora_mlp_classification_head_config.json	quarter1	eos	/cluster/scratch/estamkopoulo	4	a100-pcie-40gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	mlp	classification	lora_mlp_classification_head_config.json	first	eos	/cluster/scratch/estamkopoulo	4	a100_80gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	mlp	classification	lora_mlp_classification_head_config.json	last	mean	/cluster/scratch/estamkopoulo	4	a100_80gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	mlp	classification	lora_mlp_classification_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	4	a100-pcie-40gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	mlp	classification	lora_mlp_classification_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	4	a100_80gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	mlp	classification	lora_mlp_classification_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	4	a100-pcie-40gb	60g	1	23	False
-fine_tuning	lora	aav	progen2-xlarge	mlp	classification	lora_mlp_classification_head_config.json	first	mean	/cluster/scratch/estamkopoulo	4	a100_80gb	60g	1	23	False
+function	ft_method	target_layers	data_type	split	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
+fine_tuning	lora	last	aav	sampled	esm2_t33_650M_UR50D	linear	regression	aav_sampled_last_lora_linear_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	1	rtx_3090	18g	1	8	False
+fine_tuning	lora	last	aav	sampled	esm2_t33_650M_UR50D	linear	regression	aav_sampled_last_lora_linear_head_config.json	quarter1	bos	/cluster/scratch/estamkopoulo	1	rtx_3090	18g	1	8	False
+fine_tuning	lora	last	aav	sampled	esm2_t33_650M_UR50D	linear	regression	aav_sampled_last_lora_linear_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	18g	1	8	False
+fine_tuning	lora	last	gb1	three_vs_rest	esm2_t48_15B_UR50D	linear	regression	gb1_3vr_lora_linear_head_config.json	quarter3	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	70g	1	24	False
+fine_tuning	lora	last	gb1	three_vs_rest	esm2_t48_15B_UR50D	linear	regression	gb1_3vr_lora_linear_head_config.json	last	bos	/cluster/scratch/estamkopoulo	2	a100_80gb	70g	1	60	False
+fine_tuning	lora	last	herH3	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	rtx_3090	50g	1	4	False
+fine_tuning	lora	last	herH3	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	first	bos	/cluster/scratch/estamkopoulo	1	rtx_3090	50g	1	4	False
+fine_tuning	lora	last	herH3	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	1	rtx_4090	50g	1	4	False
+fine_tuning	lora	last	herH3	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	quarter1	bos	/cluster/scratch/estamkopoulo	1	rtx_4090	50g	1	4	False
+fine_tuning	lora	last	herH3	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	50g	1	8	False
+fine_tuning	lora	last	herH3	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	middle	bos	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	50g	1	8	False
+fine_tuning	lora	last	herH3	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	50g	1	12	False
+fine_tuning	lora	last	herH3	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	quarter3	bos	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	50g	1	12	False
+fine_tuning	lora	last	herH3	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	last	mean	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	50g	1	16	False
+fine_tuning	lora	last	herH3	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	last	bos	/cluster/scratch/estamkopoulo	1	quadro_rtx_6000	50g	1	16	False
+fine_tuning	lora	last	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	first	mean	/cluster/scratch/estamkopoulo	1	rtx_3090	50g	1	4	False
+fine_tuning	lora	last	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	first	bos	/cluster/scratch/estamkopoulo	1	rtx_3090	50g	1	4	False
+fine_tuning	lora	last	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	quarter1	mean	/cluster/scratch/estamkopoulo	2	rtx_4090	50g	1	8	False
+fine_tuning	lora	last	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	quarter1	bos	/cluster/scratch/estamkopoulo	2	rtx_4090	50g	1	8	False
+fine_tuning	lora	last	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	middle	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	50g	1	20	False
+fine_tuning	lora	last	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	middle	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	50g	1	20	False
+fine_tuning	lora	last	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	quarter3	mean	/cluster/scratch/estamkopoulo	3	quadro_rtx_6000	50g	1	30	False
+fine_tuning	lora	last	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	quarter3	bos	/cluster/scratch/estamkopoulo	3	quadro_rtx_6000	50g	1	30	False
+fine_tuning	lora	last	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	last	mean	/cluster/scratch/estamkopoulo	3	quadro_rtx_6000	50g	1	36	False
+fine_tuning	lora	last	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	rbd_lora_linear_classification_head_config.json	last	bos	/cluster/scratch/estamkopoulo	3	quadro_rtx_6000	50g	1	36	False

@@ -1,0 +1,1 @@
+from plmfit.models.peft.mapping import get_peft_model

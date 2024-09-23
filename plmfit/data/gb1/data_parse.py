@@ -2,6 +2,7 @@ import pandas as pd
 import plmfit.shared_utils.data_explore as data_explore
 import os
 import json
+import numpy as np
 
 script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
 
@@ -22,6 +23,7 @@ if __name__ == "__main__":
 
     # List containing the mutation site indices
     mutation_sites = [v39, d40, g41, v54]
+    data = data[data['keep'] == True]
 
     # Add a new column to the DataFrame for sequence length
     data["sequence_length"] = data["sequence"].apply(len)
@@ -35,11 +37,9 @@ if __name__ == "__main__":
         data, column="Fitness"
     )  # Normalize score first
     
-    data["two_vs_many"] = data["HD"].apply(lambda x: 'train' if int(x) <= 2 else 'test')
-    validation_fraction = 0.15
-    num_validation = int(data[data["two_vs_many"] == 'test'].shape[0] * validation_fraction)
-    validation_indices = data[data["two_vs_many"] == 'test'].sample(n=num_validation, random_state=42).index
-    data.loc[validation_indices, "two_vs_many"] = 'validation'
+
+    data["two_vs_rest"] = np.where(data["two_vs_rest_validation"].isna(), data['two_vs_rest'], 'validation')
+    data["three_vs_rest"] = np.where(data["three_vs_rest_validation"].isna(), data['three_vs_rest'], 'validation')
 
     # Create a new DataFrame with specified columns and save it as a CSV file
     new_data = pd.DataFrame(
@@ -47,8 +47,9 @@ if __name__ == "__main__":
             "aa_seq": data["sequence"],
             "len": data["sequence_length"],
             "no_mut": data["HD"],
-            "score": data["normalized_score"],
-            "two_vs_many": data["two_vs_many"]
+            "score": data["Fitness"],
+            "two_vs_rest": data["two_vs_rest"],
+            "three_vs_rest": data["three_vs_rest"]
         }
     )
 

@@ -705,14 +705,11 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         self.classifier = nn.Linear(config.n_embd, self.num_labels, bias=False)
         self.init_weights()
 
-        self.layer_to_use = -1
         self.reduction = 'eos'
 
         # Model parallel
         self.model_parallel = False
         self.device_map = None
-
-        
 
     def set_head(self, head):
         self.classifier = head
@@ -735,13 +732,15 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         self.model_parallel = False
         torch.cuda.empty_cache()
 
-    def unset_trainable_parameters_after_layer_to_use(self):
-        # Set layers after self.layer_to_use to non-trainable
-        if self.layer_to_use == -1: return
-        for i, layer in enumerate(self.transformer.h):
-            if i > self.layer_to_use - 1: # Adjusted by 1 because in 'h' the initial embeddings are not accounted for
-                for param in layer.parameters():
-                    param.requires_grad = False
+    def trim_model(self, layer_to_use):
+        # Step 1: Keep the layers you want
+        kept_layers = list(self.transformer.h.children())[:layer_to_use + 1]
+
+        # Step 2: Delete the original ModuleList to remove references
+        del self.transformer.h
+
+        # Step 3: Reassign the kept layers back to self.transformer.h
+        self.transformer.h = nn.ModuleList(kept_layers)
     
     def forward(
         self,
@@ -757,7 +756,6 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
         output_attentions=True,
         output_hidden_states=True,
         return_dict=None,
-        meta=None,
     ):
         r"""
         labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
@@ -784,9 +782,6 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
             return_dict=return_dict,
         )
         hidden_states = transformer_outputs[0]
-        if output_hidden_states and self.layer_to_use != -1:
-            all_hidden_states = transformer_outputs.hidden_states
-            hidden_states = all_hidden_states[self.layer_to_use]
         if input_ids is not None:
             batch_size = input_ids.shape[0]
         else:
@@ -809,8 +804,6 @@ class ProGenForSequenceClassification(ProGenPreTrainedModel):
             hidden_states = hidden_states[torch.arange(batch_size, device=hidden_states.device), sequence_lengths]
         elif self.reduction == 'mean':
             hidden_states = torch.mean(hidden_states, dim=1)
-        elif self.reduction == 'mut_mean':
-            print(meta)
 
         pooled_logits = self.classifier(hidden_states)
 

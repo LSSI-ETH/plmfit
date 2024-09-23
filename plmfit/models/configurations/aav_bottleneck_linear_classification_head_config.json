@@ -1,0 +1,28 @@
+{
+  "architecture_parameters":
+  {
+    "network_type": "linear",
+    "output_dim": 1,
+    "task": "classification",
+    "dropout": 0,
+    "output_activation": "sigmoid"
+  },
+  "training_parameters": 
+  {
+    "learning_rate": 0.0001,
+    "epochs": 30,
+    "batch_size": 4,
+    "loss_f": "bce",
+    "optimizer": "adam",
+    "val_split": 0.2,
+    "weight_decay": 0.0001,
+    "warmup_steps": 0,
+    "gradient_clipping": false,
+    "scheduler": false,
+    "scaler": false,
+    "gradient_accumulation": 1,
+    "early_stopping": 20,
+    "epoch_sizing": 1.0,
+    "model_output": "logits"
+  }
+}

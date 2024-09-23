@@ -14,4 +14,4 @@
 
 module load gcc/8.2.0  python_gpu/3.11.2
 
-python3 plmfit.py --function extract_embeddings --reduction mean --data_type covid --plm antiberty --output_dir $SCRATCH
+python3 plmfit --function extract_embeddings --reduction mean --data_type covid --plm antiberty --output_dir $SCRATCH

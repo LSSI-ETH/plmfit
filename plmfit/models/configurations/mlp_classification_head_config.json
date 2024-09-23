@@ -2,9 +2,9 @@
   "architecture_parameters":
   {
     "network_type": "mlp",
-    "output_dim": 3,
+    "output_dim": 1,
     "hidden_dim": 1024,
-    "task": "multilabel_classification",
+    "task": "classification",
     "hidden_activation": "relu",
     "hidden_dropout": 0.25,
     "output_activation": "sigmoid"
@@ -17,13 +17,13 @@
     "loss_f": "bce",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 0.00,
+    "weight_decay": 0.01,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,
     "scaler": false,
     "gradient_accumulation": false,
     "epoch_sizing": false,
-    "early_stopping": 10
+    "early_stopping": 30
   }
 }
