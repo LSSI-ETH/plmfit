@@ -132,7 +132,7 @@ correlations_ohe.rename(columns={'Correlation': 'OHE', 'P-value': 'OHE-P'}, inpl
 
 # Combine all Spearmans into a single DataFrame
 combined_corr = pd.concat(
-    [correlations_lora, correlations_ada, correlations_fe, correlations_ohe], axis=1)
+    [correlations_lora, correlations_ada, correlations_fe, correlations_ohe, counts], axis=1)
 
 combined_corr_with_filenames = pd.concat(
     [file_names_df, combined_corr], ignore_index=False)

@@ -130,7 +130,7 @@ correlations_ohe.rename(columns={'MCC': 'MCC_OHE'}, inplace=True)
 
 # Combine all MCCs into a single DataFrame
 combined_mcc = pd.concat(
-    [correlations_lora, correlations_ada, correlations_fe, correlations_ohe], axis=1)
+    [correlations_lora, correlations_ada, correlations_fe, correlations_ohe, counts], axis=1)
 
 combined_mcc_with_filenames = pd.concat(
     [file_names_df, combined_mcc], ignore_index=False)
