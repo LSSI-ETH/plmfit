@@ -8,6 +8,8 @@
 #SBATCH --gres=gpumem:24g
 #SBATCH --time=24:00:00          # total run time limit (HH:MM:SS)
 
+set -a && source .env && set +a
+
 module load eth_proxy
 module load stack/2024-06 gcc/12.2.0
 module load python/3.11.6 cuda/12.1.1 ninja/1.11.1
@@ -17,7 +19,6 @@ nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used -
 # Store the PID of the nvidia-smi background process
 NVIDIA_SMI_PID=$!
 
-export DATA_DIR='/cluster/home/estamkopoulo/plmfit_workspace/plmfit/plmfit'
 export NCCL_DEBUG=WARN
 export NCCL_P2P_DISABLE=1
 export NCCL_IB_DISABLE=1
