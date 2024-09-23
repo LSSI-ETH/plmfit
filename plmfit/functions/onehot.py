@@ -78,7 +78,7 @@ def runner(config, encodings, scores, logger, split=None, on_ray_tuning=False, n
 
 def ray_tuning(function_to_run, config, encodings, scores, logger, experiment_dir, split=None):
     network_type = config['architecture_parameters']['network_type']
-    trials = 200 if network_type == 'mlp' else 100
+    trials = 500 if network_type == 'mlp' else 100
     
     config['training_parameters']['learning_rate'] = (1e-6, 1e-3)
     config['training_parameters']['batch_size'] = (4, 128)
