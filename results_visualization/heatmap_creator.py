@@ -93,7 +93,7 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
                     column_name = "MCC"
                 elif task_type == 'regression':
                     entry['RMSE'] = metrics.get('rmse', None)
-                    entry['Spearman'] = metrics.get('spearman', None)
+                    entry["Spearman's Rank Correlation"] = metrics.get('spearman', None)
                     column_name = "Spearman's Rank Correlation"
                 data.append(entry)
 
