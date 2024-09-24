@@ -204,7 +204,7 @@ Use tabs as deliminators and the last line has to stay blank, otherwise the scri
 | HER2 - one-vs-rest | 0.390 | MCC | ProGen2-S | LoRA- | 50% | CLS | Linear |
 | RBD - one-vs-rest | 0.554 | MCC | ProGen2-S | LoRA | 50% | Mean | Linear |
 
-## Contributions
+## Contributions 🎉
 We welcome contributions from the community! If you're interested in contributing to PLMFit, feel free to:
 
 *   **Expand the benchmarked datasets**: We invite you to add new datasets to our benchmarks or experiment with different setups for existing datasets. Your contributions will help improve the robustness and versatility of PLMFit.
