@@ -19,17 +19,11 @@ When creating training configuration files for PLMFit, ensure that each file inc
 
 #### Output activation
 
-*   **For binary classification**:
-    
-    *   Set output\_activation to 'sigmoid'.
+*   **For binary classification**: Set output\_activation to 'sigmoid'.
         
-*   **For multiclass classification**:
-    
-    *   Set output\_activation to 'softmax'.
+*   **For multiclass classification**: Set output\_activation to 'softmax'.
         
-*   **For regression**:
-    
-    *   No output\_activation is needed.
+*   **For regression**: No output\_activation is needed.
         
 
 #### MLP specific parameters
@@ -96,6 +90,8 @@ When setting up the `training_parameters` section in your configuration files,
     *   'cross_entropy' (Cross-Entropy)
         
 *   **optimizer**: The optimizer to use. It can be either 'adam' or 'sgd'.
+
+*   **no_classes**: The total number of classes which has to be equal to the output dimension. Only required when performing multiclass classification.
     
 *   **val_split**: A float representing the fraction of the data to be used for validation. This is only needed when not defining a split but should always have a value to avoid exceptions.
     
