@@ -207,7 +207,7 @@ Use tabs as deliminators and the last line has to stay blank, otherwise the scri
 ## Contributions
 We welcome contributions from the community! If you're interested in contributing to PLMFit, feel free to:
 
-*   **Expand the nenchmarked datasets**: We invite you to add new datasets to our benchmarks or experiment with different setups for existing datasets. Your contributions will help improve the robustness and versatility of PLMFit.
+*   **Expand the benchmarked datasets**: We invite you to add new datasets to our benchmarks or experiment with different setups for existing datasets. Your contributions will help improve the robustness and versatility of PLMFit.
 
 *   **Submit a pull request (PR)**: Whether it's a bug fix, a new feature, or an improvement, we encourage you to submit a PR.
     
