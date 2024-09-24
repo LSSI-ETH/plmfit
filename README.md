@@ -216,3 +216,19 @@ We welcome contributions from the community! If you're interested in contributin
 *   **Open issues**: For developers interested in contributing, you can open issues to report bugs, suggest new features, or discuss potential improvements.
         
 Your contributions are highly valued and will help us enhance PLMFit for everyone. Thank you for your interest and support!
+
+## Citations
+If you found PLMFit useful for your research, we ask you to cite the paper:
+```
+@article{bikias2024plmfit,
+  author={Bikias, Thomas and Stamkopoulos, Evangelos and Reddy, Sai},
+  title={PLMFit: Benchmarking Transfer Learning with Protein Language Models for Protein Engineering},
+  year={2024},
+  doi={tbd},
+  url={tbd},
+  journal={tbd}
+}
+```
+
+## License
+This source code is licensed under the MIT license found in the LICENSE file in the root directory of this source tree.
