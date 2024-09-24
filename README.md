@@ -139,13 +139,12 @@ python3 -u plmfit --function fine_tuning \
 **Fine-Tuning Methods Explained:**
 - `--ft_method`: Specifies the fine-tuning method ('feature_extraction', 'full', 'lora', 'bottleneck_adapters').
 - `--target_layers`: Targets specific layers ('all' or 'last'), not applicable for 'feature_extraction'.
-- `--head_config`: JSON configuration file for the head, defining the task (regression, classification, domain adaptation).
-- Additional parameters similar to embedding extraction command.
+- `--head_config`: JSON configuration file for the head, defining the task (regression, classification, domain adaptation). This JSON file needs to be located in `./config/training/` folder. The argument should be the relative path of the file to the `./config/training/` folder. For further documentation, refer to the [training management guide](./config/training/README.md).
 
 **Understanding Fine-Tuning Methods:**
 1. **Feature Extraction:**
-   - Description: This method involves extracting embeddings with a pre-trained model before fine-tuning a new head on these embeddings. It is less computationally intensive as it does not require updating the weights of the pre-trained model.
-   - Prerequisite: Embedding extraction must be completed first, as it uses these embeddings as input.
+   - Description: This method involves extracting embeddings with a pre-trained model before fine-tuning a new head on these embeddings. It is less computationally intensive as it does not require updating the weights of the pre-trained model. To automatically use embeddings extracted beforehand, use the same `output_dir` argument.
+   - Prerequisite: Embedding extraction must be completed first, as it uses these embeddings as input. The same `output_dir` argument needs to be passed.
    - Pros: Efficient in terms of computation; reduces the risk of overfitting on small datasets.
    - Cons: May not capture as complex patterns as methods that update deeper model layers.
 2. **Full Fine-Tuning:**
@@ -179,7 +178,7 @@ python3 -u plmfit --function one_hot \
 ```
 
 ### Using PLMFit on a SCRUM setup (e.g. Euler)
-Navigate to the `scripts` folder, where you will find subfolders for each of the platform's features. Adjust the `experiments_setup.csv` file according to your needs. The columns in this file represent various arguments, most of which are the same as those mentioned previously. Here are the key columns:
+Navigate to the `scripts` folder, where you will find subfolders for each of the platform's features. Adjust the `experiments_setup.csv` file according to your needs and simply call `./scripts/{function}/submit_{function}_mass.sh` from the parent directory. The columns in this file represent various arguments, most of which are the same as those mentioned previously. Here are the key columns:
 
 - `gpus`: The number of GPUs to request.
 - `gres`: The type of GPU to request, either by name or by size.
@@ -188,7 +187,7 @@ Navigate to the `scripts` folder, where you will find subfolders for each of the
 - `run_time`: The duration for which the job should run in hours.
 - `experimenting`: Set this if you want to benchmark speed, resource usage, etc.
 
-Use tabs as deliminators and the last line has to stay blank.
+Use tabs as deliminators and the last line has to stay blank, otherwise the scripts will not function.
 
 ### Upcoming Features
 

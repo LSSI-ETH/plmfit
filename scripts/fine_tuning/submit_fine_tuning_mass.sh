@@ -28,6 +28,6 @@ do
          --ntasks-per-node=$gpus \
          --gpus-per-node=$gres:$gpus \
          --time=$run_time:00:00 \
-         scripts/fine_tuning/ubuntu/ft_mass.sh \
+         scripts/fine_tuning/fine_tuning_mass.sh \
          "$function" "$ft_method" "$target_layers" "$head_config" "$data_type" "$split" "$plm" "$layer" "$reduction" "$output_dir" "$experiment_dir" "$experiment_name" "$gpus" "$nodes" "$experimenting"
 done
