@@ -2,7 +2,7 @@
 
 PLMFit is a powerful framework designed to democratize the fine-tuning of Protein Language Models (PLMs) for researchers with varying levels of computational expertise. With PLMFit, you can fine-tune state-of-the-art models on your experimental data through simple command-line instructions. This tool is particularly valuable for laboratory researchers seeking to leverage deep learning without needing in-depth programming knowledge. PLMFit also includes SCRUM scripts optimized for Euler systems, ensuring seamless integration and efficient execution of computational tasks.
 
-## Table of Contents
+## Table of contents
 
 - [Installation](#installation)
 - [Usage](#usage)
@@ -14,20 +14,20 @@ PLMFit is a powerful framework designed to democratize the fine-tuning of Protei
 ### Prerequisites
 Before you start, make sure Python 3.10 or higher is installed on your system. It is also recommended to manage your Python dependencies with a virtual environment to prevent conflicts with other packages.
 
-### Steps to Install
+### Steps to install
 
-1. **Clone the Repository:**
+1. **Clone the repository:**
    Access the PLMFit repository within the lab's network and clone it to your local machine:
    ```bash
    git clone https://github.com/LSSI-ETH/plmfit.git
    ```
 
-2. **Navigate to the Project Directory:**
+2. **Navigate to the project directory:**
    ```bash
    cd plmfit
    ```
 
-3. **Create and Activate a Virtual Environment:**
+3. **Create and activate a virtual environment:**
    - For Windows:
       ```bash
       python3 -m venv venv
@@ -57,7 +57,7 @@ Before you start, make sure Python 3.10 or higher is installed on your system. I
 
 Configure the `.env` file in the root directory as follows:
 
-For local setups only DATA_DIR and CONFIG_DIR need to be defined:
+For local setups only the data and config folder paths need to be defined:
 ```
 DATA_DIR='./data'
 CONFIG_DIR='./config'
@@ -89,7 +89,7 @@ For detailed data structure and setup, refer to the [data management guide](./da
 
 PLMFit facilitates easy application of Protein Language Models (PLMs) for embedding extraction, fine-tuning, and other machine learning tasks through a user-friendly command-line interface. Below are detailed instructions for using PLMFit to perform various tasks:
 
-### Extracting Embeddings
+### Extracting embeddings
 
 To extract embeddings from supported PLMs, use the following command structure:
 
@@ -104,7 +104,7 @@ python3 plmfit --function extract_embeddings \
                --reduction <reduction_method>
 ```
 
-**Parameters Explained:**
+**Parameters explained:**
 - `--function extract_embeddings`: Initiates the embedding extraction process.
 - `--data_type`: Short name for the data to be used, as per naming conventions in README.
 - `--plm`: Specifies the pre-trained model from supported PLMs.
@@ -116,10 +116,10 @@ python3 plmfit --function extract_embeddings \
 
 The output from the embedding extraction is a .pt file (PyTorch tensor) which contains the numerical representations of the sequences. Each sequence is transformed into an embedding vector, and the file size is determined by the number of sequences and the embedding size, essentially forming a matrix of size Sequences length X Embedding size. This structured data can then be used directly for machine learning models, providing a powerful toolset for predictive analytics and further research.
 
-**Why Extract Embeddings?**
+**Why Extract embeddings?**
 Extracting embeddings from protein sequences is a foundational step in bioinformatics. It converts complex protein sequences into a simpler, numerical format that machine learning models can easily process. By doing so, researchers can capture the intrinsic properties of proteins in a way that highlights their biological functionalities and interactions. This process is particularly useful for tasks such as protein classification, structure prediction, and function annotation.
 
-### Fine-Tuning Models
+### Fine-Tuning models
 
 Fine-tune supported PLMs using various techniques with the following command:
 
@@ -160,10 +160,10 @@ python3 -u plmfit --function fine_tuning \
    - Pros: Allows for more targeted model updates without the need for extensive retraining of the entire network.
    - Cons: May require careful tuning of the bottleneck architecture to achieve desired improvements.
 
-**Advanced Usage:**
+**Advanced usage:**
 You can change the configuration of LoRA and Bottleneck Adapters by adapting the relevant config file found in `./config/peft/` folder. Change these parameters only if you have experience with these methods or want to experiment with different settings.
 
-### Train One Hot Encoding Models
+### Train One-Hot Encoding models
 
 To train models using one-hot encoding, utilize:
 
@@ -189,10 +189,30 @@ Navigate to the `scripts` folder, where you will find subfolders for each of the
 
 Use tabs as deliminators and the last line has to stay blank, otherwise the scripts will not function.
 
-### Upcoming Features
+### Upcoming features
 
-- **Predict or Generate from Existing Models**: Coming soon.
+- **Predict or generate from existing models**: Coming soon.
 
 ## Scoreboard
+| Task | Score | Metric | PLM | TL method | Layers used | Pooling | Downstream head |
+|-----------|------------|-------------|-------------|-------------|-------------|-------------|-------------|
+| AAV - sampled | 0.932 | Spearman's | ESM2-15B | Adapters | All | Mean | Linear |
+| AAV - one-vs-rest | 0.831 | Spearman's | ProGen2-XL  | LoRA | 75% | CLS | Linear |
+| GB1 - three-vs-rest | 0.879 | Spearman's | ProGen2-M | Adapters | 50% | CLS | Linear |
+| GB1 - one-vs-rest | 0.457 | Spearman's | ProGen2-S | FE | 75% | Mean | Linear |
+| Meltome - mixed | 0.723 | Spearman's | ProGen2-XL | LoRA | All | Mean | Linear |
+| HER2 - one-vs-rest | 0.390 | MCC | ProGen2-S | LoRA- | 50% | CLS | Linear |
+| RBD - one-vs-rest | 0.554 | MCC | ProGen2-S | LoRA | 50% | Mean | Linear |
 
 ## Contributions
+We welcome contributions from the community! If you're interested in contributing to PLMFit, feel free to:
+
+*   **Submit a Pull Request (PR)**: Whether it's a bug fix, a new feature, or an improvement, we encourage you to submit a PR.
+    
+*   **Contact Us Directly**: If you have any questions or need guidance on how to contribute, don't hesitate to reach out to us.
+    
+*   **Open Issues**: For developers interested in contributing, you can open issues to report bugs, suggest new features, or discuss potential improvements.
+    
+*   **Expand the Benchmarked Datasets**: We invite you to add new datasets to our benchmarks or experiment with different setups for existing datasets. Your contributions will help improve the robustness and versatility of PLMFit.
+    
+Your contributions are highly valued and will help us enhance PLMFit for everyone. Thank you for your interest and support!
