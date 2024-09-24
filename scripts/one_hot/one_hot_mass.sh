@@ -19,6 +19,8 @@ nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used -
 # Store the PID of the nvidia-smi background process
 NVIDIA_SMI_PID=$!
 
+source $VIRTUAL_ENV/bin/activate
+
 export NCCL_DEBUG=WARN
 export NCCL_P2P_DISABLE=1
 export NCCL_IB_DISABLE=1

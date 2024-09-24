@@ -1,9 +1,10 @@
 #!/bin/bash
 echo "JOB ID: $SLURM_JOBID"
-
+set -a && source .env && set +a
 module load eth_proxy
 module load stack/2024-06 gcc/12.2.0
 module load python/3.11.6 cuda/12.1.1 ninja/1.11.1
+source $VIRTUAL_ENV/bin/activate
 
 nvcc --version
 nvidia-smi

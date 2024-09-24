@@ -12,9 +12,15 @@ export RANK=$SLURM_PROCID
 echo "JOB ID: $SLURM_JOBID"
 echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
 
+set -a && source .env && set +a
+
+export HF_HOME="/cluster/scratch/$SLURM_USERNAME/"
+export HF_HUB_CACHE="/cluster/scratch/$SLURM_USERNAME/"
+
 module load eth_proxy
-module load gcc/8.2.0  python_gpu/3.11.2
-module load cuda/12.1.1
+module load stack/2024-06 gcc/12.2.0
+module load python/3.11.6 cuda/12.1.1 ninja/1.11.1
+source $VIRTUAL_ENV/bin/activate
 
 nvcc --version
 nvidia-smi

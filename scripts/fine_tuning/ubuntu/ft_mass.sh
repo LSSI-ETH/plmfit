@@ -20,6 +20,7 @@ echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
 module load eth_proxy
 module load stack/2024-06 gcc/12.2.0
 module load python/3.11.6 cuda/12.1.1 ninja/1.11.1
+source $VIRTUAL_ENV/bin/activate
 
 nvidia-smi
 nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used --format=csv -l 1 > ${11}/gpu_usage.log 2>&1 &
