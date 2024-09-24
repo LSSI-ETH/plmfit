@@ -6,6 +6,8 @@ PLMFit is a powerful framework designed to democratize the fine-tuning of Protei
 
 - [Installation](#installation)
 - [Usage](#usage)
+- [Scoreboard](#scoreboard)
+- [Contributions](#contributions)
 
 ## Installation
 
@@ -27,20 +29,21 @@ Before you start, make sure Python 3.10 or higher is installed on your system. I
 
 3. **Create and Activate a Virtual Environment:**
    - For Windows:
-     ```bash
-     python -m venv venv
-     venv\Scripts\activate
-     ```
+      ```bash
+      python3 -m venv venv
+      venv\Scripts\activate
+      ```
    - For macOS and Linux:
-     ```bash
-     python -m venv venv
-     source venv/bin/activate
-     ```
-   - For Scrum (Euler):
-     A virtual environment is not needed, as there is one already at place. Load a python module to subsequently be able to install PLMFit.
-     ```bash
-     module load gcc/8.2.0 python_gpu/3.11.2
-     ```
+      ```bash
+      python3 -m venv venv
+      source venv/bin/activate
+      ```
+   - For SCRUM setups (Euler):
+      Load a python module to subsequently be able to install PLMFit. For example, in ETH Euler:
+      ```bash
+      module load stack/2024-06 gcc/12.2.0
+      module load python/3.11.6
+      ```
 
 4. **Install PLMFit:**
    Install PLMFit using pip within your virtual environment:
@@ -52,17 +55,21 @@ Before you start, make sure Python 3.10 or higher is installed on your system. I
 
 Configure the `.env` file in the root directory as follows:
 
-For local setups:
+For local setups only DATA_DIR and CONFIG_DIR need to be defined:
 ```
-DATA_DIR='./plmfit'
+DATA_DIR='./data'
+CONFIG_DIR='./config'
 ```
 
-For Euler and SCRUM an absolute path is required:
+For Euler and SCRUM an absolute path is required. To use the SCRUM scripts, the username and virtual environment need to be defined as well:
 ```
 DATA_DIR='/absolute/path/to/plmfit'
+CONFIG_DIR='/absolute/path/to/config'
+SLURM_USERNAME='slurm_username'
+VIRTUAL_ENV='/absolute/path/to/venv'
 ```
 
-For detailed data structure and setup, refer to the [data management guide](./plmfit/data/README.md).
+For detailed data structure and setup, refer to the [data management guide](./data/README.md).
 
 ## Supported PLMs
 | Arguments | Model Name | Parameters | No. of Layers | Embedding dim. | Source |
@@ -78,7 +85,7 @@ For detailed data structure and setup, refer to the [data management guide](./pl
 
 ## Usage
 
-PLMFit facilitates easy application of protein language models (PLMs) for embedding extraction, fine-tuning, and other machine learning tasks through a user-friendly command-line interface. Below are detailed instructions for using PLMFit to perform various tasks:
+PLMFit facilitates easy application of Protein Language Models (PLMs) for embedding extraction, fine-tuning, and other machine learning tasks through a user-friendly command-line interface. Below are detailed instructions for using PLMFit to perform various tasks:
 
 ### Extracting Embeddings
 
@@ -152,6 +159,9 @@ python3 -u plmfit --function fine_tuning \
    - Pros: Allows for more targeted model updates without the need for extensive retraining of the entire network.
    - Cons: May require careful tuning of the bottleneck architecture to achieve desired improvements.
 
+**Advanced Usage:**
+You can change the configuration of LoRA and Bottleneck Adapters by adapting the relevant config file found in `./config/peft/` folder. Change these parameters only if you have experience with these methods or want to experiment with different settings.
+
 ### Train One Hot Encoding Models
 
 To train models using one-hot encoding, utilize:
@@ -166,6 +176,22 @@ python3 -u plmfit --function one_hot \
                   --experiment_name <name_of_experiment>
 ```
 
+### Using PLMFit on a SCRUM setup (e.g. Euler)
+Navigate to the `scripts` folder, where you will find subfolders for each of the platform's features. Adjust the `experiments_setup.csv` file according to your needs. The columns in this file represent various arguments, most of which are the same as those mentioned previously. Here are the key columns:
+
+- `gpus`: The number of GPUs to request.
+- `gres`: The type of GPU to request, either by name or by size.
+- `mem-per-cpu`: The amount of CPU RAM to allocate per GPU.
+- `nodes`: The number of nodes to request.
+- `run_time`: The duration for which the job should run in hours.
+- `experimenting`: Set this if you want to benchmark speed, resource usage, etc.
+
+Use tabs as deliminators and the last line has to stay blank.
+
 ### Upcoming Features
 
 - **Predict or Generate from Existing Models**: Coming soon.
+
+## Scoreboard
+
+## Contributions
