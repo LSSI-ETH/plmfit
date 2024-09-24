@@ -139,7 +139,7 @@ python3 -u plmfit --function fine_tuning \
 **Fine-Tuning Methods Explained:**
 - `--ft_method`: Specifies the fine-tuning method ('feature_extraction', 'full', 'lora', 'bottleneck_adapters').
 - `--target_layers`: Targets specific layers ('all' or 'last'), not applicable for 'feature_extraction'.
-- `--head_config`: JSON configuration file for the head, defining the task (regression, classification, domain adaptation). This JSON file needs to be located in `./config/training/` folder. The argument should be the relative path of the file to the `./config/training/` folder. For further documentation, refer to the [training management guide](./config/training/README.md).
+- `--head_config`: JSON configuration file for the head, defining the task (regression, classification, domain adaptation). This JSON file needs to be located in `./config/training/` folder. The argument should be the relative path of the file to the `./config/training/` folder. For further documentation on how the head should be structured, refer to the [training management guide](./config/training/README.md).
 
 **Understanding Fine-Tuning Methods:**
 1. **Feature Extraction:**
