@@ -43,6 +43,8 @@ Before you start, make sure Python 3.10 or higher is installed on your system. I
       ```bash
       module load stack/2024-06 gcc/12.2.0
       module load python/3.11.6
+      python3 -m venv venv
+      source venv/bin/activate
       ```
 
 4. **Install PLMFit:**
