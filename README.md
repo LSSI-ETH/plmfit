@@ -1,6 +1,6 @@
 # PLMFit
 
-PLMFit is a powerful framework designed to democratize the fine-tuning of Protein Language Models (PLMs) for researchers with varying levels of computational expertise. With PLMFit, you can fine-tune state-of-the-art models on your experimental data through simple command-line instructions. This tool is particularly valuable for laboratory researchers seeking to leverage deep learning without needing in-depth programming knowledge. PLMFit also includes SCRUM scripts optimized for Euler systems, ensuring seamless integration and efficient execution of computational tasks.
+PLMFit is a powerful framework designed to democratize the fine-tuning of Protein Language Models (PLMs) for researchers with varying levels of computational expertise. With PLMFit, you can fine-tune state-of-the-art models on your experimental data through simple command-line instructions. This tool is particularly valuable for laboratory researchers seeking to leverage deep learning without needing in-depth programming knowledge. PLMFit also includes SCRUM scripts optimized for Euler, the ETH supercomputer, ensuring seamless integration and efficient execution of computational tasks.
 
 ## Table of contents
 
@@ -39,7 +39,7 @@ Before you start, make sure Python 3.10 or higher is installed on your system. I
       source venv/bin/activate
       ```
    - For SCRUM setups (Euler):
-      Load a python module to subsequently be able to install PLMFit. For example, in ETH Euler:
+      Load a python module to subsequently be able to install PLMFit. For example, in ETH Euler Cluster:
       ```bash
       module load stack/2024-06 gcc/12.2.0
       module load python/3.11.6
