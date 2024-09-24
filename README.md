@@ -8,6 +8,8 @@ PLMFit is a powerful framework designed to democratize the fine-tuning of Protei
 - [Usage](#usage)
 - [Scoreboard](#scoreboard)
 - [Contributions](#contributions)
+- [Citations](#citations)
+- [License](#license)
 
 ## Installation
 
