@@ -2,8 +2,7 @@
     "architecture_parameters": {
         "network_type": "linear",
         "output_dim": 1,
-        "task": "regression",
-        "dropout": 0
+        "task": "regression"
     },
     "training_parameters": {
         "learning_rate": 0.0001,
