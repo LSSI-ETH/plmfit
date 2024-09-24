@@ -207,12 +207,12 @@ Use tabs as deliminators and the last line has to stay blank, otherwise the scri
 ## Contributions
 We welcome contributions from the community! If you're interested in contributing to PLMFit, feel free to:
 
-*   **Submit a Pull Request (PR)**: Whether it's a bug fix, a new feature, or an improvement, we encourage you to submit a PR.
+*   **Expand the nenchmarked datasets**: We invite you to add new datasets to our benchmarks or experiment with different setups for existing datasets. Your contributions will help improve the robustness and versatility of PLMFit.
+
+*   **Submit a pull request (PR)**: Whether it's a bug fix, a new feature, or an improvement, we encourage you to submit a PR.
     
-*   **Contact Us Directly**: If you have any questions or need guidance on how to contribute, don't hesitate to reach out to us.
+*   **Contact us directly**: If you have any questions or need guidance on how to contribute, don't hesitate to reach out to us.
     
-*   **Open Issues**: For developers interested in contributing, you can open issues to report bugs, suggest new features, or discuss potential improvements.
-    
-*   **Expand the Benchmarked Datasets**: We invite you to add new datasets to our benchmarks or experiment with different setups for existing datasets. Your contributions will help improve the robustness and versatility of PLMFit.
-    
+*   **Open issues**: For developers interested in contributing, you can open issues to report bugs, suggest new features, or discuss potential improvements.
+        
 Your contributions are highly valued and will help us enhance PLMFit for everyone. Thank you for your interest and support!
