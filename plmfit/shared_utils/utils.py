@@ -4,7 +4,7 @@ import json
 import pandas as pd
 from tokenizers import Tokenizer
 from transformers import PreTrainedTokenizerFast
-from torch.utils.data import TensorDataset, DataLoader, Subset, random_split
+from torch.utils.data import TensorDataset, DataLoader, Subset, random_split, WeightedRandomSampler
 from sklearn.model_selection import train_test_split
 import numpy as np
 from pynvml import *
@@ -13,14 +13,22 @@ import torch.nn as nn
 import psutil
 from tokenizers.processors import TemplateProcessing
 from torch.utils.data import Dataset
-from plmfit.models.pretrained_models import Antiberty, ESMFamily, ProGenFamily, ProteinBERTFamily, AnkhFamily
-from dotenv import load_dotenv 
+from plmfit.models.pretrained_models import (
+    Antiberty,
+    ESMFamily,
+    ProGenFamily,
+    ProteinBERTFamily,
+    AnkhFamily,
+)
+from dotenv import load_dotenv
 import blosum as bl
+from collections import Counter
 
-load_dotenv() 
+load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
 data_dir = os.getenv("DATA_DIR", "./data")
 config_dir = os.getenv("CONFIG_DIR", "./config")
+
 
 def set_path(base_path):
     global path, data_dir, config_dir
@@ -28,11 +36,19 @@ def set_path(base_path):
     data_dir = os.getenv("DATA_DIR", "./data")
     config_dir = os.getenv("CONFIG_DIR", "./config")
 
+
 def load_dataset(data_type):
-    return pd.read_csv(f'{data_dir}/{data_type}/{data_type}_data_full.csv')
+    return pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
 
 
-def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2-small', reduction='mean', device='cpu'):
+def load_embeddings(
+    emb_path=None,
+    data_type="aav",
+    layer="last",
+    model="progen2-small",
+    reduction="mean",
+    device="cpu",
+):
     """
     Process data based on either a provided data path or specified data type, layer, model, and reduction method.
 
@@ -44,17 +60,32 @@ def load_embeddings(emb_path=None, data_type='aav', layer='last', model='progen2
         reduction (str): Reduction method (default is 'mean').
     """
     if emb_path is None:
-        emb_path = f'{data_dir}/{data_type}/embeddings/{data_type}_{model}_embs_layer{layer}_{reduction}.pt'
-    
+        emb_path = f"{data_dir}/{data_type}/embeddings/{data_type}_{model}_embs_layer{layer}_{reduction}.pt"
+
     try:
-        embeddings = torch.load(f"{emb_path}/{data_type}_{model}_embs_{layer}_{reduction}/{data_type}_{model}_embs_{layer}_{reduction}.pt", map_location=torch.device(device))
-        #embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
+        embeddings = torch.load(
+            f"{emb_path}/{data_type}_{model}_embs_{layer}_{reduction}/{data_type}_{model}_embs_{layer}_{reduction}.pt",
+            map_location=torch.device(device),
+        )
+        # embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
         return embeddings.clone().detach().to(dtype=torch.float32)
     except:
         return None
 
 
-def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_size=0.1, batch_size=64, scaler=None, dtype=torch.float32, num_workers=0, weights=None):
+def create_data_loaders(
+    dataset,
+    scores,
+    split=None,
+    test_size=0.2,
+    validation_size=0.1,
+    batch_size=64,
+    scaler=None,
+    dtype=torch.float32,
+    num_workers=0,
+    weights=None,
+    sampler=False,
+):
     """
     Create DataLoader objects for training, validation, and testing.
 
@@ -74,24 +105,52 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
 
     if split is None:
         X_train, X_test, y_train, y_test = train_test_split(
-                dataset, scores, test_size=test_size, random_state=42)
+            dataset, scores, test_size=test_size, random_state=42
+        )
         X_train, X_val, y_train, y_val = train_test_split(
-                X_train, y_train, test_size=validation_size/(1-test_size), random_state=42)
+            X_train,
+            y_train,
+            test_size=validation_size / (1 - test_size),
+            random_state=42,
+        )
 
         if weights is not None:
             # Splitting with weights for the initial train-test split
-            X_train, X_test, y_train, y_test, weights_train, weights_test = train_test_split(
-                    dataset, scores, weights, test_size=test_size, random_state=42)
-            
+            X_train, X_test, y_train, y_test, weights_train, weights_test = (
+                train_test_split(
+                    dataset, scores, weights, test_size=test_size, random_state=42
+                )
+            )
+
             # Splitting with weights for the train-validation split
-            X_train, X_val, y_train, y_val, weights_train, weights_val = train_test_split(
-                    X_train, y_train, weights_train, test_size=validation_size/(1-test_size), random_state=42)
-            
+            X_train, X_val, y_train, y_val, weights_train, weights_val = (
+                train_test_split(
+                    X_train,
+                    y_train,
+                    weights_train,
+                    test_size=validation_size / (1 - test_size),
+                    random_state=42,
+                )
+            )
+
     else:
         # Use the provided split
-        X_train, X_val, X_test = dataset[split == 'train'], dataset[split == 'validation'], dataset[split == 'test']
-        y_train, y_val, y_test = scores[split == 'train'], scores[split == 'validation'], scores[split == 'test']
-        if weights is not None: weights_train, weights_val, weights_test = weights[split == 'train'], weights[split == 'validation'], weights[split == 'test']
+        X_train, X_val, X_test = (
+            dataset[split == "train"],
+            dataset[split == "validation"],
+            dataset[split == "test"],
+        )
+        y_train, y_val, y_test = (
+            scores[split == "train"],
+            scores[split == "validation"],
+            scores[split == "test"],
+        )
+        if weights is not None:
+            weights_train, weights_val, weights_test = (
+                weights[split == "train"],
+                weights[split == "validation"],
+                weights[split == "test"],
+            )
 
         # Check if the validation set is empty and split the training data if necessary
         if X_val.shape[0] == 0 or y_val.shape[0] == 0:
@@ -99,8 +158,14 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
                 X_train, y_train, test_size=validation_size, random_state=42
             )
             if weights is not None:
-                X_train, X_val, y_train, y_val, weights_train, weights_val = train_test_split(
-                    X_train, y_train, weights_train, test_size=validation_size, random_state=42
+                X_train, X_val, y_train, y_val, weights_train, weights_val = (
+                    train_test_split(
+                        X_train,
+                        y_train,
+                        weights_train,
+                        test_size=validation_size,
+                        random_state=42,
+                    )
                 )
 
     # Scale the features if scaler is provided
@@ -127,7 +192,7 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
         weights_test = convert_or_clone_to_tensor(weights_test, dtype=torch.float32)
 
     # Create DataLoader for training, validation, and testing
-    if weights is not None:
+    if weights is not None and sampler is False:
         train_dataset = TensorDataset(X_train, y_train, weights_train)
         val_dataset = TensorDataset(X_val, y_val, weights_val)
         test_dataset = TensorDataset(X_test, y_test, test_ids, weights_test)
@@ -136,45 +201,124 @@ def create_data_loaders(dataset, scores, split=None, test_size=0.2, validation_s
         val_dataset = TensorDataset(X_val, y_val)
         test_dataset = TensorDataset(X_test, y_test, test_ids)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=num_workers>0)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=num_workers>0)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=num_workers>0)
+    if sampler: 
+        train_sampler = init_weighted_sampler(train_dataset, weights_train)
+        val_sampler = init_weighted_sampler(val_dataset, weights_val)
+        test_sampler = None
+    else: 
+        train_sampler = None
+        val_sampler = None
+        test_sampler = None
 
-    return {'train': train_loader, 'val': val_loader, 'test': test_loader}
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=sampler==False, # If sampler is used, shuffle is not needed
+        num_workers=num_workers,
+        pin_memory=num_workers > 0,
+        sampler=train_sampler,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=num_workers > 0,
+        sampler=val_sampler,
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=num_workers > 0,
+        sampler=test_sampler,
+    )
+
+    return {"train": train_loader, "val": val_loader, "test": test_loader}
+
+def init_weighted_sampler(dataset, weights, num_samples_method='min'):
+    # Count the occurrences of each class in the dataset
+    labels = dataset.tensors[1].numpy()  # Assuming that labels are in the second tensor
+    class_counts = Counter(labels)
+
+    if num_samples_method == 'min':
+        # Find the class with the least count
+        min_class_count = min(class_counts.values())
+        # Calculate the number of unique classes
+        num_unique_classes = len(class_counts)
+
+        # Set num_samples to the product of the least count and the number of unique classes
+        num_samples = min_class_count * num_unique_classes
+    else:
+        raise ValueError("num_samples_method must be 'min'")
+
+    # Create the WeightedRandomSampler using these weights
+    return WeightedRandomSampler(
+        weights=weights,
+        num_samples=num_samples,
+        replacement=True,  # To allow resampling
+    )
+
 
 def convert_or_clone_to_tensor(data, dtype):
     if isinstance(data, np.ndarray):
         return torch.tensor(data, dtype=dtype)
     elif torch.is_tensor(data):
         return data.detach().clone().to(dtype=dtype)
+    elif isinstance(data, list):
+        return torch.tensor(data, dtype=dtype)
+    elif isinstance(data, pd.Series):
+        return torch.tensor(data.values, dtype=dtype)
     else:
-        raise TypeError("Input data must be either a NumPy array or a PyTorch tensor.")
+        raise TypeError(
+            "Input data must be a NumPy array, a DataFrame Series, a list or a PyTorch tensor."
+        )
+
 
 def get_epoch_dataloaders(dataloader, epoch_size=0):
     if epoch_size == 0:
         return dataloader
 
     # Access the original dataset from the DataLoader
-    train = dataloader['train'].dataset
-    val = dataloader['val'].dataset
-    
+    train = dataloader["train"].dataset
+    val = dataloader["val"].dataset
+
     # Randomly sample indices from the dataset
-    if epoch_size < 1: epoch_size = int(len(train) * epoch_size)
+    if epoch_size < 1:
+        epoch_size = int(len(train) * epoch_size)
     train_inds = np.random.choice(len(train), epoch_size, replace=False)
-    val_inds = np.random.choice(len(val), int(len(val) * epoch_size / len(train)), replace=False)
-    
+    val_inds = np.random.choice(
+        len(val), int(len(val) * epoch_size / len(train)), replace=False
+    )
+
     # Create a Subset for the sampled indices
     train_set = Subset(train, train_inds)
     val_set = Subset(val, val_inds)
-    
+
     # Create a new DataLoader for the subset
     # Preserve the original DataLoader's batch size, shuffle, and other parameters as needed
-    train_dataloader = DataLoader(train_set, batch_size=dataloader['train'].batch_size, shuffle=True, 
-                                   num_workers=dataloader['train'].num_workers, pin_memory=dataloader['train'].pin_memory)
-    val_dataloader = DataLoader(val_set, batch_size=dataloader['val'].batch_size, shuffle=False, 
-                                   num_workers=dataloader['val'].num_workers, pin_memory=dataloader['val'].pin_memory)
-    
-    return {'train': train_dataloader, 'val': val_dataloader, 'test': dataloader['test']}
+    train_dataloader = DataLoader(
+        train_set,
+        batch_size=dataloader["train"].batch_size,
+        shuffle=True,
+        num_workers=dataloader["train"].num_workers,
+        pin_memory=dataloader["train"].pin_memory,
+    )
+    val_dataloader = DataLoader(
+        val_set,
+        batch_size=dataloader["val"].batch_size,
+        shuffle=False,
+        num_workers=dataloader["val"].num_workers,
+        pin_memory=dataloader["val"].pin_memory,
+    )
+
+    return {
+        "train": train_dataloader,
+        "val": val_dataloader,
+        "test": dataloader["test"],
+    }
+
 
 def load_config(config_file_name):
     """
@@ -187,10 +331,10 @@ def load_config(config_file_name):
         dict: Loaded configuration.
     """
     # Construct the full path to the configuration file
-    config_file_path = f'{config_dir}/{config_file_name}'
+    config_file_path = f"{config_dir}/{config_file_name}"
 
     # Load the configuration from the file
-    with open(config_file_path, 'r') as file:
+    with open(config_file_path, "r") as file:
         config = json.load(file)
 
     return config
@@ -198,40 +342,42 @@ def load_config(config_file_name):
 
 def get_activation_function(name):
     """Returns the activation function based on its name."""
-    if name == 'relu':
+    if name == "relu":
         return nn.ReLU()
-    elif name == 'sigmoid':
+    elif name == "sigmoid":
         return nn.Sigmoid()
-    elif name == 'softmax':
+    elif name == "softmax":
         return nn.Softmax()
-    elif name == 'tanh':
+    elif name == "tanh":
         return nn.Tanh()
     # Add more activation functions as needed
     else:
         raise f"Unsupported activation function: {name}"
 
+
 def get_wild_type(data_type):
     file = f"{data_dir}/{data_type}"
-    wild_type_f = open(f'{file}/wild_type.json')
-    wt = json.load(wild_type_f)['wild_type']
+    wild_type_f = open(f"{file}/wild_type.json")
+    wt = json.load(wild_type_f)["wild_type"]
     return wt
 
 
 def load_tokenizer(model_name):
-    if 'progen2' in model_name:
-        model_file = 'progen2'
-    elif 'bert' in model_name:
-        model_file = 'proteinbert'
+    if "progen2" in model_name:
+        model_file = "progen2"
+    elif "bert" in model_name:
+        model_file = "proteinbert"
     else:
-        raise 'Model tokenizer not defined'
-    
-    file = f'{path}/language_models/{model_file}/tokenizer.json'
+        raise "Model tokenizer not defined"
 
-    with open(file, 'r') as f:
+    file = f"{path}/language_models/{model_file}/tokenizer.json"
+
+    with open(file, "r") as f:
         return Tokenizer.from_str(f.read())
 
+
 def load_transformer_tokenizer(model_name, tokenizer):
-    if 'progen2' in model_name:
+    if "progen2" in model_name:
         tokenizer.post_processor = TemplateProcessing(
             single="<|bos|> $A <|eos|>",
             pair="<|bos|> $A <|eos|> <|bos|> $B:1 <|eos|>:1",
@@ -244,10 +390,10 @@ def load_transformer_tokenizer(model_name, tokenizer):
             bos_token="<|bos|>",
             eos_token="<|eos|>",
             pad_token="<|pad|>",
-            tokenizer_object=tokenizer
+            tokenizer_object=tokenizer,
         )
         return tokenizer
-    elif 'bert' in model_name:
+    elif "bert" in model_name:
         tokenizer.post_processor = TemplateProcessing(
             single="<cls> $A <sep>",
             pair="<cls> $A <sep> $B:1 <sep>:1",
@@ -262,16 +408,18 @@ def load_transformer_tokenizer(model_name, tokenizer):
             pad_token="<pad>",
             mask_token="<mask>",
             unk_token="<unk>",
-            tokenizer_object=tokenizer
+            tokenizer_object=tokenizer,
         )
         return tokenizer
-    elif 'esm' in model_name:
+    elif "esm" in model_name:
         return tokenizer
     else:
-        raise 'Transformer tokenizer not supported (yet)'
+        raise "Transformer tokenizer not supported (yet)"
+
 
 def one_hot_encode(seqs):
     return torch.tensor([0])
+
 
 def blosum62_encode(sequences, pad_to_length, logger=None):
     # Load the BLOSUM62 matrix from your custom library
@@ -285,42 +433,59 @@ def blosum62_encode(sequences, pad_to_length, logger=None):
             # Fetch the BLOSUM62 row for the current amino acid
             row = BLOSUM62[acid]
             # Extract scores for the sequence from the row corresponding to each amino acid
-            encoded_row = [row.get(aa, 0) for aa in seq]  # default to 0 if pair not found
-            
+            encoded_row = [
+                row.get(aa, 0) for aa in seq
+            ]  # default to 0 if pair not found
+
             # Convert list to torch tensor and pad the encoded row to ensure all rows have the same number of columns
             encoded_row = torch.tensor(encoded_row, dtype=torch.int8)
             if encoded_row.size(0) < pad_to_length:
-                encoded_row = torch.nn.functional.pad(encoded_row, (0, pad_to_length - encoded_row.size(0)), mode='constant', value=0)
-            
+                encoded_row = torch.nn.functional.pad(
+                    encoded_row,
+                    (0, pad_to_length - encoded_row.size(0)),
+                    mode="constant",
+                    value=0,
+                )
+
             encoded_seq.append(encoded_row)
-        
+
         # Stack all rows to create a 2D tensor for each sequence
         encoded_seq = torch.stack(encoded_seq)
-        
+
         # Pad the encoded sequence if it has fewer rows than `pad_to_length`
         if encoded_seq.size(0) < pad_to_length:
             padding = torch.zeros((pad_to_length - encoded_seq.size(0), pad_to_length))
             encoded_seq = torch.cat((encoded_seq, padding), dim=0)
-        
+
         if logger is not None and i % 1000 == 0:
-            logger.log(f'Encoded sequence {i}')
-        
+            logger.log(f"Encoded sequence {i}")
+
         encoded_sequences.append(encoded_seq)
 
     # Stack all sequence tensors to create a 3D tensor for the batch
     return torch.stack(encoded_sequences)
 
 
-def categorical_encode(seqs, tokenizer, max_len, add_bos=False, add_eos=False, logger = None, model_name='progen2'):
+def categorical_encode(
+    seqs,
+    tokenizer,
+    max_len,
+    add_bos=False,
+    add_eos=False,
+    logger=None,
+    model_name="progen2",
+):
     if logger != None:
-        logger.log(f'Initiating categorical encoding')
-        logger.log(f'Memory needed for encoding: {len(seqs) * max_len * 4}B')
+        logger.log(f"Initiating categorical encoding")
+        logger.log(f"Memory needed for encoding: {len(seqs) * max_len * 4}B")
 
-    if 'progen2' in model_name:
+    if "progen2" in model_name:
         # Adjust max_len if BOS or EOS tokens are to be added
         internal_max_len = max_len + int(add_bos) + int(add_eos)
 
-        seq_tokens = tokenizer.get_vocab()['<|pad|>'] * torch.ones((len(seqs), internal_max_len), dtype=int)
+        seq_tokens = tokenizer.get_vocab()["<|pad|>"] * torch.ones(
+            (len(seqs), internal_max_len), dtype=int
+        )
         for itr, seq in enumerate(seqs):
             # Encode the sequence without adding special tokens by the tokenizer itself
             encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
@@ -328,25 +493,31 @@ def categorical_encode(seqs, tokenizer, max_len, add_bos=False, add_eos=False, l
             # Prepare sequence with space for BOS and/or EOS if needed
             sequence = []
             if add_bos:
-                sequence.append(tokenizer.get_vocab()['<|bos|>'])
-            sequence.extend(encoded_seq_ids[:max_len])  # Ensure the core sequence does not exceed user-specified max_len
+                sequence.append(tokenizer.get_vocab()["<|bos|>"])
+            sequence.extend(
+                encoded_seq_ids[:max_len]
+            )  # Ensure the core sequence does not exceed user-specified max_len
             if add_eos:
-                sequence.append(tokenizer.get_vocab()['<|eos|>'])
+                sequence.append(tokenizer.get_vocab()["<|eos|>"])
 
             # Truncate the sequence if it exceeds internal_max_len
             truncated_sequence = sequence[:internal_max_len]
 
             # Update the seq_tokens tensor
             seq_len = len(truncated_sequence)
-            seq_tokens[itr, :seq_len] = torch.tensor(truncated_sequence, dtype=torch.long)
+            seq_tokens[itr, :seq_len] = torch.tensor(
+                truncated_sequence, dtype=torch.long
+            )
 
             if itr == 0 and logger is not None:
-                logger.log(f'First sequence tokens: {seq_tokens[0].tolist()}')
-    elif 'bert' in model_name:
+                logger.log(f"First sequence tokens: {seq_tokens[0].tolist()}")
+    elif "bert" in model_name:
         # Adjust max_len if BOS or EOS tokens are to be added
         internal_max_len = max_len + int(add_bos) + int(add_eos)
 
-        seq_tokens = tokenizer.get_vocab()['<pad>'] * torch.ones((len(seqs), internal_max_len), dtype=int)
+        seq_tokens = tokenizer.get_vocab()["<pad>"] * torch.ones(
+            (len(seqs), internal_max_len), dtype=int
+        )
         for itr, seq in enumerate(seqs):
             # Encode the sequence without adding special tokens by the tokenizer itself
             encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
@@ -354,29 +525,35 @@ def categorical_encode(seqs, tokenizer, max_len, add_bos=False, add_eos=False, l
             # Prepare sequence with space for BOS and/or EOS if needed
             sequence = []
             if add_bos:
-                sequence.append(tokenizer.get_vocab()['<cls>'])
-            sequence.extend(encoded_seq_ids[:max_len])  # Ensure the core sequence does not exceed user-specified max_len
+                sequence.append(tokenizer.get_vocab()["<cls>"])
+            sequence.extend(
+                encoded_seq_ids[:max_len]
+            )  # Ensure the core sequence does not exceed user-specified max_len
             if add_eos:
-                sequence.append(tokenizer.get_vocab()['<sep>'])
+                sequence.append(tokenizer.get_vocab()["<sep>"])
 
             # Truncate the sequence if it exceeds internal_max_len
             truncated_sequence = sequence[:internal_max_len]
 
             # Update the seq_tokens tensor
             seq_len = len(truncated_sequence)
-            seq_tokens[itr, :seq_len] = torch.tensor(truncated_sequence, dtype=torch.long)
+            seq_tokens[itr, :seq_len] = torch.tensor(
+                truncated_sequence, dtype=torch.long
+            )
 
             if itr == 0 and logger is not None:
-                logger.log(f'First sequence tokens: {seq_tokens[0].tolist()}')
-    elif 'esm' in model_name:
-        seq_tokens =  tokenizer.get_vocab()['<pad>'] * torch.ones((len(seqs) , int(max_len) + 2) , dtype = int) ### Adding  to max_len because ESMTokenizer adds cls and eos tokens in the begging and the neding of aa_seq
-        for itr , seq in enumerate(seqs):
+                logger.log(f"First sequence tokens: {seq_tokens[0].tolist()}")
+    elif "esm" in model_name:
+        seq_tokens = tokenizer.get_vocab()["<pad>"] * torch.ones(
+            (len(seqs), int(max_len) + 2), dtype=int
+        )  ### Adding  to max_len because ESMTokenizer adds cls and eos tokens in the begging and the neding of aa_seq
+        for itr, seq in enumerate(seqs):
             tok_seq = torch.tensor(tokenizer.encode(seq))
-            seq_tokens[itr][:tok_seq.shape[0]] = tok_seq
+            seq_tokens[itr][: tok_seq.shape[0]] = tok_seq
     else:
-        raise 'Model tokenizer not defined'
+        raise "Model tokenizer not defined"
     if logger != None:
-        logger.log(f'Categorical encoding finished')
+        logger.log(f"Categorical encoding finished")
     return seq_tokens
 
 
@@ -387,22 +564,24 @@ def get_parameters(model, print_w_mat=False, logger=None):
 
         c += 1
         if print_w_mat:
-            print(f' {name} size : {p.shape} trainable:{p.requires_grad}')
+            print(f" {name} size : {p.shape} trainable:{p.requires_grad}")
         if logger is not None:
-            logger.log(f' {name} size : {p.shape} trainable:{p.requires_grad}')
+            logger.log(f" {name} size : {p.shape} trainable:{p.requires_grad}")
         s += p.numel()
 
     return s
 
+
 def check_module_states(model, logger=None):
     for name, module in model.named_modules():
         state = "Train" if module.training else "Eval"
-        message = f'Module: {name} State: {state}'
-        
+        message = f"Module: {name} State: {state}"
+
         if logger is not None:
             logger.log(message)
         else:
             print(message)
+
 
 def trainable_parameters_summary(model, logger=None):
     total_params = sum(p.numel() for p in model.parameters())
@@ -412,20 +591,25 @@ def trainable_parameters_summary(model, logger=None):
     if logger != None:
         logger.log(output)
     else:
-        print(f"trainable params: {trainable_params} || all params: {total_params} || trainable%: {trainable_percentage:.3f}")
+        print(
+            f"trainable params: {trainable_params} || all params: {total_params} || trainable%: {trainable_percentage:.3f}"
+        )
 
-def set_trainable_parameters(model, ft='all'):
+
+def set_trainable_parameters(model, ft="all"):
 
     for name, p in model.named_parameters():
         p.requires_grad = True
 
     return
 
+
 def freeze_parameters(model):
     for name, p in model.named_parameters():
         p.requires_grad = False
 
     return
+
 
 def disable_dropout(model):
     """
@@ -437,7 +621,8 @@ def disable_dropout(model):
         else:
             disable_dropout(child)
 
-def set_modules_to_train_mode(model, module_name='all'):
+
+def set_modules_to_train_mode(model, module_name="all"):
     """
     This function iterates through all modules in the given model.
     If it finds a module that has 'module_name' in its name,
@@ -445,7 +630,7 @@ def set_modules_to_train_mode(model, module_name='all'):
     """
     for name, module in model.named_modules():
         # Identify modules by checking if 'module_name' is in their name.
-        if module_name in name or module_name == 'all':
+        if module_name in name or module_name == "all":
             module.train()  # Set the identified 'module_name' module to training mode
 
     # Note: This does not change the global training/evaluation mode of the model,
@@ -456,7 +641,7 @@ def set_trainable_layers(model: nn.Module, layers_to_train: list):
     """
     Sets the specified layers to trainable and freezes all other layers.
     Disables dropout for all modules in the frozen layers.
-    
+
     Args:
     - model (nn.Module): The model to modify.
     - layers_to_train (list): List of layer indices to set as trainable.
@@ -466,12 +651,12 @@ def set_trainable_layers(model: nn.Module, layers_to_train: list):
         # Extract the layer index from the name (assuming standard naming conventions)
         layer_index = None
         # 'layer' for BERT based PLMs, 'h' for ProGen
-        if 'layer' in name or 'h' in name:
+        if "layer" in name or "h" in name:
             try:
-                layer_index = int(name.split('layer')[1].split('.')[1])
+                layer_index = int(name.split("layer")[1].split(".")[1])
             except (ValueError, IndexError):
                 try:
-                    layer_index = int(name.split('h')[1].split('.')[1])
+                    layer_index = int(name.split("h")[1].split(".")[1])
                 except:
                     continue
         # If the layer index is in the list of layers to train
@@ -486,25 +671,27 @@ def set_trainable_layers(model: nn.Module, layers_to_train: list):
                 # Freeze the layer by setting requires_grad to False
                 layer.eval()
                 for param in layer.parameters():
-                    if hasattr(param, 'requires_grad'): param.requires_grad = False
+                    if hasattr(param, "requires_grad"):
+                        param.requires_grad = False
                 # Disable dropout for this layer
                 layer.apply(disable_dropout)
+
 
 def read_fasta(file_path):
     sequences = {}
     current_sequence_id = None
     current_sequence = []
 
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         for line in file:
             line = line.strip()
             if not line:
                 continue
 
-            if line.startswith('>'):
+            if line.startswith(">"):
                 # This line contains the sequence identifier
                 if current_sequence_id is not None:
-                    sequences[current_sequence_id] = ''.join(current_sequence)
+                    sequences[current_sequence_id] = "".join(current_sequence)
                 current_sequence_id = line[1:]
                 current_sequence = []
             else:
@@ -514,12 +701,15 @@ def read_fasta(file_path):
 
     # Add the last sequence to the dictionary
     if current_sequence_id is not None:
-        sequences[current_sequence_id] = ''.join(current_sequence)
+        sequences[current_sequence_id] = "".join(current_sequence)
 
     return sequences
 
-def log_model_info(log_file_path, data_params, model_params, training_params, eval_metrics):
-    with open(log_file_path, 'w') as log_file:
+
+def log_model_info(
+    log_file_path, data_params, model_params, training_params, eval_metrics
+):
+    with open(log_file_path, "w") as log_file:
         log_file.write("Data Parameters:\n")
         for param, value in data_params.items():
             log_file.write(f"{param}: {value}\n")
@@ -527,16 +717,17 @@ def log_model_info(log_file_path, data_params, model_params, training_params, ev
         log_file.write("\nModel Parameters:\n")
         for param, value in model_params.items():
             log_file.write(f"{param}: {value}\n")
-        
+
         log_file.write("\nTraining Parameters:\n")
         for param, value in training_params.items():
             log_file.write(f"{param}: {value}\n")
-        
+
         log_file.write("\nEvaluation Metrics:\n")
         for metric, value in eval_metrics.items():
             log_file.write(f"{metric}: {value}\n")
-    
+
     print(f"Model information logged to {log_file_path}")
+
 
 def convert_to_number(s):
     try:
@@ -550,22 +741,25 @@ def convert_to_number(s):
             # If both conversions fail, return the original string or an indication that it's not a number
             return None  # or return s to return the original string
 
-def print_gpu_utilization(memory_usage, device='cuda'):
-    if 'cuda' in device:
+
+def print_gpu_utilization(memory_usage, device="cuda"):
+    if "cuda" in device:
         nvmlInit()
         handle = nvmlDeviceGetHandleByIndex(0)
         info = nvmlDeviceGetMemoryInfo(handle)
-        return info.used//1024**2
+        return info.used // 1024**2
     else:
         memory = psutil.virtual_memory()
-        return memory.used // 1024 ** 2  # Convert from Bytes to Megabytes
+        return memory.used // 1024**2  # Convert from Bytes to Megabytes
 
 
 def get_loss_weights(labels):
     pos = torch.sum(labels == 1)
     neg = torch.sum(labels == 0)
     obs = pos + neg
-    return (neg/obs, pos/obs)
+    return (neg / obs, pos / obs)
+
+
 def print_cpu_utilization():
     # Get CPU utilization percentage
     cpu_percent = psutil.cpu_percent(interval=1)
@@ -573,14 +767,21 @@ def print_cpu_utilization():
 
     # Get memory usage
     memory = psutil.virtual_memory()
-    memory_used = memory.used // 1024 ** 2  # Convert from Bytes to Megabytes
-    memory_total = memory.total // 1024 ** 2  # Convert from Bytes to Megabytes
+    memory_used = memory.used // 1024**2  # Convert from Bytes to Megabytes
+    memory_total = memory.total // 1024**2  # Convert from Bytes to Megabytes
     print(f"Memory Used: {memory_used} MB")
     print(f"Total Memory: {memory_total} MB")
 
     return cpu_percent, memory_used
 
-def adjust_config_to_int(config, int_keys=[('training_parameters', 'batch_size'), ('architecture_parameters', 'hidden_dim')]):
+
+def adjust_config_to_int(
+    config,
+    int_keys=[
+        ("training_parameters", "batch_size"),
+        ("architecture_parameters", "hidden_dim"),
+    ],
+):
     """
     Adjusts specific keys in a nested config dictionary to have integer values.
 
@@ -591,14 +792,16 @@ def adjust_config_to_int(config, int_keys=[('training_parameters', 'batch_size')
     Returns:
     - dict: The adjusted configuration dictionary with specified keys rounded to integers.
     """
-    adjusted_config = config.copy()  # Make a copy to avoid modifying the original config
+    adjusted_config = (
+        config.copy()
+    )  # Make a copy to avoid modifying the original config
 
     for path in int_keys:
         # Navigate through the path to get to the desired key
         current_dict = adjusted_config
         for key in path[:-1]:  # Traverse to the parent dictionary of the target key
             current_dict = current_dict.get(key, {})
-        
+
         # Adjust the final key in the path
         final_key = path[-1]
         if final_key in current_dict:
@@ -613,39 +816,51 @@ def find_mutation_positions(seq, ref, padding_id=None):
     """
     return [i for i, (s, r) in enumerate(zip(seq, ref)) if s != r]
 
-def init_plm(model_name, logger, task='regression'):
-    model = None
-    supported_progen2 = ['progen2-small', 'progen2-medium', 'progen2-xlarge']
-    supported_ESM = ["esm2_t6_8M_UR50D", "esm2_t12_35M_UR50D",
-                     "esm2_t30_150M_UR50D", "esm2_t33_650M_UR50D","esm2_t36_3B_UR50D", "esm2_t48_15B_UR50D"]
-    supported_Ankh = ['ankh-base', 'ankh-large', 'ankh2-large']
-    supported_Proteinbert = ['proteinbert']
 
-    if 'progen' in model_name:
-        assert model_name in supported_progen2, 'Progen version is not supported'
+def init_plm(model_name, logger, task="regression"):
+    model = None
+    supported_progen2 = ["progen2-small", "progen2-medium", "progen2-xlarge"]
+    supported_ESM = [
+        "esm2_t6_8M_UR50D",
+        "esm2_t12_35M_UR50D",
+        "esm2_t30_150M_UR50D",
+        "esm2_t33_650M_UR50D",
+        "esm2_t36_3B_UR50D",
+        "esm2_t48_15B_UR50D",
+    ]
+    supported_Ankh = ["ankh-base", "ankh-large", "ankh2-large"]
+    supported_Proteinbert = ["proteinbert"]
+
+    if "progen" in model_name:
+        assert model_name in supported_progen2, "Progen version is not supported"
         model = ProGenFamily(model_name, logger)
 
-    elif 'esm' in model_name:
-        assert model_name in supported_ESM, 'ESM version is not supported'
+    elif "esm" in model_name:
+        assert model_name in supported_ESM, "ESM version is not supported"
         model = ESMFamily(model_name, logger, task)
 
-    elif 'ankh' in model_name:
-        assert model_name in supported_Ankh, 'Ankh version is not supported'
+    elif "ankh" in model_name:
+        assert model_name in supported_Ankh, "Ankh version is not supported"
         model = AnkhFamily(model_name)
-    elif 'antiberty' in model_name:
+    elif "antiberty" in model_name:
         model = Antiberty()
-    elif 'proteinbert' in model_name:
-        assert model_name in supported_Proteinbert, 'ProteinBERT version is not supported'
+    elif "proteinbert" in model_name:
+        assert (
+            model_name in supported_Proteinbert
+        ), "ProteinBERT version is not supported"
         model = ProteinBERTFamily(logger, task)
     else:
-        raise 'PLM not supported'
+        raise "PLM not supported"
 
     return model
 
-def masking_collator(tokenizer, features, mlm_probability=0.15, mutation_boost_factor=6.66):
+
+def masking_collator(
+    tokenizer, features, mlm_probability=0.15, mutation_boost_factor=6.66
+):
     """
     Create masked inputs for MLM from tokenized data, with boosted masking probability for specified mutations.
-    
+
     Args:
     - tokenizer: The tokenizer used for tokenizing the data.
     - features (dict): A dictionary containing the encoded sequences.
@@ -655,20 +870,27 @@ def masking_collator(tokenizer, features, mlm_probability=0.15, mutation_boost_f
     Returns:
     - dict: A dictionary containing the masked input_ids, attention_masks, and labels for MLM.
     """
-    input_ids = features['input_ids']
+    input_ids = features["input_ids"]
 
     labels = input_ids.clone()  # Prepare labels for MLM
 
     # Base probability matrix for masking
     probability_matrix = torch.full(labels.shape, mlm_probability)
-    
+
     # TODO fix for mut mask
-    if 'mutation_mask' in features:
-        probability_matrix += features['mutation_mask'] * (mlm_probability * (mutation_boost_factor - 1))
+    if "mutation_mask" in features:
+        probability_matrix += features["mutation_mask"] * (
+            mlm_probability * (mutation_boost_factor - 1)
+        )
 
     # Set probability for special tokens to 0 to avoid masking
-    special_tokens_mask = features.get('special_tokens_mask', torch.zeros_like(input_ids).bool())
-    if isinstance(special_tokens_mask, torch.Tensor) and special_tokens_mask.dtype != torch.bool:
+    special_tokens_mask = features.get(
+        "special_tokens_mask", torch.zeros_like(input_ids).bool()
+    )
+    if (
+        isinstance(special_tokens_mask, torch.Tensor)
+        and special_tokens_mask.dtype != torch.bool
+    ):
         special_tokens_mask = special_tokens_mask.bool()
     probability_matrix.masked_fill_(special_tokens_mask, value=0.0)
 
@@ -677,55 +899,76 @@ def masking_collator(tokenizer, features, mlm_probability=0.15, mutation_boost_f
 
     # Apply 80-10-10 masking strategy:
     # 80% MASK
-    indices_replaced_with_mask = torch.bernoulli(torch.full(labels.shape, 0.8)).bool() & masked_indices
+    indices_replaced_with_mask = (
+        torch.bernoulli(torch.full(labels.shape, 0.8)).bool() & masked_indices
+    )
     input_ids[indices_replaced_with_mask] = tokenizer.mask_token_id
 
     # 10% random token
-    indices_replaced_with_random = torch.bernoulli(torch.full(labels.shape, 0.1)).bool() & masked_indices & ~indices_replaced_with_mask
+    indices_replaced_with_random = (
+        torch.bernoulli(torch.full(labels.shape, 0.1)).bool()
+        & masked_indices
+        & ~indices_replaced_with_mask
+    )
     random_tokens = torch.randint(low=0, high=tokenizer.vocab_size, size=labels.shape)
-    input_ids[indices_replaced_with_random] = random_tokens[indices_replaced_with_random]
+    input_ids[indices_replaced_with_random] = random_tokens[
+        indices_replaced_with_random
+    ]
 
     # 10% unchanged - no action needed since indices are not masked
-
 
     labels[~masked_indices] = -100
 
     return {
-        'input_ids': input_ids,
-        'attention_mask': features['attention_mask'],
-        'labels': labels,
+        "input_ids": input_ids,
+        "attention_mask": features["attention_mask"],
+        "labels": labels,
     }
 
 
 class MaskedLMDataset(Dataset):
-    def __init__(self, encodings, tokenizer, mlm_probability, mutation_boost_factor=6.66):
+    def __init__(
+        self, encodings, tokenizer, mlm_probability, mutation_boost_factor=6.66
+    ):
         self.encodings = encodings
         self.tokenizer = tokenizer
         self.mlm_probability = mlm_probability
         self.mutation_boost_factor = mutation_boost_factor
 
     def __len__(self):
-        return len(self.encodings['input_ids'])
+        return len(self.encodings["input_ids"])
 
     def __getitem__(self, idx):
         item = {key: val[idx].clone().detach() for key, val in self.encodings.items()}
-        masked_inputs = masking_collator(self.tokenizer, item, self.mlm_probability, self.mutation_boost_factor)
+        masked_inputs = masking_collator(
+            self.tokenizer, item, self.mlm_probability, self.mutation_boost_factor
+        )
         return masked_inputs
 
-def create_mlm_data_loaders(data, tokenizer, batch_size=16, mlm_probability=0.15, mutation_boost_factor=6.66, split_ratios=(0.7, 0.15, 0.15)):
+
+def create_mlm_data_loaders(
+    data,
+    tokenizer,
+    batch_size=16,
+    mlm_probability=0.15,
+    mutation_boost_factor=6.66,
+    split_ratios=(0.7, 0.15, 0.15),
+):
     dataset = MaskedLMDataset(data, tokenizer, mlm_probability, mutation_boost_factor)
-    
+
     # Determine split sizes
     train_size = int(len(dataset) * split_ratios[0])
     val_size = int(len(dataset) * split_ratios[1])
     test_size = len(dataset) - train_size - val_size
-    
+
     # Randomly split the dataset
-    train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
-    
+    train_dataset, val_dataset, test_dataset = random_split(
+        dataset, [train_size, val_size, test_size]
+    )
+
     # Create data loaders for each split
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-    
-    return {'train': train_loader, 'val': val_loader, 'test': test_loader}
+
+    return {"train": train_loader, "val": val_loader, "test": test_loader}

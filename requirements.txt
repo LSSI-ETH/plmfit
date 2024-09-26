@@ -5,10 +5,10 @@ torchmetrics
 torchvision
 pandas
 matplotlib
-numpy
+numpy<2.0.0
 scipy
-transformers==4.28.0
-tokenizers
+transformers==4.44.2
+tokenizers==0.19.0
 scikit-learn
 seaborn
 h5py

@@ -61,9 +61,9 @@ class LightningModel(L.LightningModule):
 
         # To avoid error when min scale is reached
         if torch.cuda.is_available(): self.trainer.strategy.model.optimizer.loss_scaler.raise_error_at_min_scale = False
-        #print all available properties for strategy
-        self.plmfit_logger.log(self.trainer.strategy.model.wall_clock_breakdown())
-        self.profiler = FlopsProfiler(self, ds_engine=self.trainer.strategy.model)
+        # print all available properties for strategy
+        if torch.cuda.is_available(): self.plmfit_logger.log(self.trainer.strategy.model.wall_clock_breakdown())
+        if torch.cuda.is_available(): self.profiler = FlopsProfiler(self, ds_engine=self.trainer.strategy.model)
 
     def on_fit_end(self) -> None:
         total_time = time.time() - self.start_time
@@ -123,8 +123,14 @@ class LightningModel(L.LightningModule):
                 else:
                     outputs = outputs.squeeze(dim=1)
             loss = self.loss_function(outputs, labels)
-
+            
         
+        if self.model.task == 'classification' and self.hparams.no_classes > 1:
+            labels = torch.argmax(labels, dim=1)
+            outputs = torch.argmax(outputs, dim=1)
+        if batch_idx % 100 == 0: 
+                print(outputs)
+                print(labels)
         if self.trainer.precision == 16 and loss < 6.10e-5: loss = 6.10e-5 # Theoretical min loss value for float-16
         self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
@@ -208,6 +214,9 @@ class LightningModel(L.LightningModule):
 
         self.log('val_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
+        if self.model.task == 'classification' and self.hparams.no_classes > 1:
+            labels = torch.argmax(labels, dim=1)
+            outputs = torch.argmax(outputs, dim=1)
         self.val_metric.update(outputs, labels)
         self.log(f'val_{self.metric_label}_step', self.val_metric, on_step=False, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
@@ -265,6 +274,9 @@ class LightningModel(L.LightningModule):
             loss = self.loss_function(outputs, labels)
         self.log('test_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False)
 
+        if self.model.task == 'classification' and self.hparams.no_classes > 1:
+            labels = torch.argmax(labels, dim=1)
+            outputs = torch.argmax(outputs, dim=1)
         self.metrics.add(outputs, labels, ids)
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:

@@ -2,7 +2,7 @@
   "architecture_parameters":
   {
     "network_type": "linear",
-    "output_dim": 3,
+    "output_dim": 7,
     "task": "classification",
     "dropout": 0,
     "output_activation": "softmax"
@@ -24,6 +24,6 @@
     "early_stopping": 5,
     "epoch_sizing": 1.0,
     "model_output": "logits",
-    "no_classes": 3
+    "no_classes": 7
   }
 }
