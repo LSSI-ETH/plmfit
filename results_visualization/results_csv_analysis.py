@@ -17,11 +17,11 @@ task_reverse_mapping = {v: k for k, v in task_mapping.items()}
 
 # List of fine-tuning techniques and their abbreviations
 fine_tuning_techniques = {
-    'feature_extraction': 'FE',
-    'lora_all': 'LoRA',
-    'lora_last': 'LoRA-',
-    'bottleneck_adapters_all': 'Adapters',
-    'bottleneck_adapters_last': 'Adapters-'
+    "Feature Extraction": "FE",
+    "LoRA (All Layers)": "LoRA",
+    "LoRA- (Last Layer)": "LoRA-",
+    "Adapters (All Layers)": "Adapters",
+    "Adapters- (Last Layer)": "Adapters-",
 }
 
 fine_tuning_techniques_reverse = {v: k for k, v in fine_tuning_techniques.items()}
@@ -45,7 +45,7 @@ def parse_csv_files(directory):
         # Check if the CSV file has the expected columns
         expected_columns = ['File', 'Model Name', 'Layer', 'Reduction',
                             'Head Type', 'Model + Head', 'Layer + Reduction']
-        if all(column in df.columns for column in expected_columns) and ('Spearman' in df.columns or 'MCC' in df.columns):
+        if all(column in df.columns for column in expected_columns) and ("Spearman's Rank Correlation" in df.columns or 'MCC' in df.columns):
             # Parse the task name from the 'File' column
             def get_task(file_name):
                 for key in task_mapping:
@@ -59,7 +59,7 @@ def parse_csv_files(directory):
                     if technique in file_name:
                         return fine_tuning_techniques[technique]
                 return 'Unknown'
-            df.rename(columns={'Spearman': 'Metric', 'MCC': 'Metric'}, inplace=True)
+            df.rename(columns={"Spearman's Rank Correlation": 'Metric', 'MCC': 'Metric'}, inplace=True)
             df['Task'] = df['File'].apply(get_task)
             df['TL'] = get_fine_tuning_technique(os.path.basename(csv_file))
             parsed_results.append(df)
@@ -121,6 +121,7 @@ def find_best_model(parsed_results):
         for tl in tl_order:
             tl_results = task_results[task_results['TL'] == tl]
             max_metric = tl_results['Metric'].max()
+            print(f"Best model for {task} with {tl} is {max_metric}")
             best_model = tl_results[tl_results['Metric'] == max_metric]['Model Name'].values[0]
             best_layer = tl_results[tl_results['Metric'] == max_metric]['Layer'].values[0]
             

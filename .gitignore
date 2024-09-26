@@ -184,3 +184,4 @@ loggers/
 *.err
 sandbox.py
 plmfit/data/*/models/*
+*.tsv
