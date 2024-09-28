@@ -8,14 +8,16 @@ index_tl_techniques = {0: 'FE', 1: 'LoRA', 2: 'LoRA-', 3: 'Adapters', 4: 'Adapte
 
 # Colors and markers for each model
 color_marker_dict = {
-    'ProteinBERT': ('green', '*'),
-    'ProGen2-small': ('orange', '*'),
-    'ProGen2-medium': ('orange', 'X'),
-    'ProGen2-xlarge': ('orange', 'D'),
-    'ESM-650M': ('blue', '*'),
-    'ESM-3B': ('blue', 'X'),
-    'ESM-15B': ('blue', 'D')
+    'ProteinBERT': ('#FF8C00' ,'*'),
+    'ProGen2-small': ('#98FB98', '*'),
+    'ProGen2-medium': ('#9ACD32','X'),
+    'ProGen2-xlarge': ('#006400', 'D'),
+    'ESM2-650M': ('#87CEFA', '*'),
+    'ESM2-3B': ('#4169E1', 'X'),
+    'ESM2-15B': ('navy', 'D')
 }
+
+
 
 # Example datasets (replace these with actual data from results_matrices)
 datasets = [
@@ -85,6 +87,13 @@ num_ticks = len(dict_names)
 data_fe = []
 data_ft = []
 
+# Create a single subplot spanning the entire second row
+ax_joint = fig.add_subplot(gs[1, :])
+
+num_ticks = len(dict_names)
+data_fe = []
+data_ft = []
+
 # Prepare the data for boxplots
 for dataset, baseline in zip(datasets, baselines):
     # Extract values at the 0th position (for FE)
@@ -104,8 +113,12 @@ positions_fe = np.arange(num_ticks) - 0.1  # Shift 'FE' boxplot slightly to the 
 positions_ft = np.arange(num_ticks) + 0.1  # Shift 'FT' boxplot slightly to the right
 
 # Create boxplots with specified colors and closer together
-bp_fe = ax_joint.boxplot(data_fe, positions=positions_fe, widths=0.15, patch_artist=True, boxprops=dict(facecolor='#0066CC'))
-bp_ft = ax_joint.boxplot(data_ft, positions=positions_ft, widths=0.15, patch_artist=True, boxprops=dict(facecolor='#009900'))
+bp_fe = ax_joint.boxplot(data_fe, positions=positions_fe, widths=0.15, patch_artist=True, 
+                         boxprops=dict(facecolor='#0066CC'),
+                         medianprops=dict(color='black', linewidth=2))  # Black and wider median line
+bp_ft = ax_joint.boxplot(data_ft, positions=positions_ft, widths=0.15, patch_artist=True, 
+                         boxprops=dict(facecolor='#009900'),
+                         medianprops=dict(color='black', linewidth=2))  # Black and wider median line
 
 # Color the area below y=0 in light gray
 ax_joint.axhspan(ax_joint.get_ylim()[0], 0, color='lightgray', alpha=0.5)
@@ -135,8 +148,32 @@ plt.subplots_adjust(hspace=0.3)  # Increase space between rows (adjust the 0.3 a
 ax_joint.set_title("                  ", fontsize=55)  # Remove title from the subplot
 plt.tight_layout()
 
+# Print statistics for each task below the x-axis
+def print_boxplot_stats(bp, positions, task_names):
+    for i, pos in enumerate(positions):
+        q1 = bp['whiskers'][i*2].get_ydata()[1]
+        q3 = bp['whiskers'][i*2+1].get_ydata()[1]
+        median = bp['medians'][i].get_ydata()[1]
+        min_val = bp['caps'][i*2].get_ydata()[1]
+        max_val = bp['caps'][i*2+1].get_ydata()[1]
+        
+        # Get the outliers
+        outliers = bp['fliers'][i].get_ydata()
+        
+        # Add the outliers to the printed stats
+        ax_joint.text(pos, -75, f"Q1: {q1:.2f}\nQ3: {q3:.2f}\nMin: {min_val:.2f}\nMax: {max_val:.2f}\nMed: {median:.2f}\nOutliers: {list(outliers)}", 
+                     ha='center', va='top', fontsize=12, color='black')
+        
+        # Print the stats including outliers
+        print(f'//////// {task_names[i]} ////////')
+        print(f"Q1: {q1:.2f}\nQ3: {q3:.2f}\nMin: {min_val:.2f}\nMax: {max_val:.2f}\nMed: {median:.2f}\nOutliers: {list(outliers)}")
+# Print stats for FE and FT boxplots
+print_boxplot_stats(bp_fe, positions_fe, dict_names)
+print_boxplot_stats(bp_ft, positions_ft, dict_names)
+
 # Save the figure
 plt.savefig('results_visualization/til_overview_with_joint_boxplots_and_legend_spaced.png', bbox_inches='tight', dpi=300)
+
 
 
 # # Custom colors for legend and bars

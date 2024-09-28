@@ -13,13 +13,13 @@ adapters_data = results_matrices.aav_sampled_dict['adapters']
 
 
 colors = {
-    'ProteinBERT': 'green',
-    'ProGen2-small': 'orange',
-    'ProGen2-medium': 'orange',
-    'ProGen2-xlarge': 'orange',
-    'ESM-650M':'blue',
-    'ESM-3B':'blue',
-    'ESM-15B':'blue'
+    'ProteinBERT': '#FF8C00',
+    'ProGen2-small': '#98FB98',
+    'ProGen2-medium': '#9ACD32',
+    'ProGen2-xlarge': '#006400',
+    'ESM2-650M':'#87CEFA',
+    'ESM2-3B':'#4169E1',
+    'ESM2-15B':'navy'
 }
 
 markers = {
@@ -27,9 +27,9 @@ markers = {
     'ProGen2-small': '*',
     'ProGen2-medium': 'X',
     'ProGen2-xlarge': 'D',
-    'ESM-650M': '*',
-    'ESM-3B': 'X',
-    'ESM-15B': 'D'
+    'ESM2-650M': '*',
+    'ESM2-3B': 'X',
+    'ESM2-15B': 'D'
 }
 
 
@@ -112,9 +112,9 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_fe, axes[0, :], ba
     y_values_matrix = np.array(y_values_matrix)
     min_y_values = np.min(y_values_matrix, axis=0)
     max_y_values = np.max(y_values_matrix, axis=0)
-    
+
     # Shade the area between the min and max values in light gray
-    ax.fill_between(numeric_x, min_y_values, max_y_values, color='lightgray', alpha=0.3)
+   # ax.fill_between(numeric_x, min_y_values, max_y_values, color='lightgray', alpha=0.3)
 
     # Plot baseline as a dashed line with thicker line
     baseline_handle = Line2D([0], [0], color='red', linestyle='--', linewidth=4,  label='OHE - baseline')
@@ -123,7 +123,7 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_fe, axes[0, :], ba
     # Add baseline handle to dictionary
 
     # Set y-axis limits and customize ticks
-    ax.set_ylim(0, 1)
+    ax.set_ylim(0.3, 1)  # Adjust y-axis limits
     ax.set_yticks(get_y_ticks(ax))  # Set custom y-ticks
     
     ax.set_title(f'{name}', fontsize=35)
@@ -161,7 +161,7 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_lora, axes[1, :], 
     max_y_values = np.max(y_values_matrix, axis=0)
     
     # Shade the area between the min and max values in light gray
-    ax.fill_between(numeric_x, min_y_values, max_y_values, color='lightgray', alpha=0.3)
+    #ax.fill_between(numeric_x, min_y_values, max_y_values, color='lightgray', alpha=0.3)
 
     # Plot baseline as a dashed line with thicker line
     baseline_handle = Line2D([0], [0], color='red', linestyle='--', linewidth=4, label='OHE - baseline')
@@ -171,7 +171,7 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_lora, axes[1, :], 
     handles_dict['OHE - baseline'] = baseline_handle
 
     # Set y-axis limits and customize ticks
-    ax.set_ylim(0, 1)
+    ax.set_ylim(0.3, 1)  # Adjust y-axis limits
     ax.set_yticks(get_y_ticks(ax))  # Set custom y-ticks
     
     ax.set_xlabel('')
@@ -208,7 +208,7 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_adapters, axes[2, 
     max_y_values = np.max(y_values_matrix, axis=0)
     
     # Shade the area between the min and max values in light gray
-    ax.fill_between(numeric_x, min_y_values, max_y_values, color='lightgray', alpha=0.3)
+    #ax.fill_between(numeric_x, min_y_values, max_y_values, color='lightgray', alpha=0.3)
 
     # Plot baseline as a dashed line with thicker line
     baseline_handle = Line2D([0], [0], color='red', linestyle='--', linewidth=4,  label='OHE - baseline')
@@ -217,7 +217,7 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_adapters, axes[2, 
     # Add baseline handle to dictionary
 
     # Set y-axis limits and customize ticks
-    ax.set_ylim(0, 1)
+    ax.set_ylim(0.3, 1)  # Adjust y-axis limits
     ax.set_yticks(get_y_ticks(ax))  # Set custom y-ticks
 
     ax.tick_params(axis='x', which='both', labelsize=35)

@@ -65,7 +65,8 @@ data_dicts = [aav, rbd, gb1, herh3]  # List of your dictionaries
 legend_labels = {}
 
 # Plot each dictionary
-titles = ['aav_one_vs_rest', 'rbd_one_vs_rest', 'gb1_one_vs_rest', 'herh3_one_vs_rest']
+
+titles = [  'AAV - one_vs_rest', 'RBD - one_vs_rest', 'GB1 - one_vs_rest', 'HER2 - one_vs_rest']
 for i, (ax, data_dict, title) in enumerate(zip(axs.flatten(), data_dicts, titles)):
     # Show y-ticks only in the left column (i % 2 == 0)
     plot_dict(ax, data_dict, title, legend_labels, show_yticks=(i % 2 == 0))
