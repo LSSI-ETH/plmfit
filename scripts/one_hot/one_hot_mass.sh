@@ -8,7 +8,7 @@
 #SBATCH --gres=gpumem:24g
 #SBATCH --time=24:00:00          # total run time limit (HH:MM:SS)
 
-set -a && source .env && set +a
+
 
 module load eth_proxy
 module load stack/2024-06 gcc/12.2.0
@@ -19,6 +19,7 @@ nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used -
 # Store the PID of the nvidia-smi background process
 NVIDIA_SMI_PID=$!
 
+set -a && source .env && set +a
 source $VIRTUAL_ENV/bin/activate
 
 export NCCL_DEBUG=WARN
