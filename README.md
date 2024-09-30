@@ -1,6 +1,6 @@
 # PLMFit
 
-PLMFit is a powerful framework designed to democratize the fine-tuning of Protein Language Models (PLMs) for researchers with varying levels of computational expertise. With PLMFit, you can fine-tune state-of-the-art models on your experimental data through simple command-line instructions. This tool is particularly valuable for laboratory researchers seeking to leverage deep learning without needing in-depth programming knowledge. PLMFit also includes SCRUM scripts optimized for Euler, the ETH supercomputer, ensuring seamless integration and efficient execution of computational tasks.
+PLMFit is a powerful framework designed to democratize the fine-tuning of Protein Language Models (PLMs) for researchers with varying levels of computational expertise. With PLMFit, you can fine-tune state-of-the-art models on your experimental data through simple command-line instructions. This tool is particularly valuable for laboratory researchers seeking to leverage deep learning without needing in-depth programming knowledge. PLMFit also includes SCRUM scripts optimized for Euler, the ETH Zurich supercomputing cluster.
 
 ## Table of contents
 
@@ -19,7 +19,7 @@ Before you start, make sure Python 3.10 or higher is installed on your system. I
 ### Steps to install
 
 1. **Clone the repository:**
-   Access the PLMFit repository within the lab's network and clone it to your local machine:
+   Access the PLMFit repository and clone it to your machine:
    ```bash
    git clone https://github.com/LSSI-ETH/plmfit.git
    ```
@@ -73,7 +73,7 @@ SLURM_USERNAME='slurm_username'
 VIRTUAL_ENV='/absolute/path/to/venv'
 ```
 
-For detailed data structure and setup, refer to the [data management guide](./data/README.md).
+Data needs to follow a specific structure to be readble by PLMFit. All data should be place in the `./data folder` in a `{data_type}` named subfolder. The dataset has to be a csv file named `{data_type}_data_full.csv` inside the subfolder and the columns should be in a specific format. The mandatory fields are `aa_seq` for the amino-acid sequence, `len` for the length of the sequence, `score`/`binary_score`/`label` depending on the task (regression/binary classification/multi-class classification). For detailed data structure and setup, refer to the [data management guide](./data/README.md).
 
 ## Supported PLMs
 | Arguments | Model Name | Parameters | No. of Layers | Embedding dim. | Source |
@@ -106,7 +106,7 @@ python3 plmfit --function extract_embeddings \
                --reduction <reduction_method>
 ```
 
-**Parameters explained:**
+**Parameters:**
 - `--function extract_embeddings`: Initiates the embedding extraction process.
 - `--data_type`: Short name for the data to be used, as per naming conventions in README.
 - `--plm`: Specifies the pre-trained model from supported PLMs.
@@ -114,12 +114,12 @@ python3 plmfit --function extract_embeddings \
 - `--experiment_dir`: Directory where experiment output files will be stored.
 - `--experiment_name`: A unique name for identifying the experiment.
 - `--layer`: (Optional) Specifies the model layer from which to extract embeddings ('first', 'quarter1', 'middle', 'quarter3', 'last'—default, or a specific layer number).
-- `--reduction`: (Optional) Pooling method for embeddings ('mean'—default, 'bos', 'eos').
+- `--reduction`: (Optional) Pooling method for embeddings ('mean'—default, 'bos', 'eos', 'sum', 'none'-requires substantial storage space).
 
 The output from the embedding extraction is a .pt file (PyTorch tensor) which contains the numerical representations of the sequences. Each sequence is transformed into an embedding vector, and the file size is determined by the number of sequences and the embedding size, essentially forming a matrix of size Sequences length X Embedding size. This structured data can then be used directly for machine learning models, providing a powerful toolset for predictive analytics and further research.
 
 **Why Extract embeddings?**
-Extracting embeddings from protein sequences is a foundational step in bioinformatics. It converts complex protein sequences into a simpler, numerical format that machine learning models can easily process. By doing so, researchers can capture the intrinsic properties of proteins in a way that highlights their biological functionalities and interactions. This process is particularly useful for tasks such as protein classification, structure prediction, and function annotation.
+Extracting embeddings from protein sequences is a foundational step in bioinformatics. It converts amino-acid sequences in a contexualy and information rich numerical representation (i.e. embeddings) by exploitting evolutionary and structural knowledge acquired during PLMs' pretraining. Embeddings can capture the intrinsic properties of proteins in a way that highlights their biological functionalities and interactions, which are beneficial input features for tasks such as protein classification, structure prediction, and function annotation.
 
 ### Fine-Tuning models
 
@@ -138,12 +138,12 @@ python3 -u plmfit --function fine_tuning \
                   --experiment_name <name_of_experiment>
 ```
 
-**Fine-Tuning Methods Explained:**
+**Fine-Tuning methods:**
 - `--ft_method`: Specifies the fine-tuning method ('feature_extraction', 'full', 'lora', 'bottleneck_adapters').
 - `--target_layers`: Targets specific layers ('all' or 'last'), not applicable for 'feature_extraction'.
 - `--head_config`: JSON configuration file for the head, defining the task (regression, classification, domain adaptation). This JSON file needs to be located in `./config/training/` folder. The argument should be the relative path of the file to the `./config/training/` folder. For further documentation on how the head should be structured, refer to the [training management guide](./config/training/README.md).
 
-**Understanding Fine-Tuning Methods:**
+**Understanding Fine-Tuning methods:**
 1. **Feature Extraction:**
    - Description: This method involves extracting embeddings with a pre-trained model before fine-tuning a new head on these embeddings. It is less computationally intensive as it does not require updating the weights of the pre-trained model. To automatically use embeddings extracted beforehand, use the same `output_dir` argument.
    - Prerequisite: Embedding extraction must be completed first, as it uses these embeddings as input. The same `output_dir` argument needs to be passed.
@@ -196,6 +196,8 @@ Use tabs as deliminators and the last line has to stay blank, otherwise the scri
 - **Predict or generate from existing models**: Coming soon.
 
 ## Scoreboard
+Here we present the current best performing setups for each task. These benchmarks are indicative since they are a result of a comparative study and we encourage the community to find better setups with different hyperparameters for each task. 
+
 | Task | Score | Metric | PLM | TL method | Layers used | Pooling | Downstream head |
 |-----------|------------|-------------|-------------|-------------|-------------|-------------|-------------|
 | AAV - sampled | 0.932 | Spearman's | ESM2-15B | Adapters | All | Mean | Linear |
