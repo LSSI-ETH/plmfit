@@ -82,10 +82,10 @@ Data needs to follow a specific structure to be readble by PLMFit. All data shou
 | `esm2_t33_650M_UR50D` | ESM | 650M  | 33 | 1280 | [esm](https://github.com/facebookresearch/esm) |
 | `esm2_t36_3B_UR50D` | ESM | 3B | 36 | 2560 | [esm](https://github.com/facebookresearch/esm) |
 | `esm2_t48_15B_UR50D` | ESM | 15B | 48 | 5120 | [esm](https://github.com/facebookresearch/esm) |
-| `progen2-small` | ProGen2 | 151M | 11 | 1024 | [progen](https://github.com/enijkamp/progen2) |
+| `progen2-small` | ProGen2 | 151M | 12 | 1024 | [progen](https://github.com/enijkamp/progen2) |
 | `progen2-medium` | ProGen2 | 764M | 27 | 1536 | [progen](https://github.com/enijkamp/progen2) |
 | `progen2-xlarge` | ProGen2 | 6.4B | 32 | 4096 | [progen](https://github.com/enijkamp/progen2) |
-| `proteinbert` | ProteinBERT | 92M | 11 | 768 | [proteinbert](https://github.com/nadavbra/protein_bert) |
+| `proteinbert` | ProteinBERT | 92M | 12 | 768 | [proteinbert](https://github.com/nadavbra/protein_bert) |
 
 ## Usage
 
