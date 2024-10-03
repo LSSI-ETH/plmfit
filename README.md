@@ -14,7 +14,7 @@ PLMFit is a powerful framework designed to democratize the fine-tuning of Protei
 ## Installation
 
 ### Prerequisites
-Before you start, make sure Python 3.10 or higher is installed on your system. It is also recommended to manage your Python dependencies with a virtual environment to prevent conflicts with other packages.
+Before you start, make sure Python 3.11 is installed on your system. Higher versions might work but are not tested. It is also recommended to manage your Python dependencies with a virtual environment to prevent conflicts with other packages.
 
 ### Steps to install
 
