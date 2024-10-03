@@ -21,6 +21,8 @@ class LightningModel(L.LightningModule):
         self.log_interval = log_interval
         self.method = method
         
+        if 'no_classes' not in self.hparams:
+            self.hparams.no_classes = 1
         if self.model.task == 'classification':
             if self.hparams.no_classes == 1: self.train_metric = classification.BinaryAccuracy()
             else: self.train_metric = classification.MulticlassAccuracy(num_classes=self.hparams.no_classes)

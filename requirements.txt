@@ -5,10 +5,10 @@ torchmetrics
 torchvision
 pandas
 matplotlib
-numpy<2.0.0
+numpy==1.26.4
 scipy
-transformers==4.44.2
-tokenizers==0.19.0
+transformers==4.28.0
+tokenizers
 scikit-learn
 seaborn
 h5py
@@ -34,3 +34,4 @@ python-dotenv
 tensorboard
 # esm
 blosum
+optuna

@@ -33,8 +33,8 @@ def fine_tune(args, logger):
         if args.split == "sampled" and "sampled" not in data
         else data.get(args.split)
     )
-    weights = None if args.weights is None else data.get(args.weights)
-    sampler = args.sampler == "True"
+    weights = None if head_config["training_parameters"].get("weights") is None else data.get(head_config["training_parameters"]["weights"])
+    sampler = head_config["training_parameters"].get("sampler", False) == True
     model = utils.init_plm(args.plm, logger, task=task)
     assert model != None, "Model is not initialized"
 
@@ -119,6 +119,7 @@ def fine_tune(args, logger):
         initial_scale_power=20,
         loss_scale_window=2000,
         min_loss_scale=0.25,
+        contiguous_gradients=True,
     )
     devices = args.gpus if torch.cuda.is_available() else 1
     strategy = strategy if torch.cuda.is_available() else "auto"

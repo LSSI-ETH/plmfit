@@ -1,15 +1,17 @@
 {
-  "architecture_parameters": {
+  "architecture_parameters":
+  {
     "network_type": "linear",
-    "output_dim": 8,
+    "output_dim": 7,
     "task": "classification",
     "dropout": 0,
     "output_activation": "softmax"
   },
-  "training_parameters": {
-    "learning_rate": 0.0001,
-    "epochs": 3,
-    "batch_size": 4,
+  "training_parameters":
+  {
+    "learning_rate": 0.00005,
+    "epochs": 200,
+    "batch_size": 64,
     "loss_f": "cross_entropy",
     "optimizer": "adam",
     "val_split": 0.2,
@@ -21,9 +23,6 @@
     "gradient_accumulation": false,
     "epoch_sizing": false,
     "early_stopping": 30,
-    "model_output": "logits",
-    "weights": "weights",
-    "sampler": true,
-    "no_classes": 8
+    "no_classes": 7
   }
 }

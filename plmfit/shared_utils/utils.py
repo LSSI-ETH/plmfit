@@ -370,7 +370,7 @@ def load_tokenizer(model_name):
     else:
         raise "Model tokenizer not defined"
 
-    file = f"{path}/language_models/{model_file}/tokenizer.json"
+    file = f"{plmfit_path}/language_models/{model_file}/tokenizer.json"
 
     with open(file, "r") as f:
         return Tokenizer.from_str(f.read())
