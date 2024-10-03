@@ -146,7 +146,7 @@ python3 -u plmfit --function fine_tuning \
 **Understanding Fine-Tuning methods:**
 1. **Feature Extraction:**
    - Description: This method involves extracting embeddings with a pre-trained model before fine-tuning a new head on these embeddings. It is less computationally intensive as it does not require updating the weights of the pre-trained model. To automatically use embeddings extracted beforehand, use the same `output_dir` argument.
-   - Prerequisite: Embedding extraction must be completed first, as it uses these embeddings as input. The same `output_dir` argument needs to be passed.
+   - Prerequisite: Embedding extraction must be completed first, as it uses these embeddings as input. The argument `embeddings_path` needs to be passed pointing to the full path -including .pt file name- to embeddings.
    - Pros: Efficient in terms of computation; reduces the risk of overfitting on small datasets.
    - Cons: May not capture as complex patterns as methods that update deeper model layers.
 2. **Full Fine-Tuning:**
