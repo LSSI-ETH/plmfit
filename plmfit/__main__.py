@@ -53,6 +53,8 @@ def main():
                         help='Output directory for created files')
     parser.add_argument('--experiment_dir', type=str, default='./output',
                         help='Output directory for created files')
+    parser.add_argument('--embeddings_path', type=str, default=None,
+                        help='Path where embeddings are stored')
     parser.add_argument('--logger', type=str, default='local')
     parser.add_argument('--cpus', default=1)
     parser.add_argument('--gpus', default=0)

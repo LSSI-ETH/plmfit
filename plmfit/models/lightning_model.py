@@ -130,9 +130,9 @@ class LightningModel(L.LightningModule):
         if self.model.task == 'classification' and self.hparams.no_classes > 1:
             labels = torch.argmax(labels, dim=1)
             outputs = torch.argmax(outputs, dim=1)
-        if batch_idx % 100 == 0: 
-                print(outputs)
-                print(labels)
+        # if batch_idx % 100 == 0: 
+        #         print(outputs)
+        #         print(labels)
         if self.trainer.precision == 16 and loss < 6.10e-5: loss = 6.10e-5 # Theoretical min loss value for float-16
         self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 

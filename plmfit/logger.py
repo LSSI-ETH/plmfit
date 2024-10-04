@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import torch
 import requests
 import traceback
+import optuna
 try:
     from dotenv import load_dotenv 
     load_dotenv()
@@ -25,7 +26,7 @@ class Logger():
             cls._instance = super(Logger, cls).__new__(cls)
             # Put any initialization here that you want to execute only once
         return cls._instance
-    
+
     def __init__(self, experiment_name: str, base_dir='loggers', log_to_server=False, server_path='', main_pid=None, main_tid=None): 
         if hasattr(self, 'initialized'):  # Prevent re-initialization
             return
@@ -40,7 +41,7 @@ class Logger():
         self.base_dir = base_dir
         self.log_to_server = log_to_server
         self.mute = False
-        
+
         if log_to_server:
             self.server_url = POST_URL
             self.token = TOKEN
@@ -57,7 +58,7 @@ class Logger():
         if self.mute: return
         if self.current_global_rank != 0:
             return
-        
+
         with open(os.path.join(self.base_dir, self.file_name), 'a') as f:
             f.write(f'{text}\n')
 
@@ -70,7 +71,6 @@ class Logger():
     def ensure_dir(self, dir_path):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
-
 
     def save_data(self, data, data_name):
         file_path = os.path.join(self.base_dir, f"{self.experiment_name}_data.json")
@@ -105,7 +105,6 @@ class Logger():
                 self.post_to_server(file_path, f"{self.experiment_name}_data.json")
             except Exception as e:
                 self.log(f'Error posting data to server: {e}', force_dont_send=True)
-
 
     def save_plot(self, plot, plot_name):
         plot_path = os.path.join(self.base_dir, f"{self.experiment_name}_{plot_name}.png")
@@ -150,3 +149,17 @@ class Logger():
     def save_log_to_server(self):
         if self.log_to_server:
             self.post_to_server(os.path.join(self.base_dir, self.file_name), self.file_name)
+
+class LogOptunaTrialCallback:
+    def __init__(self, logger: Logger):
+        self.logger = logger
+
+    def __call__(
+        self, study: optuna.study.Study, trial: optuna.trial.FrozenTrial
+    ) -> None:
+        self.logger.log(
+            f"[{len(study.trials)}] Trial completed in {trial.duration.seconds}s: Loss={trial.value:.4f}, Params: {trial.params}"
+        )
+        self.logger.log(
+            f"Current best trial [{study.best_trial.number + 1}]: Loss={study.best_trial.value:.4f}, Params: {study.best_trial.params}\n"
+        )

@@ -35,3 +35,6 @@ tensorboard
 # esm
 blosum
 optuna
+optuna-integration[pytorch_lightning]
+plotly
+kaleido

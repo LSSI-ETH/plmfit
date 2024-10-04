@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn import init
 import torch.nn.functional as F
 from plmfit.shared_utils.utils import get_activation_function
-    
+
 class LinearHead(nn.Module):
     def __init__(self, config):
         super(LinearHead, self).__init__()
@@ -17,8 +17,11 @@ class LinearHead(nn.Module):
             init.zeros_(self.linear.bias)
 
             self.activation = get_activation_function(config['output_activation'])
-    
+
     def forward(self, x):
+        # if device is MPS, convert input to int
+        if torch.backends.mps.is_available():
+            x = x.to(torch.float)
         x = self.linear(x)
         if self.task == 'classification':
             x = self.activation(x)
@@ -53,7 +56,7 @@ class CnnReg(nn.Module):
         x = self.drop1(x) 
         return self.fc4(x)
 
-    
+
 class MLP(nn.Module):
     def __init__(self, config):
         super(MLP, self).__init__()
@@ -101,7 +104,7 @@ class MLP(nn.Module):
                     if layer.bias is not None:
                         init.constant_(layer.bias, 0)
 
-    
+
 class AdapterLayer(nn.Module):
     def __init__(self, in_features, bottleneck_dim ,dropout= 0.25 , eps = 1e-5):
         super().__init__()
@@ -123,37 +126,3 @@ class AdapterLayer(nn.Module):
         src = nn.relu(self.fc_down(src))
         src = self.fc_up(src)
         return self.dropout(src)
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    

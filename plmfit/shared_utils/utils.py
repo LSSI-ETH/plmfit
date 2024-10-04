@@ -23,6 +23,7 @@ from plmfit.models.pretrained_models import (
 from dotenv import load_dotenv
 import blosum as bl
 from collections import Counter
+import torch.nn.functional as F
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
@@ -70,7 +71,15 @@ def load_embeddings(
         # embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
         return embeddings.clone().detach().to(dtype=torch.float32)
     except:
-        return None
+        try:
+            embeddings = torch.load(
+                f"{emb_path}",
+                map_location=torch.device(device),
+            )
+            # embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
+            return embeddings.clone().detach().to(dtype=torch.float32)
+        except:
+            return None
 
 
 def create_data_loaders(
@@ -85,6 +94,7 @@ def create_data_loaders(
     num_workers=0,
     weights=None,
     sampler=False,
+    dataset_type="tensor"
 ):
     """
     Create DataLoader objects for training, validation, and testing.
@@ -191,15 +201,22 @@ def create_data_loaders(
         weights_val = convert_or_clone_to_tensor(weights_val, dtype=torch.float32)
         weights_test = convert_or_clone_to_tensor(weights_test, dtype=torch.float32)
 
+    if dataset_type == "tensor":
+        Dataset = TensorDataset
+    elif dataset_type == "one_hot":
+        Dataset = OneHotDataset
+    else:
+        raise ValueError("dataset_type must be either 'tensor' or 'one_hot'")
+
     # Create DataLoader for training, validation, and testing
     if weights is not None and sampler is False:
-        train_dataset = TensorDataset(X_train, y_train, weights_train)
-        val_dataset = TensorDataset(X_val, y_val, weights_val)
-        test_dataset = TensorDataset(X_test, y_test, test_ids, weights_test)
+        train_dataset = Dataset(X_train, y_train, weights_train)
+        val_dataset = Dataset(X_val, y_val, weights_val)
+        test_dataset = Dataset(X_test, y_test, test_ids, weights_test)
     else:
-        train_dataset = TensorDataset(X_train, y_train)
-        val_dataset = TensorDataset(X_val, y_val)
-        test_dataset = TensorDataset(X_test, y_test, test_ids)
+        train_dataset = Dataset(X_train, y_train)
+        val_dataset = Dataset(X_val, y_val)
+        test_dataset = Dataset(X_test, y_test, test_ids)
 
     if sampler: 
         train_sampler = init_weighted_sampler(train_dataset, weights_train)
@@ -236,6 +253,32 @@ def create_data_loaders(
     )
 
     return {"train": train_loader, "val": val_loader, "test": test_loader}
+
+class OneHotDataset(TensorDataset):
+    '''
+    A custom dataset class that one-hot encodes the first tensor in the dataset.
+    set_num_classes must be called before using this dataset, to set the number of classes.
+    '''
+    def __init__(self, *tensors):
+        assert all(
+            tensors[0].size(0) == tensor.size(0) for tensor in tensors
+        ), "Size mismatch between tensors"
+        self.tensors = tensors
+
+    def set_num_classes(self, num_classes):
+        self.num_classes = num_classes
+
+    def __getitem__(self, index):
+        # one hot the first tensor index and the others as is and then return
+        return tuple(
+            one_hot_encode(tensor[index], self.num_classes) if i == 0 else tensor[index]
+            for i, tensor in enumerate(self.tensors)
+        )
+
+def one_hot_encode(seqs, num_classes):
+    encs = F.one_hot(seqs, num_classes)
+    # return the tensor flattened
+    return encs.flatten()
 
 def init_weighted_sampler(dataset, weights, num_samples_method='min'):
     # Count the occurrences of each class in the dataset
@@ -415,10 +458,6 @@ def load_transformer_tokenizer(model_name, tokenizer):
         return tokenizer
     else:
         raise "Transformer tokenizer not supported (yet)"
-
-
-def one_hot_encode(seqs):
-    return torch.tensor([0])
 
 
 def blosum62_encode(sequences, pad_to_length, logger=None):
