@@ -139,7 +139,6 @@ def objective(
         scaler=training_params["scaler"],
         batch_size=training_params["batch_size"],
         validation_size=training_params["val_split"],
-        dtype=torch.int8,
         split=split,
         num_workers=num_workers,
         weights=weights,
@@ -279,9 +278,14 @@ def hyperparameter_tuning(
                 "PyTorch Lightning>=2.2.1 is required for hyper-parameter tuning."
             )
     network_type = head_config["architecture_parameters"]["network_type"]
+    storage = f"sqlite:///{logger.base_dir}/hp-tuning.db"
     pruner = optuna.pruners.MedianPruner()
     study = optuna.create_study(
-        direction="minimize", pruner=pruner, study_name="plmfit"
+        direction="minimize",
+        pruner=pruner,
+        study_name="plmfit",
+        storage=storage,
+        load_if_exists=True,
     )
 
     logger.log("Starting hyperparameter tuning...")

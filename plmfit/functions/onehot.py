@@ -12,6 +12,7 @@ from optuna.visualization import plot_optimization_history, plot_slice
 from plmfit.shared_utils import utils, data_explore
 from plmfit.logger import LogOptunaTrialCallback
 
+
 def onehot(args, logger):
     head_config = utils.load_config(f"training/{args.head_config}")
     task = head_config["architecture_parameters"]["task"]
@@ -36,10 +37,15 @@ def onehot(args, logger):
     )
     sampler = head_config["training_parameters"].get("sampler", False) == True
 
-    tokenizer = utils.load_tokenizer('proteinbert') # Use same tokenizer as proteinbert
+    tokenizer = utils.load_tokenizer("proteinbert")  # Use same tokenizer as proteinbert
     num_classes = tokenizer.get_vocab_size(with_added_tokens=False)
     encs = utils.categorical_encode(
-        data['aa_seq'].values, tokenizer, max(data['len'].values), logger=logger, model_name='proteinbert')
+        data["aa_seq"].values,
+        tokenizer,
+        max(data["len"].values),
+        logger=logger,
+        model_name="proteinbert",
+    )
 
     if args.ray_tuning == "True":
         head_config = hyperparameter_tuning(
@@ -131,7 +137,6 @@ def objective(
         scaler=training_params["scaler"],
         batch_size=training_params["batch_size"],
         validation_size=training_params["val_split"],
-        dtype=torch.long,
         split=split,
         num_workers=num_workers,
         weights=weights,
@@ -148,10 +153,14 @@ def objective(
 
     network_type = head_config["architecture_parameters"]["network_type"]
     if network_type == "linear":
-        head_config["architecture_parameters"]["input_dim"] = embeddings.shape[1] * num_classes # Account for one-hot encodings
+        head_config["architecture_parameters"]["input_dim"] = (
+            embeddings.shape[1] * num_classes
+        )  # Account for one-hot encodings
         model = heads.LinearHead(head_config["architecture_parameters"])
     elif network_type == "mlp":
-        head_config["architecture_parameters"]["input_dim"] = embeddings.shape[1] * num_classes # Account for one-hot encodings
+        head_config["architecture_parameters"]["input_dim"] = (
+            embeddings.shape[1] * num_classes
+        )  # Account for one-hot encodings
         model = heads.MLP(head_config["architecture_parameters"])
     else:
         raise ValueError("Head type not supported")
@@ -275,9 +284,14 @@ def hyperparameter_tuning(
             "PyTorch Lightning>=2.2.1 is required for hyper-parameter tuning."
         )
     network_type = head_config["architecture_parameters"]["network_type"]
+    storage = f"sqlite:///{logger.base_dir}/hp-tuning.db"
     pruner = optuna.pruners.MedianPruner()
     study = optuna.create_study(
-        direction="minimize", pruner=pruner, study_name="plmfit"
+        direction="minimize",
+        pruner=pruner,
+        study_name="plmfit",
+        storage=storage,
+        load_if_exists=True,
     )
 
     logger.log("Starting hyperparameter tuning...")

@@ -276,7 +276,14 @@ class OneHotDataset(TensorDataset):
         )
 
 def one_hot_encode(seqs, num_classes):
+    # get dtype and save it
+    dtype = seqs.dtype
+    # convert to long
+    seqs = seqs.long()
+    # one hot encode
     encs = F.one_hot(seqs, num_classes)
+    # convert back to original dtype
+    encs = encs.to(dtype=dtype)
     # return the tensor flattened
     return encs.flatten()
 
