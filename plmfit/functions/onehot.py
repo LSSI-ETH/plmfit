@@ -118,6 +118,9 @@ def objective(
             head_config["architecture_parameters"]["hidden_dim"] = trial.suggest_int(
                 "hidden_dim", 64, 2048
             )
+            head_config["architecture_parameters"]["hidden_dropout"] = (
+                trial.suggest_float("hidden_dropout", 0.0, 1.0)
+            )
     if task == "regression":
         scores = data["score"].values
     elif task == "classification":
@@ -166,7 +169,7 @@ def objective(
         raise ValueError("Head type not supported")
 
     utils.set_trainable_parameters(model)
-    
+
     model = LightningModel(
         model,
         training_params,
@@ -218,6 +221,9 @@ def objective(
         if network_type == "mlp":
             hyperparameters["hidden_dim"] = head_config["architecture_parameters"][
                 "hidden_dim"
+            ]
+            hyperparameters["hidden_dropout"] = head_config["architecture_parameters"][
+                "hidden_dropout"
             ]
 
         trainer.logger.log_hyperparams(hyperparameters)
@@ -323,6 +329,9 @@ def hyperparameter_tuning(
     if network_type == "mlp":
         head_config["architecture_parameters"]["hidden_dim"] = study.best_params[
             "hidden_dim"
+        ],
+        head_config["architecture_parameters"]["hidden_dropout"] = study.best_params[
+            "hidden_dropout"
         ]
 
     return head_config

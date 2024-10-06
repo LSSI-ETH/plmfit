@@ -324,5 +324,8 @@ def hyperparameter_tuning(
     head_config["training_parameters"]["weight_decay"] = study.best_params["weight_decay"]
     if network_type == "mlp":
         head_config["architecture_parameters"]["hidden_dim"] = study.best_params["hidden_dim"]
+        head_config["architecture_parameters"]["hidden_dropout"] = study.best_params[
+            "hidden_dropout"
+        ]
 
     return head_config
