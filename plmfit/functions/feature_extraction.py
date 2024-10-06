@@ -11,6 +11,7 @@ from packaging import version
 from optuna.visualization import plot_optimization_history, plot_slice
 from plmfit.shared_utils import utils, data_explore
 from plmfit.logger import LogOptunaTrialCallback
+import gc
 
 
 def feature_extraction(args, logger):
@@ -120,6 +121,9 @@ def objective(
             head_config["architecture_parameters"]["hidden_dim"] = trial.suggest_int(
                 "hidden_dim", 64, 2048
             )
+            head_config["architecture_parameters"]["hidden_dropout"] = (
+                trial.suggest_float("hidden_dropout", 0.0, 1.0)
+            )
     if task == "regression":
         scores = data["score"].values
     elif task == "classification":
@@ -159,7 +163,7 @@ def objective(
         raise ValueError("Head type not supported")
 
     utils.set_trainable_parameters(model)
-    logger.mute = on_ray_tuning
+
     model = LightningModel(
         model,
         training_params,
@@ -178,24 +182,15 @@ def objective(
     if args.data_type == "herH3" and args.split == "one_vs_rest":
         model.track_validation_after = -1
 
-    strategy = DeepSpeedStrategy(
-        stage=3,
-        offload_optimizer=True,
-        offload_parameters=True,
-        load_full_weights=True,
-        initial_scale_power=20,
-        loss_scale_window=2000,
-        min_loss_scale=0.25,
-    )
-    devices = args.gpus if torch.cuda.is_available() else 1
-    strategy = strategy if torch.cuda.is_available() else "auto"
+    devices = 1
+    strategy = "auto"
 
     callbacks = []
     if on_ray_tuning:
         callbacks.append(
             PyTorchLightningPruningCallback(trial, monitor=f"val_loss")
         )
-    callbacks.append(model.early_stopping())
+    callbacks.append(model.early_stopping() if not on_ray_tuning else model.early_stopping(patience))
 
     trainer = Trainer(
         default_root_dir=logger.base_dir,
@@ -223,20 +218,28 @@ def objective(
             hyperparameters["hidden_dim"] = head_config["architecture_parameters"][
                 "hidden_dim"
             ]
+            hyperparameters["hidden_dropout"] = head_config["architecture_parameters"][
+                "hidden_dropout"
+            ]
 
         trainer.logger.log_hyperparams(hyperparameters)
     model.train()
     trainer.fit(model, data_loaders["train"], data_loaders["val"])
-    logger.mute = False
 
     if on_ray_tuning:
-        return trainer.callback_metrics[f"val_loss"].item()
-
+        loss = trainer.callback_metrics[f"val_loss"].item()
+        del trainer
+        del data
+        del data_loaders
+        del scores
+        del model
+        gc.collect()
+        return loss
     loss_plot = data_explore.create_loss_plot(
         json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
     )
     logger.save_plot(loss_plot, "training_validation_loss")
-    
+
     trainer.test(
         model=model,
         ckpt_path=f"{logger.base_dir}/lightning_logs/best_model.ckpt",
@@ -289,6 +292,7 @@ def hyperparameter_tuning(
     )
 
     logger.log("Starting hyperparameter tuning...")
+    logger.mute = True
     study.optimize(
         lambda trial: objective(
             trial,
@@ -306,8 +310,10 @@ def hyperparameter_tuning(
         ),
         n_trials=n_trials if network_type == "linear" else n_trials * 4,
         callbacks=[LogOptunaTrialCallback(logger)],
+        n_jobs=int(args.gpus),
+        gc_after_trial=True,
     )
-
+    logger.mute = False
     history = plot_optimization_history(study)
     slice = plot_slice(study)
     history.write_image(f"{logger.base_dir}/optuna_optimization_history.png")

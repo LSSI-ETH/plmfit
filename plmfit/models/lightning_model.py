@@ -5,6 +5,7 @@ from torchmetrics import classification, regression, text
 import time
 import json
 from deepspeed.ops.adam import DeepSpeedCPUAdam
+from lightning.pytorch.strategies import DeepSpeedStrategy
 from plmfit.shared_utils import utils
 from deepspeed.profiling.flops_profiler.profiler import FlopsProfiler
 import os
@@ -62,10 +63,10 @@ class LightningModel(L.LightningModule):
         self.epochs_no_improve = 0
 
         # To avoid error when min scale is reached
-        if torch.cuda.is_available(): self.trainer.strategy.model.optimizer.loss_scaler.raise_error_at_min_scale = False
+        if torch.cuda.is_available() and isinstance(self.trainer.strategy, DeepSpeedStrategy): self.trainer.strategy.model.optimizer.loss_scaler.raise_error_at_min_scale = False
         # print all available properties for strategy
-        if torch.cuda.is_available(): self.plmfit_logger.log(self.trainer.strategy.model.wall_clock_breakdown())
-        if torch.cuda.is_available(): self.profiler = FlopsProfiler(self, ds_engine=self.trainer.strategy.model)
+        if torch.cuda.is_available() and isinstance(self.trainer.strategy, DeepSpeedStrategy): self.plmfit_logger.log(self.trainer.strategy.model.wall_clock_breakdown())
+        if torch.cuda.is_available() and isinstance(self.trainer.strategy, DeepSpeedStrategy): self.profiler = FlopsProfiler(self, ds_engine=self.trainer.strategy.model)
 
     def on_fit_end(self) -> None:
         total_time = time.time() - self.start_time
@@ -310,7 +311,11 @@ class LightningModel(L.LightningModule):
         if self.hparams.optimizer == 'sgd':
             return torch.optim.SGD(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
         elif self.hparams.optimizer == 'adam':
-            return DeepSpeedCPUAdam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay) if torch.cuda.is_available() else torch.optim.Adam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+            # if strategy is deepspeed, use DeepSpeedCPUAdam instead of torch.optim.Adam
+            if isinstance(self.trainer.strategy, DeepSpeedStrategy):
+                return DeepSpeedCPUAdam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+            else:
+                return torch.optim.Adam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
         else:
             raise ValueError(f"Unsupported optimizer: {self.hparams.optimizer}")
         
@@ -340,8 +345,8 @@ class LightningModel(L.LightningModule):
         else:
             raise ValueError("Invalid configuration. Expected boolean or numeric value.")
         
-    def early_stopping(self):
-        patience = self.handle_bool_float_config_param(self.hparams.early_stopping, false_value=-1, true_value=10)
+    def early_stopping(self, patience=None):
+        if patience is None: patience = self.handle_bool_float_config_param(self.hparams.early_stopping, false_value=-1, true_value=10)
         if patience == -1: return None
         return EarlyStopping(monitor="val_loss", min_delta=0.00, patience=patience, verbose=True, mode="min")
     

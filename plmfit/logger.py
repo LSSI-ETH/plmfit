@@ -54,8 +54,8 @@ class Logger():
             f.truncate(0)
         self.log(f'#---------Logger initiated with name "{self.experiment_name}" at {self.created_at}---------#')
 
-    def log(self, text: str, force_send=False, force_dont_send=False):
-        if self.mute: return
+    def log(self, text: str, force_send=False, force_dont_send=False, force_unmute=False):
+        if self.mute and (not force_unmute): return
         if self.current_global_rank != 0:
             return
 
@@ -158,8 +158,6 @@ class LogOptunaTrialCallback:
         self, study: optuna.study.Study, trial: optuna.trial.FrozenTrial
     ) -> None:
         self.logger.log(
-            f"[{len(study.trials)}] Trial completed in {trial.duration.seconds}s: Loss={trial.value:.4f}, Params: {trial.params}"
-        )
-        self.logger.log(
-            f"Current best trial [{study.best_trial.number + 1}]: Loss={study.best_trial.value:.4f}, Params: {study.best_trial.params}\n"
+            f"[{trial.number + 1}] Trial completed in {trial.duration.seconds}s: Loss={trial.value:.4f}, Params: {trial.params}\nCurrent best trial [{study.best_trial.number + 1}]: Loss={study.best_trial.value:.4f}, Params: {study.best_trial.params}\n",
+            force_unmute=True,
         )

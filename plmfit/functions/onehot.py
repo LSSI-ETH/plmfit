@@ -166,7 +166,7 @@ def objective(
         raise ValueError("Head type not supported")
 
     utils.set_trainable_parameters(model)
-    logger.mute = on_ray_tuning
+    
     model = LightningModel(
         model,
         training_params,
@@ -185,22 +185,13 @@ def objective(
     if args.data_type == "herH3" and args.split == "one_vs_rest":
         model.track_validation_after = -1
 
-    strategy = DeepSpeedStrategy(
-        stage=3,
-        offload_optimizer=True,
-        offload_parameters=True,
-        load_full_weights=True,
-        initial_scale_power=20,
-        loss_scale_window=2000,
-        min_loss_scale=0.25,
-    )
-    devices = args.gpus if torch.cuda.is_available() else 1
-    strategy = strategy if torch.cuda.is_available() else "auto"
+    devices = 1
+    strategy = "auto"
 
     callbacks = []
     if on_ray_tuning:
         callbacks.append(PyTorchLightningPruningCallback(trial, monitor=f"val_loss"))
-    callbacks.append(model.early_stopping())
+    callbacks.append(model.early_stopping() if not on_ray_tuning else model.early_stopping(patience))
 
     trainer = Trainer(
         default_root_dir=logger.base_dir,
@@ -232,7 +223,6 @@ def objective(
         trainer.logger.log_hyperparams(hyperparameters)
     model.train()
     trainer.fit(model, data_loaders["train"], data_loaders["val"])
-    logger.mute = False
 
     if on_ray_tuning:
         return trainer.callback_metrics[f"val_loss"].item()
@@ -295,6 +285,7 @@ def hyperparameter_tuning(
     )
 
     logger.log("Starting hyperparameter tuning...")
+    logger.mute = True
     study.optimize(
         lambda trial: objective(
             trial,
@@ -313,8 +304,10 @@ def hyperparameter_tuning(
         ),
         n_trials=n_trials if network_type == "linear" else n_trials * 4,
         callbacks=[LogOptunaTrialCallback(logger)],
+        n_jobs = int(args.gpus),
+        gc_after_trial = True
     )
-
+    logger.mute = False
     history = plot_optimization_history(study)
     slice = plot_slice(study)
     history.write_image(f"{logger.base_dir}/optuna_optimization_history.png")
