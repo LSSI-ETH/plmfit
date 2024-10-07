@@ -78,10 +78,6 @@ class MLP(nn.Module):
         if 'classification' in self.task:
             self.layers.append(get_activation_function(config['output_activation']))
         
-        # Check if there's an activation function specified for the layer
-        if 'classification' in self.task:
-            self.layers.append(get_activation_function(config['output_activation']))
-        
         self.init_weights()
 
     def forward(self, x):
