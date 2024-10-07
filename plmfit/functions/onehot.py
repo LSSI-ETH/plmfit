@@ -56,7 +56,7 @@ def onehot(args, logger):
             data,
             logger,
             split=split,
-            num_workers=args.cpus,
+            num_workers=0,
             weights=weights,
             sampler=sampler,
             n_trials=100,
@@ -280,7 +280,10 @@ def hyperparameter_tuning(
             "PyTorch Lightning>=2.2.1 is required for hyper-parameter tuning."
         )
     network_type = head_config["architecture_parameters"]["network_type"]
-    storage = f"sqlite:///{logger.base_dir}/hp-tuning.db"
+    storage = optuna.storages.RDBStorage(
+        url=f"sqlite:///{logger.base_dir}/hp-tuning.db",
+        engine_kwargs={"connect_args": {"timeout": 100}},
+    )
     pruner = optuna.pruners.MedianPruner()
     study = optuna.create_study(
         direction="minimize",
