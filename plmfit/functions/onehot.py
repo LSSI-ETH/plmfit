@@ -41,7 +41,7 @@ def onehot(args, logger):
     tokenizer = utils.load_tokenizer("proteinbert")  # Use same tokenizer as proteinbert
     num_classes = tokenizer.get_vocab_size(with_added_tokens=False)
     encs = utils.categorical_encode(
-        data["mut_aa_seq"].values,
+        data["aa_seq"].values,
         tokenizer,
         max(data["len"].values),
         logger=logger,
@@ -60,7 +60,7 @@ def onehot(args, logger):
             num_workers=0,
             weights=weights,
             sampler=sampler,
-            n_trials=1,
+            n_trials=100,
             num_classes=num_classes,
         )
 
@@ -168,7 +168,7 @@ def objective(
         raise ValueError("Head type not supported")
 
     if not on_ray_tuning:
-        logger.save_data(head_config, "head_config")
+        logger.save_data(config, "head_config")
 
     utils.set_trainable_parameters(model)
 
