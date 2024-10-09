@@ -250,7 +250,7 @@ def objective(
     )
 
     if task == "classification":
-        if callbacks[0].check_pruned()["architecture_parameters"]["output_dim"] == 1:
+        if config["architecture_parameters"]["output_dim"] == 1:
             fig, _ = data_explore.plot_roc_curve(
                 json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
             )
