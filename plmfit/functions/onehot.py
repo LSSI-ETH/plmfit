@@ -11,6 +11,7 @@ from packaging import version
 from optuna.visualization import plot_optimization_history, plot_slice
 from plmfit.shared_utils import utils, data_explore
 from plmfit.logger import LogOptunaTrialCallback
+import copy
 
 
 def onehot(args, logger):
@@ -40,7 +41,7 @@ def onehot(args, logger):
     tokenizer = utils.load_tokenizer("proteinbert")  # Use same tokenizer as proteinbert
     num_classes = tokenizer.get_vocab_size(with_added_tokens=False)
     encs = utils.categorical_encode(
-        data["aa_seq"].values,
+        data["mut_aa_seq"].values,
         tokenizer,
         max(data["len"].values),
         logger=logger,
@@ -59,7 +60,7 @@ def onehot(args, logger):
             num_workers=0,
             weights=weights,
             sampler=sampler,
-            n_trials=100,
+            n_trials=1,
             num_classes=num_classes,
         )
 
@@ -99,26 +100,27 @@ def objective(
     patience=5,
     num_classes=21,
 ):
+    config = copy.deepcopy(head_config)
 
-    network_type = head_config["architecture_parameters"]["network_type"]
+    network_type = config["architecture_parameters"]["network_type"]
 
-    epochs = head_config["training_parameters"]["epochs"]
+    epochs = config["training_parameters"]["epochs"]
     if trial is not None and on_ray_tuning:
-        epochs = head_config["training_parameters"]["epochs"] // 4
-        head_config["training_parameters"]["learning_rate"] = trial.suggest_float(
+        epochs = config["training_parameters"]["epochs"] // 4
+        config["training_parameters"]["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-6, 1e-2
         )
-        head_config["training_parameters"]["batch_size"] = trial.suggest_int(
+        config["training_parameters"]["batch_size"] = trial.suggest_int(
             "batch_size", 8, 128
         )
-        head_config["training_parameters"]["weight_decay"] = trial.suggest_float(
+        config["training_parameters"]["weight_decay"] = trial.suggest_float(
             "weight_decay", 1e-6, 1e-2
         )
         if network_type == "mlp":
-            head_config["architecture_parameters"]["hidden_dim"] = trial.suggest_int(
+            config["architecture_parameters"]["hidden_dim"] = trial.suggest_int(
                 "hidden_dim", 64, 2048
             )
-            head_config["architecture_parameters"]["hidden_dropout"] = (
+            config["architecture_parameters"]["hidden_dropout"] = (
                 trial.suggest_float("hidden_dropout", 0.0, 1.0)
             )
     if task == "regression":
@@ -133,7 +135,7 @@ def objective(
     else:
         raise ValueError("Task not supported")
 
-    training_params = head_config["training_parameters"]
+    training_params = config["training_parameters"]
     data_loaders = utils.create_data_loaders(
         embeddings,
         scores,
@@ -151,22 +153,22 @@ def objective(
     data_loaders["val"].dataset.set_num_classes(num_classes)
     data_loaders["test"].dataset.set_num_classes(num_classes)
 
-    if not on_ray_tuning:
-        logger.save_data(head_config, "head_config")
-
-    network_type = head_config["architecture_parameters"]["network_type"]
+    network_type = config["architecture_parameters"]["network_type"]
     if network_type == "linear":
-        head_config["architecture_parameters"]["input_dim"] = (
+        config["architecture_parameters"]["input_dim"] = (
             embeddings.shape[1] * num_classes
         )  # Account for one-hot encodings
-        model = heads.LinearHead(head_config["architecture_parameters"])
+        model = heads.LinearHead(config["architecture_parameters"])
     elif network_type == "mlp":
-        head_config["architecture_parameters"]["input_dim"] = (
+        config["architecture_parameters"]["input_dim"] = (
             embeddings.shape[1] * num_classes
         )  # Account for one-hot encodings
-        model = heads.MLP(head_config["architecture_parameters"])
+        model = heads.MLP(config["architecture_parameters"])
     else:
         raise ValueError("Head type not supported")
+
+    if not on_ray_tuning:
+        logger.save_data(head_config, "head_config")
 
     utils.set_trainable_parameters(model)
 
@@ -214,15 +216,15 @@ def objective(
 
     if on_ray_tuning:
         hyperparameters = dict(
-            learning_rate=head_config["training_parameters"]["learning_rate"],
-            batch_size=head_config["training_parameters"]["batch_size"],
-            weight_decay=head_config["training_parameters"]["weight_decay"],
+            learning_rate=config["training_parameters"]["learning_rate"],
+            batch_size=config["training_parameters"]["batch_size"],
+            weight_decay=config["training_parameters"]["weight_decay"],
         )
         if network_type == "mlp":
-            hyperparameters["hidden_dim"] = head_config["architecture_parameters"][
+            hyperparameters["hidden_dim"] = config["architecture_parameters"][
                 "hidden_dim"
             ]
-            hyperparameters["hidden_dropout"] = head_config["architecture_parameters"][
+            hyperparameters["hidden_dropout"] = config["architecture_parameters"][
                 "hidden_dropout"
             ]
 
@@ -231,6 +233,7 @@ def objective(
     trainer.fit(model, data_loaders["train"], data_loaders["val"])
 
     if on_ray_tuning:
+        callbacks[0].check_pruned()
         return trainer.callback_metrics[f"val_loss"].item()
 
     loss_plot = data_explore.create_loss_plot(
@@ -245,7 +248,7 @@ def objective(
     )
 
     if task == "classification":
-        if head_config["architecture_parameters"]["output_dim"] == 1:
+        if config["architecture_parameters"]["output_dim"] == 1:
             fig, _ = data_explore.plot_roc_curve(
                 json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
             )
@@ -330,11 +333,7 @@ def hyperparameter_tuning(
         "weight_decay"
     ]
     if network_type == "mlp":
-        head_config["architecture_parameters"]["hidden_dim"] = study.best_params[
-            "hidden_dim"
-        ],
-        head_config["architecture_parameters"]["hidden_dropout"] = study.best_params[
-            "hidden_dropout"
-        ]
+        head_config["architecture_parameters"]["hidden_dim"] = study.best_params["hidden_dim"]
+        head_config["architecture_parameters"]["hidden_dropout"] = study.best_params["hidden_dropout"]
 
     return head_config
