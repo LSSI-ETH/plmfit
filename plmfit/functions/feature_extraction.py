@@ -5,6 +5,8 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from plmfit.models.lightning_model import LightningModel
 from lightning.pytorch.strategies import DeepSpeedStrategy
 import optuna
+from optuna.storages import JournalStorage
+from optuna.storages.journal import JournalFileBackend
 import lightning.pytorch as pl
 from optuna.integration import PyTorchLightningPruningCallback
 from packaging import version
@@ -284,9 +286,9 @@ def hyperparameter_tuning(
                 "PyTorch Lightning>=2.2.1 is required for hyper-parameter tuning."
             )
     network_type = head_config["architecture_parameters"]["network_type"]
-    storage = optuna.storages.RDBStorage(
-        url=f"sqlite:///{logger.base_dir}/hp-tuning.db",
-        engine_kwargs={"connect_args": {"timeout": 100}},
+    
+    storage = JournalStorage(
+        JournalFileBackend(f"{logger.base_dir}/optuna_journal_storage.log")
     )
     pruner = optuna.pruners.MedianPruner()
     study = optuna.create_study(

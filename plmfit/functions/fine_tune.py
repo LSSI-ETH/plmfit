@@ -28,6 +28,8 @@ def fine_tune(args, logger):
     # if args.experimenting == "True": data = data.sample(100)
 
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
+
+    # TODO Fix for domain adaptation
     split = (
         None
         if args.split == "sampled" and "sampled" not in data
