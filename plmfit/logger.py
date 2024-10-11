@@ -157,7 +157,10 @@ class LogOptunaTrialCallback:
     def __call__(
         self, study: optuna.study.Study, trial: optuna.trial.FrozenTrial
     ) -> None:
-        self.logger.log(
-            f"[{trial.number + 1}] Trial completed in {trial.duration.seconds}s: Loss={trial.value:.4f}, Params: {trial.params}\nCurrent best trial [{study.best_trial.number + 1}]: Loss={study.best_trial.value:.4f}, Params: {study.best_trial.params}\n",
-            force_unmute=True,
-        )
+        try:
+            self.logger.log(
+                f"[{trial.number + 1}] Trial completed in {trial.duration.seconds}s: Loss={trial.value:.4f}, Params: {trial.params}\nCurrent best trial [{study.best_trial.number + 1}]: Loss={study.best_trial.value:.4f}, Params: {study.best_trial.params}\n",
+                force_unmute=True,
+            )
+        except:
+            self.logger.log(f"Error logging optuna trial: {traceback.format_exc()}. Study will continue...", force_unmute=True)

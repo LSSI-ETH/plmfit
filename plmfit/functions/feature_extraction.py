@@ -286,7 +286,7 @@ def hyperparameter_tuning(
                 "PyTorch Lightning>=2.2.1 is required for hyper-parameter tuning."
             )
     network_type = head_config["architecture_parameters"]["network_type"]
-    
+
     storage = JournalStorage(
         JournalFileBackend(f"{logger.base_dir}/optuna_journal_storage.log")
     )
@@ -320,6 +320,7 @@ def hyperparameter_tuning(
         callbacks=[LogOptunaTrialCallback(logger)],
         n_jobs=int(args.gpus),
         gc_after_trial=True,
+        catch=(FileNotFoundError,),
     )
     logger.mute = False
     history = plot_optimization_history(study)
