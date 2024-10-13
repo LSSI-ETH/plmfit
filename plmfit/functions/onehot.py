@@ -319,7 +319,8 @@ def hyperparameter_tuning(
         n_trials=n_trials if network_type == "linear" else n_trials * 4,
         callbacks=[LogOptunaTrialCallback(logger)],
         n_jobs = int(args.gpus),
-        gc_after_trial = True
+        gc_after_trial = True,
+        catch=(FileNotFoundError,),
     )
     logger.mute = False
     history = plot_optimization_history(study)
