@@ -199,7 +199,7 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
     plt.tight_layout(pad=3)  # Adjust layout to not cut off labels
 
     # default name for saving same as title
-    plt.savefig(f"./results/{data_type}_{task_type}_{method_type}_{"mlp" if use_mlp else "linear"}_heatmap.png")
+    plt.savefig(f'./results/{data_type}_{task_type}_{method_type}_{"mlp" if use_mlp else "linear"}_heatmap.png')
     # print(f"Heatmap '{main_title}' saved")
     # plt.show()
 
@@ -222,6 +222,20 @@ def main():
     ]
 
     parameter_sets = [
+        {
+            "method_type": "feature_extraction",
+            "data_type": "ezy1",
+            "split": "sampled",
+            "use_mlp": False,
+            "task_type": "classification",
+        },
+        {
+            "method_type": "feature_extraction",
+            "data_type": "ezy1",
+            "split": "sampled",
+            "use_mlp": True,
+            "task_type": "classification",
+        },
         # {
         #     "method_type": "feature_extraction",
         #     "data_type": "meltome",
@@ -481,13 +495,13 @@ def main():
         #     "use_mlp": False,
         #     "task_type": "classification",
         # },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "rbd",
-            "split": "one_vs_rest",
-            "use_mlp": True,
-            "task_type": "classification",
-        },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "rbd",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": True,
+        #     "task_type": "classification",
+        # },
         # {
         #     "method_type": "lora_all",
         #     "data_type": "rbd",
