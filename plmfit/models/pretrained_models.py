@@ -1,7 +1,7 @@
 import os
 from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForSequenceClassification
 from plmfit.language_models.proteinbert.modeling_bert import ProteinBertForSequenceClassification, ProteinBertForMaskedLM
-from plmfit.language_models.esm.modeling_esm import PlmfitEsmForSequenceClassification, PlmfitEsmForMaskedLM
+from plmfit.language_models.esm.modeling_esm import PlmfitEsmForSequenceClassification, PlmfitEsmForMaskedLM, PlmfitEsmForTokenClassification
 # from plmfit.shared_utils.data_explore import visualize_embeddings
 
 from plmfit.shared_utils.linear_block import ProGenLinearBlock
@@ -153,14 +153,25 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 
     tokenizer: Tokenizer
 
-    def __init__(self, progen_model_name: str, logger : l.Logger):
+    def __init__(
+        self, progen_model_name: str, logger: l.Logger, task: str = "regression"
+    ):
         super().__init__(logger)
         self.name = progen_model_name
-        self.py_model: ProGenForSequenceClassification = (
-            ProGenForSequenceClassification.from_pretrained(
-                f"{utils.plmfit_path}/language_models/progen2/checkpoints/{progen_model_name}"
+        if self.task == 'causal_lm':
+            raise ValueError('Causal LM not supported yet for ProGen')
+            # self.py_model : PlmfitEsmForMaskedLM = PlmfitEsmForMaskedLM.from_pretrained(f'facebook/{esm_version}', output_hidden_states = True)
+            # self.output_dim = self.py_model.lm_head.decoder.out_features
+        elif self.task == 'token_classification':
+            raise ValueError('Token Classification not supported yet for ProGen')
+            # self.py_model = PlmfitEsmForSequenceClassification.from_pretrained(f'facebook/{esm_version}', output_hidden_states = True)
+            # self.output_dim = self.py_model.classifier.out_features
+        else:
+            self.py_model: ProGenForSequenceClassification = (
+                ProGenForSequenceClassification.from_pretrained(
+                    f"{utils.plmfit_path}/language_models/progen2/checkpoints/{progen_model_name}"
+                )
             )
-        )
         self.no_parameters = utils.get_parameters(self.py_model)
         self.no_layers = len(self.py_model.transformer.h)
         self.output_dim = self.py_model.classifier.out_features
@@ -367,13 +378,18 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 
 class ESMFamily(IPretrainedProteinLanguageModel):
     tokenizer : AutoTokenizer
-    
+
     def __init__(self , esm_version : str, logger : l.Logger, task : str='regression'):
         super().__init__(logger, task)
         self.version = esm_version 
         if self.task == 'masked_lm':
             self.py_model : PlmfitEsmForMaskedLM = PlmfitEsmForMaskedLM.from_pretrained(f'facebook/{esm_version}', output_hidden_states = True)
             self.output_dim = self.py_model.lm_head.decoder.out_features
+        elif self.task == 'token_classification':
+            self.py_model = PlmfitEsmForTokenClassification.from_pretrained(
+                f"facebook/{esm_version}", output_hidden_states=True
+            )
+            self.output_dim = self.py_model.classifier.out_features
         else:
             self.py_model = PlmfitEsmForSequenceClassification.from_pretrained(f'facebook/{esm_version}', output_hidden_states = True)
             self.output_dim = self.py_model.classifier.out_features
@@ -381,8 +397,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         self.no_layers = len(self.py_model.esm.encoder.layer)
         self.emb_layers_dim =  self.py_model.esm.encoder.layer[0].attention.self.query.in_features
         self.tokenizer = AutoTokenizer.from_pretrained(f'facebook/{esm_version}') 
-   
-    
+
     def extract_embeddings(self, data_type, batch_size = 1, layer=11, reduction='mean', log_interval=1000):
         try:
             self.set_layer_to_use(layer)
@@ -406,7 +421,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
 
             else:
                 self.logger.log(f'No gpu found rolling device back to {device}')
-                
+
             data = utils.load_dataset(data_type)
             # data = data.sample(10)
             start_enc_time = time.time()
@@ -460,17 +475,17 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                         elif reduction == 'eos':
                             # Initialize a tensor to store the selected embeddings
                             selected_embs = torch.zeros(current_batch_size, out.shape[2], device=out.device)
-                            
+
                             # Iterate over each sequence in the batch
                             for seq_idx in range(current_batch_size):
                                 # Find the positions of the token with ID equal to 2 in the current sequence
                                 token_positions = (batch[0][seq_idx] == 2).nonzero(as_tuple=True)[0]
-                                
+
                                 # Check if the token ID is present in the sequence
                                 if len(token_positions) > 0:
                                     # Select the position of the last occurrence of the token
                                     last_position = token_positions[-1].item()
-                                    
+
                                     # Select the embeddings for the last occurrence of the token
                                     selected_embs[seq_idx, :] = out[seq_idx, last_position, :]
                                 else:
@@ -480,7 +495,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                                     # Here, we use the embeddings of the last token as a fallback.
                                     selected_embs[seq_idx, :] = out[seq_idx, -1, :]
                                     self.logger.log(f'EOS token not found for sequence {i}')
-                            
+
                             # Update the embeddings tensor with the selected embeddings
                             embs[i: i + current_batch_size, :] = selected_embs
                         elif utils.convert_to_number(reduction) is not None:
@@ -516,7 +531,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
             t = torch.load(f'{self.logger.base_dir}/{self.logger.experiment_name}.pt')
             self.logger.log(
                 f'Saved embeddings ({t.shape[1]}-d) as "{self.logger.experiment_name}.pt" ({time.time() - start_enc_time:.2f}s)')
-            
+
             if torch.cuda.is_available(): torch.cuda.memory._dump_snapshot(f'{self.logger.base_dir}/memory_profiler.pickle')
             if torch.cuda.is_available(): torch.cuda.memory._record_memory_history(enabled=None)
             return
@@ -526,11 +541,9 @@ class ESMFamily(IPretrainedProteinLanguageModel):
             stack_trace = traceback.format_exc()
             self.logger.log(stack_trace)
 
-    
     def evaluate(self, data_type ):
         pass
-    
-    
+
     def categorical_encode(self, data, max_length='default'):
         encs = utils.categorical_encode(
             data['aa_seq'].values, self.tokenizer, max(data['len'].values) if max_length=='default' else max_length, logger=self.logger, model_name='esm')

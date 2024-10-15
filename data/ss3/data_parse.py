@@ -64,6 +64,22 @@ data["label"] = data["label"].str.replace("H", "2")
 data["label"] = data["label"].apply(lambda x: [int(i) for i in x])
 data["mask"] = data["mask"].apply(lambda x: [int(i) for i in x])
 
+# Wherever the mask is 0, the label is -100 (masked)
+data["label"] = data.apply(
+    lambda x: [x["label"][i] if x["mask"][i] == 1 else -100 for i in range(len(x["label"]))],
+    axis=1,
+)
+
+drop_columns = ["mask"]
+
+# Plot distributions of sequence lengths and number of mutations
+data_explore.plot_sequence_length_distribution(
+    data, path=os.path.join(script_dir, "plots/seq_len.png")
+)
+
+# Filter the new_data DataFrame to keep sequences with length <= 700
+data = data[data["len"] <= 700]
+
 # Print length of sequences
 print("Length of sequences:")
 print(data["len"].describe())
@@ -73,16 +89,13 @@ print("\nSet distribution:")
 print(data["sampled"].value_counts())
 
 # Calculate class distribution. For each list of labels (0, 1, 2), count the number of times each label appears only if the mask is 1 and then print the total count for each label
-class_distribution = data.apply(lambda x: [x["label"][i] for i in range(len(x["label"])) if x["mask"][i] == 1], axis=1)
+class_distribution = data.apply(
+    lambda x: [x["label"][i] for i in range(len(x["label"])) if x["mask"][i] == 1],
+    axis=1,
+)
 class_distribution = class_distribution.explode().value_counts()
 print("\nClass distribution:")
 print(class_distribution)
-
-# Plot distributions of sequence lengths and number of mutations
-data_explore.plot_sequence_length_distribution(
-    data, path=os.path.join(script_dir, "plots/seq_len.png")
-)
-
 
 # Save the new DataFrame to a CSV file
 data.to_csv(os.path.join(script_dir, "ss3_data_full.csv"), index=False)

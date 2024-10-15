@@ -10,7 +10,7 @@ class LinearHead(nn.Module):
         self.linear = nn.Linear(config['input_dim'], config['output_dim'])
         self.task = config['task']
         self.config = config
-        if self.task == 'classification':
+        if self.task == 'classification' or self.task == 'token_classification':
             # Initialize weights with a normal distribution around zero
             init.normal_(self.linear.weight, mean=0.0, std=0.01)
             # Initialize biases to zero
@@ -23,7 +23,7 @@ class LinearHead(nn.Module):
         if torch.backends.mps.is_available():
             x = x.to(torch.float)
         x = self.linear(x)
-        if self.task == 'classification':
+        if self.activation is not None:
             x = self.activation(x)
         return x
 

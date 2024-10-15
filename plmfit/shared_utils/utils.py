@@ -24,6 +24,7 @@ from dotenv import load_dotenv
 import blosum as bl
 from collections import Counter
 import torch.nn.functional as F
+import ast
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
@@ -325,6 +326,85 @@ def convert_or_clone_to_tensor(data, dtype):
             "Input data must be a NumPy array, a DataFrame Series, a list or a PyTorch tensor."
         )
 
+def convert_string_list_to_list_of_int_lists(data):
+    """
+    Converts a list of strings, where each string represents a list of integers,
+    into a list of lists of integers.
+
+    Args:
+        data (list of str): List of strings, each representing a list of integers.
+
+    Returns:
+        list of list of int: List of lists of integers.
+    """
+    list_data = [ast.literal_eval(sample) for sample in data]
+
+    return list_data
+
+
+def pad_list_of_lists(
+    data,
+    max_len,
+    pad_value=0,
+    convert_to_np=False,
+    prepend_single_pad=False,
+    append_single_pad=False,
+):
+    """
+    Pads a list of lists with a specified pad value to a maximum length.
+
+    Args:
+        data (list of list): List of lists to pad.
+        max_len (int): Maximum length to pad each list to.
+        pad_value (int): Value to use for padding.
+
+    Returns:
+        list of list: Padded list of lists.
+    """
+    if prepend_single_pad:
+        max_len += 1
+    if append_single_pad:
+        max_len += 1
+    if convert_to_np:
+        return np.array(
+            [
+                pad_list(
+                    sample,
+                    max_len,
+                    pad_value,
+                    prepend_single_pad,
+                    append_single_pad,
+                )
+                for sample in data
+            ]
+        )
+    return [
+        pad_list(
+            sample, max_len, pad_value, prepend_single_pad, append_single_pad
+        )
+        for sample in data
+    ]
+
+def pad_list(
+    data, max_len, pad_value=0, prepend_single_pad=False, append_single_pad=False
+):
+    """
+    Pads a list with a specified pad value to a maximum length.
+
+    Args:
+        data (list): List to pad.
+        max_len (int): Maximum length to pad the list to.
+        pad_value (int): Value to use for padding.
+
+    Returns:
+        list: Padded list.
+    """
+    if prepend_single_pad:
+        data = [pad_value] + data
+    if append_single_pad:
+        data = data + [pad_value]
+    return data + [pad_value] * (max_len - len(data))
+
 
 def get_epoch_dataloaders(dataloader, epoch_size=0):
     if epoch_size == 0:
@@ -397,7 +477,7 @@ def get_activation_function(name):
     elif name == "sigmoid":
         return nn.Sigmoid()
     elif name == "softmax":
-        return nn.Softmax()
+        return nn.Softmax(dim=-1)
     elif name == "tanh":
         return nn.Tanh()
     # Add more activation functions as needed
@@ -874,22 +954,21 @@ def init_plm(model_name, logger, task="regression"):
         "esm2_t36_3B_UR50D",
         "esm2_t48_15B_UR50D",
     ]
-    supported_Ankh = ["ankh-base", "ankh-large", "ankh2-large"]
+    # supported_Ankh = ["ankh-base", "ankh-large", "ankh2-large"]
     supported_Proteinbert = ["proteinbert"]
 
     if "progen" in model_name:
         assert model_name in supported_progen2, "Progen version is not supported"
-        model = ProGenFamily(model_name, logger)
+        model = ProGenFamily(model_name, logger, task)
 
     elif "esm" in model_name:
         assert model_name in supported_ESM, "ESM version is not supported"
         model = ESMFamily(model_name, logger, task)
-
-    elif "ankh" in model_name:
-        assert model_name in supported_Ankh, "Ankh version is not supported"
-        model = AnkhFamily(model_name)
-    elif "antiberty" in model_name:
-        model = Antiberty()
+    # elif "ankh" in model_name:
+    #     assert model_name in supported_Ankh, "Ankh version is not supported"
+    #     model = AnkhFamily(model_name)
+    # elif "antiberty" in model_name:
+    #     model = Antiberty()
     elif "proteinbert" in model_name:
         assert (
             model_name in supported_Proteinbert

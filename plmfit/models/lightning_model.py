@@ -10,6 +10,9 @@ from plmfit.shared_utils import utils
 from deepspeed.profiling.flops_profiler.profiler import FlopsProfiler
 import os
 import torch.distributed as dist
+from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionMatrix, MulticlassMatthewsCorrCoef, BinaryAccuracy, BinaryAUROC, BinaryConfusionMatrix, BinaryMatthewsCorrCoef, BinaryROC
+from torchmetrics.regression import MeanSquaredError, MeanAbsoluteError, R2Score, SpearmanCorrCoef
+from torchmetrics.text import Perplexity
 
 class LightningModel(L.LightningModule):
     def __init__(self,  model, training_config=None, plmfit_logger = None, log_interval=-1, method='lora', experimenting=False):
@@ -25,15 +28,20 @@ class LightningModel(L.LightningModule):
         if 'no_classes' not in self.hparams:
             self.hparams.no_classes = 1
         if self.model.task == 'classification':
-            if self.hparams.no_classes == 1: self.train_metric = classification.BinaryAccuracy()
-            else: self.train_metric = classification.MulticlassAccuracy(num_classes=self.hparams.no_classes)
+            if self.hparams.no_classes == 1: self.train_metric = BinaryAccuracy()
+            else: self.train_metric = MulticlassAccuracy(num_classes=self.hparams.no_classes)
             self.metric_label = 'accuracy'
         elif self.model.task == 'regression':
-            self.train_metric = regression.MeanSquaredError(squared=False)
+            self.train_metric = MeanSquaredError(squared=False)
             self.metric_label = 'rmse'
         elif self.model.task == 'masked_lm':
-            self.train_metric = text.Perplexity(ignore_index=-100)
+            self.train_metric = Perplexity(ignore_index=-100)
             self.metric_label = 'perplexity'
+        elif self.model.task == 'token_classification':
+            self.train_metric = MulticlassAccuracy(num_classes=self.hparams.no_classes, ignore_index=-100)
+            self.metric_label = 'accuracy'
+        else:
+            raise ValueError(f"Unsupported task: {self.model.task}")
         
         self.val_metric = self.train_metric.clone()
 
@@ -112,12 +120,17 @@ class LightningModel(L.LightningModule):
         else:    
             input, labels = batch
             outputs = self(input)
-
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == 'classification' and self.hparams.no_classes > 1:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
                 labels = torch.nn.functional.one_hot(labels.long(), num_classes=self.hparams.no_classes)
+                labels = labels.float()
+            elif self.model.task == 'token_classification' and self.hparams.no_classes > 1:
+                if hasattr(outputs, 'logits'):
+                    outputs = outputs.logits
+                # swap 3rd dimension to 2nd dimension
+                outputs = outputs.permute(0, 2, 1)
                 labels = labels.float()
 
             else:
@@ -130,6 +143,9 @@ class LightningModel(L.LightningModule):
         
         if self.model.task == 'classification' and self.hparams.no_classes > 1:
             labels = torch.argmax(labels, dim=1)
+            outputs = torch.argmax(outputs, dim=1)
+        if self.model.task == 'token_classification' and self.hparams.no_classes > 1:
+            # Get the maxium value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
         # if batch_idx % 100 == 0: 
         #         print(outputs)
@@ -200,14 +216,18 @@ class LightningModel(L.LightningModule):
         else:    
             input, labels = batch
             outputs = self(input)
-
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == 'classification' and self.hparams.no_classes > 1:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
                 labels = torch.nn.functional.one_hot(labels.long(), num_classes=self.hparams.no_classes)
                 labels = labels.float()
-                    
+            elif self.model.task == 'token_classification' and self.hparams.no_classes > 1:
+                if hasattr(outputs, 'logits'):
+                    outputs = outputs.logits
+                # swap 3rd dimension to 2nd dimension
+                outputs = outputs.permute(0, 2, 1)
+                labels = labels.float()
             else:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits.squeeze(dim=1)
@@ -219,6 +239,9 @@ class LightningModel(L.LightningModule):
 
         if self.model.task == 'classification' and self.hparams.no_classes > 1:
             labels = torch.argmax(labels, dim=1)
+            outputs = torch.argmax(outputs, dim=1)
+        if self.model.task == 'token_classification' and self.hparams.no_classes > 1:
+            # Get the maxium value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
         self.val_metric.update(outputs, labels)
         self.log(f'val_{self.metric_label}_step', self.val_metric, on_step=False, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
@@ -269,6 +292,12 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits
                 labels = torch.nn.functional.one_hot(labels.long(), num_classes=self.hparams.no_classes)
                 labels = labels.float()     
+            elif self.model.task == 'token_classification' and self.hparams.no_classes > 1:
+                if hasattr(outputs, 'logits'):
+                    outputs = outputs.logits
+                # swap 3rd dimension to 2nd dimension
+                outputs = outputs.permute(0, 2, 1)
+                labels = labels.float()
             else:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits.squeeze(dim=1)
@@ -279,6 +308,9 @@ class LightningModel(L.LightningModule):
 
         if self.model.task == 'classification' and self.hparams.no_classes > 1:
             labels = torch.argmax(labels, dim=1)
+            outputs = torch.argmax(outputs, dim=1)
+        if self.model.task == 'token_classification' and self.hparams.no_classes > 1:
+            # Get the maxium value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
         self.metrics.add(outputs, labels, ids)
 
@@ -377,28 +409,42 @@ class Metrics(torch.nn.Module):
         if task == 'classification':
             self.no_classes=no_classes
             if self.no_classes == 1:
-                self.acc = classification.BinaryAccuracy()
-                self.roc_auc = classification.BinaryAUROC()
-                self.mcc = classification.BinaryMatthewsCorrCoef()
-                self.cm = classification.BinaryConfusionMatrix()
-                self.roc = classification.BinaryROC()
+                self.acc = BinaryAccuracy()
+                self.roc_auc = BinaryAUROC()
+                self.mcc = BinaryMatthewsCorrCoef()
+                self.cm = BinaryConfusionMatrix()
+                self.roc = BinaryROC()
             else:
-                self.acc = classification.MulticlassAccuracy(num_classes=self.no_classes)
-                self.mcc = classification.MulticlassMatthewsCorrCoef(num_classes=self.no_classes)
-                self.cm = classification.MulticlassConfusionMatrix(num_classes=self.no_classes)
+                self.acc = MulticlassAccuracy(num_classes=self.no_classes)
+                self.mcc = MulticlassMatthewsCorrCoef(num_classes=self.no_classes)
+                self.cm = MulticlassConfusionMatrix(num_classes=self.no_classes)
         elif task == 'regression':
-            self.mse = regression.MeanSquaredError()
-            self.rmse = regression.MeanSquaredError(squared=False)
-            self.mae = regression.MeanAbsoluteError()
-            self.r2 = regression.R2Score()
-            self.spearman = regression.SpearmanCorrCoef()
+            self.mse = MeanSquaredError()
+            self.rmse = MeanSquaredError(squared=False)
+            self.mae = MeanAbsoluteError()
+            self.r2 = R2Score()
+            self.spearman = SpearmanCorrCoef()
         elif task == 'masked_lm':
-            self.perplexity = text.Perplexity(ignore_index=-100)
+            self.perplexity = Perplexity(ignore_index=-100)
+        elif task == 'token_classification':
+            self.acc = MulticlassAccuracy(num_classes=no_classes, ignore_index=-100)
+            self.micro_acc = MulticlassAccuracy(num_classes=no_classes, average='micro', ignore_index=-100)
+            self.mcc = MulticlassMatthewsCorrCoef(num_classes=no_classes, ignore_index=-100)
+            self.cm = MulticlassConfusionMatrix(num_classes=no_classes, ignore_index=-100)
 
     def add(self, preds, actual, ids):
-        self.preds_list.extend(preds.tolist()) if len(preds.tolist()) > 1 else self.preds_list.append(preds.item())
-        self.actual_list.extend(actual.tolist()) if len(actual.tolist()) > 1 else self.actual_list.append(actual.item())
-        self.ids.extend(ids.tolist()) if len(ids.tolist()) > 1 else self.ids.append(ids.item())
+        if self.task == 'token_classification':
+            self.preds_list.extend(preds.tolist())
+            self.actual_list.extend(actual.tolist())
+            (
+                self.ids.extend(ids.tolist())
+                if len(ids.tolist()) > 1
+                else self.ids.append(ids.item())
+            )
+        else:
+            self.preds_list.extend(preds.tolist()) if len(preds.tolist()) > 1 else self.preds_list.append(preds.item())
+            self.actual_list.extend(actual.tolist()) if len(actual.tolist()) > 1 else self.actual_list.append(actual.item())
+            self.ids.extend(ids.tolist()) if len(ids.tolist()) > 1 else self.ids.append(ids.item())
 
     def calculate(self, preds, actual):
         if self.task == 'classification':
@@ -407,6 +453,8 @@ class Metrics(torch.nn.Module):
             self.calc_regression_metrics(preds, actual)
         elif self.task == 'masked_lm':
             self.calc_masked_lm_metrics(preds, actual)
+        elif self.task == 'token_classification':
+            self.calc_token_classification_metrics(preds, actual)
 
     def calc_classification_metrics(self, preds, actual):
         self.acc.update(preds, actual)
@@ -425,6 +473,12 @@ class Metrics(torch.nn.Module):
     def calc_masked_lm_metrics(self, preds, actual):
         self.perplexity.update(preds, actual)
 
+    def calc_token_classification_metrics(self, preds, actual):
+        self.acc.update(preds, actual)
+        self.micro_acc.update(preds, actual)
+        self.mcc.update(preds, actual)
+        self.cm.update(preds, actual)
+
     def get_metrics(self, device='cpu'):
         self.calculate(torch.tensor(self.preds_list, device=device), torch.tensor(self.actual_list, device=device))
         if self.task == 'classification':
@@ -433,6 +487,8 @@ class Metrics(torch.nn.Module):
             return self.get_regression_metrics()
         elif self.task == 'masked_lm':
             return self.get_masked_lm_metrics()
+        elif self.task == 'token_classification':
+            return self.get_token_classification_metrics()
 
     def get_classification_metrics(self):
         if self.no_classes == 1: 
@@ -469,7 +525,7 @@ class Metrics(torch.nn.Module):
                 }
             }
         return self.report
-    
+
     def get_regression_metrics(self):
         metrics = {
                 'mse': self.mse.compute().item(),
@@ -478,7 +534,7 @@ class Metrics(torch.nn.Module):
                 'r_sq': self.r2.compute().item(),
                 'spearman': self.spearman.compute().item()
             }
-        
+
         self.report = {
             'main': metrics,
             'pred_data': {
@@ -490,28 +546,44 @@ class Metrics(torch.nn.Module):
         }
 
         return self.report
-    
+
     def get_masked_lm_metrics(self):
         metrics = {
                 'perplexity': self.perplexity.compute().item(),
             }
-        
+
         self.report = {
             'main': metrics
         }
 
         return self.report
-    
+
+    def get_token_classification_metrics(self):
+        self.report = {
+            "main": {
+                "accuracy": self.acc.compute().item(),
+                "micro_accuracy": self.micro_acc.compute().item(),
+                "mcc": self.mcc.compute().item(),
+                "confusion_matrix": self.cm.compute().tolist(),
+            },
+            "pred_data": {
+                "preds": self.preds_list,
+                "actual": self.actual_list,
+                "ids": self.ids,
+            },
+        }
+        return self.report
+
     def save_metrics(self, path):
         metrics_path = f'{path}_metrics.json'
         if self.report is None: self.get_metrics()
-        
+
         # Check if the metrics file already exists
         if os.path.exists(metrics_path):
             # Load the existing data
             with open(metrics_path, 'r', encoding='utf-8') as f:
                 existing_data = json.load(f)
-            
+
             # Check if 'pred_data' field exists and update it
             if 'pred_data' in existing_data:
                 existing_data['pred_data']['preds'].extend(self.report['pred_data']['preds'])
@@ -521,7 +593,7 @@ class Metrics(torch.nn.Module):
             else:
                 # If 'pred_data' does not exist, simply prepare to write the current report
                 pass
-        
+
         # Write the updated or original report to the file
         with open(metrics_path, 'w', encoding='utf-8') as f:
             json.dump(self.report, f, indent=4)

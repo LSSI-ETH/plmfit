@@ -191,3 +191,5 @@ test/
 default/
 output/
 *.tsv
+
+test.py
