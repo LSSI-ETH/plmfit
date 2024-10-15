@@ -131,7 +131,8 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits
                 # swap 3rd dimension to 2nd dimension
                 outputs = outputs.permute(0, 2, 1)
-                labels = labels.float()
+                # Convert labels to long
+                labels = labels.long()
 
             else:
                 if hasattr(outputs, 'logits'):
@@ -227,7 +228,8 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits
                 # swap 3rd dimension to 2nd dimension
                 outputs = outputs.permute(0, 2, 1)
-                labels = labels.float()
+                # Convert labels to long
+                labels = labels.long()
             else:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits.squeeze(dim=1)
@@ -297,7 +299,8 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits
                 # swap 3rd dimension to 2nd dimension
                 outputs = outputs.permute(0, 2, 1)
-                labels = labels.float()
+                # Convert labels to long
+                labels = labels.long()
             else:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits.squeeze(dim=1)

@@ -20,7 +20,7 @@
     "scaler": false,
     "gradient_accumulation": false,
     "epoch_sizing": false,
-    "early_stopping": 30,
+    "early_stopping": 2,
     "model_output": "logits",
     "no_classes": 3
   }
