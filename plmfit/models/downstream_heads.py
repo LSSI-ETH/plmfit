@@ -23,7 +23,7 @@ class LinearHead(nn.Module):
         if torch.backends.mps.is_available():
             x = x.to(torch.float)
         x = self.linear(x)
-        if self.activation is not None:
+        if 'activation' in self.config:
             x = self.activation(x)
         return x
 
