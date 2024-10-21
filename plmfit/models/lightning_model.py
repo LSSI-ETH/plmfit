@@ -13,45 +13,48 @@ import torch.distributed as dist
 from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionMatrix, MulticlassMatthewsCorrCoef, BinaryAccuracy, BinaryAUROC, BinaryConfusionMatrix, BinaryMatthewsCorrCoef, BinaryROC
 from torchmetrics.regression import MeanSquaredError, MeanAbsoluteError, R2Score, SpearmanCorrCoef
 from torchmetrics.text import Perplexity
+from lightning.pytorch.callbacks import BasePredictionWriter
 
 class LightningModel(L.LightningModule):
-    def __init__(self,  model, training_config=None, plmfit_logger = None, log_interval=-1, method='lora', experimenting=False):
+    def __init__(self,  model, training_config=None, plmfit_logger = None, log_interval=-1, method='lora', experimenting=False, train=True):
         torch.set_float32_matmul_precision('medium')
         super().__init__()
         self.model = model
         self.save_hyperparameters(training_config)
-        self.loss_function = self.initialize_loss_function()
+        if train: self.loss_function = self.initialize_loss_function()
         self.plmfit_logger = plmfit_logger
         self.log_interval = log_interval
         self.method = method
         
-        if 'no_classes' not in self.hparams:
-            self.hparams.no_classes = 1
-        if self.model.task == 'classification':
-            if self.hparams.no_classes == 1: self.train_metric = BinaryAccuracy()
-            else: self.train_metric = MulticlassAccuracy(num_classes=self.hparams.no_classes)
-            self.metric_label = 'accuracy'
-        elif self.model.task == 'regression':
-            self.train_metric = MeanSquaredError(squared=False)
-            self.metric_label = 'rmse'
-        elif self.model.task == 'masked_lm':
-            self.train_metric = Perplexity(ignore_index=-100)
-            self.metric_label = 'perplexity'
-        elif self.model.task == 'token_classification':
-            self.train_metric = MulticlassAccuracy(num_classes=self.hparams.no_classes, ignore_index=-100)
-            self.metric_label = 'accuracy'
-        else:
-            raise ValueError(f"Unsupported task: {self.model.task}")
+        if train: 
+            if 'no_classes' not in self.hparams:
+                self.hparams.no_classes = 1
+            if self.model.task == 'classification':
+                if self.hparams.no_classes == 1: self.train_metric = BinaryAccuracy()
+                else: self.train_metric = MulticlassAccuracy(num_classes=self.hparams.no_classes)
+                self.metric_label = 'accuracy'
+            elif self.model.task == 'regression':
+                self.train_metric = MeanSquaredError(squared=False)
+                self.metric_label = 'rmse'
+            elif self.model.task == 'masked_lm':
+                self.train_metric = Perplexity(ignore_index=-100)
+                self.metric_label = 'perplexity'
+            elif self.model.task == 'token_classification':
+                self.train_metric = MulticlassAccuracy(num_classes=self.hparams.no_classes, ignore_index=-100)
+                self.metric_label = 'accuracy'
+            else:
+                raise ValueError(f"Unsupported task: {self.model.task}")
         
-        self.val_metric = self.train_metric.clone()
+            self.val_metric = self.train_metric.clone()
 
-        self.metrics = Metrics(self.model.task, no_classes=1 if 'no_classes' not in self.hparams else self.hparams.no_classes)
+            self.metrics = Metrics(self.model.task, no_classes=1 if 'no_classes' not in self.hparams else self.hparams.no_classes)
+
+            self.track_validation_after = 0
+            self.track_training_loss = False
 
         self.profiling_interval = 100
 
         self.experimenting = experimenting
-        self.track_validation_after = 0
-        self.track_training_loss = False
 
     def forward(self, input, **args):
         output = self.model(input, **args)
@@ -335,6 +338,26 @@ class LightningModel(L.LightningModule):
             self.plmfit_logger.save_data(metrics['main'], 'metrics')
             self.metrics.save_metrics(path=f'{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}')
 
+    ### PREDICTION STEPS ###
+    def on_predict_start(self) -> None:
+        self.epoch_start_time = time.time()
+        self.plmfit_logger.log('\nPREDICTING')
+        self.plmfit_logger.log('-' * 10)
+
+    def predict_step(self, batch, batch_idx):
+        batch_start_time = time.time()
+        input,  = batch
+        outputs = self(input)
+        if hasattr(outputs, "logits"):
+            outputs = outputs.logits
+
+        if self.log_interval != -1 and batch_idx % self.log_interval == 0:
+            self.plmfit_logger.log(f'(predict) batch : {batch_idx + 1}  / {len(self.trainer.predict_dataloaders)} (batch time : {time.time() - batch_start_time:.4f})')
+            
+        return outputs
+
+    def on_predict_end(self) -> None:
+        self.plmfit_logger.log(f'Prediction ended in {time.time() - self.epoch_start_time:.4f}s')
 
     
     def configure_optimizers(self):
@@ -343,6 +366,7 @@ class LightningModel(L.LightningModule):
         return [optimizer], [lr_scheduler]
     
     def initialize_optimizer(self, parameters):
+        if self.hparams.optimizer is None : return None
         if self.hparams.optimizer == 'sgd':
             return torch.optim.SGD(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
         elif self.hparams.optimizer == 'adam':
@@ -355,6 +379,7 @@ class LightningModel(L.LightningModule):
             raise ValueError(f"Unsupported optimizer: {self.hparams.optimizer}")
         
     def initialize_lr_scheduler(self, optimizer):
+        if optimizer is None : return None
         return torch.optim.lr_scheduler.ConstantLR(optimizer)
 
     def initialize_loss_function(self):
@@ -600,3 +625,51 @@ class Metrics(torch.nn.Module):
         # Write the updated or original report to the file
         with open(metrics_path, 'w', encoding='utf-8') as f:
             json.dump(self.report, f, indent=4)
+
+
+class PredictionWriter(BasePredictionWriter):
+
+    def __init__(self, logger, write_interval, split_size=0):
+        super().__init__(write_interval)
+        self.output_dir = logger.base_dir
+        self.file_name = logger.experiment_name
+        self.logger = logger
+        self.split_size = split_size
+
+    def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
+        # Make list into a single tensor
+        predictions = torch.cat(predictions, dim=0)
+        batch_indices  = [item for sublist1 in batch_indices for sublist2 in sublist1 for item in sublist2]
+
+        # Sort the predictions by the batch indices without doubling the memory usage
+        sorted_predictions = torch.zeros_like(predictions)
+        sorted_predictions[batch_indices] = predictions
+
+        if self.split_size == 0:
+            torch.save(sorted_predictions, f"{self.output_dir}/{self.file_name}.pt")
+        else:
+            # Split the predictions into splits of size 'split_size' and the output file indicates the sample number in the batch (i.e. ..._1000-1999.pt)
+            for i in range(0, len(sorted_predictions), self.split_size):
+                split_size = (
+                    self.split_size
+                    if i + self.split_size < len(sorted_predictions)
+                    else len(sorted_predictions) - i
+                )
+                torch.save(
+                    sorted_predictions[i : i + split_size],
+                    f"{self.output_dir}/{self.file_name}_{i}-{i + split_size - 1}.pt",
+                )
+
+        self.logger.log(f"Predictions saved to {self.output_dir}/{self.file_name}.pt")
+        self.logger.log(f"Predictions shape: {sorted_predictions.shape}")
+
+    def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
+
+        torch.save(prediction, f"{self.output_dir}/{self.file_name}_{batch_idx}.pt")
+
+        # Save a file called f"{self.output_dir}/{self.file_name}_{batch_idx}.json" to track the batch indices
+        with open(f"{self.output_dir}/{self.file_name}_{batch_idx}.json", 'w', encoding='utf-8') as f:
+            json.dump(batch_indices, f, indent=4)
+
+        self.logger.log(f"Predictions saved to {self.output_dir}/{self.file_name}.pt")
+        self.logger.log(f"Predictions shape: {prediction.shape}")

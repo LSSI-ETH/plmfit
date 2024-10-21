@@ -1,7 +1,7 @@
 import os
 from plmfit.language_models.progen2.models.progen.modeling_progen import ProGenForSequenceClassification
 from plmfit.language_models.proteinbert.modeling_bert import ProteinBertForSequenceClassification, ProteinBertForMaskedLM
-from plmfit.language_models.esm.modeling_esm import PlmfitEsmForSequenceClassification, PlmfitEsmForMaskedLM, PlmfitEsmForTokenClassification
+from plmfit.language_models.esm.modeling_esm import PlmfitEsmForSequenceClassification, PlmfitEsmForMaskedLM, PlmfitEsmForTokenClassification, PlmfitEsmForEmbdeddingsExtraction
 # from plmfit.shared_utils.data_explore import visualize_embeddings
 
 from plmfit.shared_utils.linear_block import ProGenLinearBlock
@@ -390,6 +390,8 @@ class ESMFamily(IPretrainedProteinLanguageModel):
                 f"facebook/{esm_version}", output_hidden_states=True
             )
             self.output_dim = self.py_model.classifier.out_features
+        elif self.task == 'extract_embeddings':
+            self.py_model = PlmfitEsmForEmbdeddingsExtraction.from_pretrained(f'facebook/{esm_version}', output_hidden_states = True)
         else:
             self.py_model = PlmfitEsmForSequenceClassification.from_pretrained(f'facebook/{esm_version}', output_hidden_states = True)
             self.output_dim = self.py_model.classifier.out_features

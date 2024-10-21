@@ -380,6 +380,8 @@ class ProteinBertPooler(nn.Module):
             pooled_output = hidden_states[:, 0]
         elif pooling_method == 'mean':
             pooled_output = torch.mean(hidden_states, dim=1)
+        elif pooling_method == 'none':
+            pooled_output = hidden_states
         return pooled_output
 
 

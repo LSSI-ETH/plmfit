@@ -255,6 +255,44 @@ def create_data_loaders(
 
     return {"train": train_loader, "val": val_loader, "test": test_loader}
 
+
+def create_predict_data_loader(
+    dataset,
+    batch_size=64,
+    dtype=torch.int8,
+    num_workers=0,
+    dataset_type="tensor",
+):
+    """
+    Create DataLoader objects for prediction.
+
+    Parameters:
+        dataset (numpy.ndarray): Input dataset.
+        batch_size (int): Batch size for DataLoader (default is 64).
+
+    Returns:
+        DataLoader: DataLoader object for prediction.
+    """
+    X = convert_or_clone_to_tensor(dataset, dtype=dtype)
+
+    if dataset_type == "tensor":
+        Dataset = TensorDataset
+    elif dataset_type == "one_hot":
+        Dataset = OneHotDataset
+    else:
+        raise ValueError("dataset_type must be either 'tensor' or 'one_hot'")
+
+    dataset = Dataset(X)
+
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=num_workers > 0,
+    )
+
+
 class OneHotDataset(TensorDataset):
     '''
     A custom dataset class that one-hot encodes the first tensor in the dataset.

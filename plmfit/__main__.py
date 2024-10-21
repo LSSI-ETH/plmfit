@@ -66,6 +66,7 @@ def main():
     parser.add_argument('--nulled', default="False")
     parser.add_argument('--weights', default=None)
     parser.add_argument('--sampler', default="False")
+    parser.add_argument('--split_size', default=0, type=int)
 
     args = parser.parse_args()
     experiment_dir = args.experiment_dir

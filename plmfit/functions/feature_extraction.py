@@ -3,7 +3,6 @@ import plmfit.models.downstream_heads as heads
 from lightning import Trainer
 from lightning.pytorch.loggers import TensorBoardLogger
 from plmfit.models.lightning_model import LightningModel
-from lightning.pytorch.strategies import DeepSpeedStrategy
 import optuna
 from optuna.storages import JournalStorage
 from optuna.storages.journal import JournalFileBackend
@@ -137,6 +136,19 @@ def objective(
             scores = data["label"].values
         else:
             raise KeyError("Neither 'binary_score' nor 'label' found in data")
+    elif task == "token_classification":
+        scores = data["label"].values
+        # Convert list of strings to list of list of integers
+        scores = utils.convert_string_list_to_list_of_int_lists(scores)
+        # Pad with -100 to match the sequence length
+        scores = utils.pad_list_of_lists(
+            scores,
+            max(data["len"].values),
+            pad_value=-100,
+            convert_to_np=True,
+            prepend_single_pad=True,
+            append_single_pad=True,
+        )
     else:
         raise ValueError("Task not supported")
 
@@ -162,7 +174,7 @@ def objective(
         model = heads.MLP(config["architecture_parameters"])
     else:
         raise ValueError("Head type not supported")
-    
+
     if not on_ray_tuning:
         logger.save_data(config, "head_config")
 
@@ -266,6 +278,11 @@ def objective(
             json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
         )
         logger.save_plot(fig, "actual_vs_predicted")
+    elif task == "token_classification":
+        fig = data_explore.plot_confusion_matrix_heatmap(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
+        )
+        logger.save_plot(fig, "confusion_matrix")
 
 
 def hyperparameter_tuning(
