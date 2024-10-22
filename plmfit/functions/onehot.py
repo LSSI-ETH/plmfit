@@ -40,6 +40,12 @@ def onehot(args, logger):
     )
     sampler = head_config["training_parameters"].get("sampler", False) == True
 
+    if args.evaluate == "True" and split is None:
+        raise ValueError("Cannot evaluate without a standard testing split")
+    if args.evaluate == "True":
+        data = data[split=='test']
+        
+
     tokenizer = utils.load_tokenizer("proteinbert")  # Use same tokenizer as proteinbert
     num_classes = tokenizer.get_vocab_size(with_added_tokens=False)
     encs = utils.categorical_encode(
@@ -51,6 +57,8 @@ def onehot(args, logger):
     )
 
     if args.ray_tuning == "True":
+        assert args.evaluate == "False", "Cannot evaluate and tune at the same time"
+
         head_config = hyperparameter_tuning(
             task,
             args,
@@ -231,21 +239,26 @@ def objective(
             ]
 
         trainer.logger.log_hyperparams(hyperparameters)
-    model.train()
-    trainer.fit(model, data_loaders["train"], data_loaders["val"])
 
-    if on_ray_tuning:
-        callbacks[0].check_pruned()
-        return trainer.callback_metrics[f"val_loss"].item()
+    if args.evaluate != "True":
+        model.train()
+        trainer.fit(model, data_loaders["train"], data_loaders["val"])
 
-    loss_plot = data_explore.create_loss_plot(
-        json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
-    )
-    logger.save_plot(loss_plot, "training_validation_loss")
+        if on_ray_tuning:
+            callbacks[0].check_pruned()
+            return trainer.callback_metrics[f"val_loss"].item()
+
+        loss_plot = data_explore.create_loss_plot(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
+        )
+        logger.save_plot(loss_plot, "training_validation_loss")
+        ckpt_path=f"{logger.base_dir}/lightning_logs/best_model.ckpt"
+    else:
+        ckpt_path = args.model_path
 
     trainer.test(
         model=model,
-        ckpt_path=f"{logger.base_dir}/lightning_logs/best_model.ckpt",
+        ckpt_path=ckpt_path,
         dataloaders=data_loaders["test"],
     )
 

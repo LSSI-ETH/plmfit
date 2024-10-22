@@ -655,8 +655,11 @@ class PredictionWriter(BasePredictionWriter):
                     if i + self.split_size < len(sorted_predictions)
                     else len(sorted_predictions) - i
                 )
+                chunk = sorted_predictions[
+                    i : i + split_size
+                ].clone()  # Use clone() to create a copy
                 torch.save(
-                    sorted_predictions[i : i + split_size],
+                    chunk,
                     f"{self.output_dir}/{self.file_name}_{i}-{i + split_size - 1}.pt",
                 )
 

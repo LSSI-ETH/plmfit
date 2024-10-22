@@ -193,3 +193,5 @@ output/
 *.tsv
 
 test.py
+config/training/*/
+*.ckpt

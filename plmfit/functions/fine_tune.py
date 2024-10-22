@@ -149,21 +149,24 @@ def fine_tune(args, logger):
             model, num_gpus_per_node=int(args.gpus), num_nodes=1
         )
 
-    model.train()
-    trainer.fit(model, data_loaders["train"], data_loaders["val"])
+    if args.evaluate != "True":
+        model.train()
+        trainer.fit(model, data_loaders["train"], data_loaders["val"])
 
-    ckpt_path = f"{logger.base_dir}/lightning_logs/best_model.ckpt"
-    if torch.cuda.is_available():
-        convert_zero_checkpoint_to_fp32_state_dict(
-            f"{logger.base_dir}/lightning_logs/best_model.ckpt",
-            f"{logger.base_dir}/best_model.ckpt",
-        )
-        ckpt_path = f"{logger.base_dir}/best_model.ckpt"
+        ckpt_path = f"{logger.base_dir}/lightning_logs/best_model.ckpt"
+        if torch.cuda.is_available():
+            convert_zero_checkpoint_to_fp32_state_dict(
+                f"{logger.base_dir}/lightning_logs/best_model.ckpt",
+                f"{logger.base_dir}/best_model.ckpt",
+            )
+            ckpt_path = f"{logger.base_dir}/best_model.ckpt"
 
-    loss_plot = data_explore.create_loss_plot(
-        json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
-    )
-    logger.save_plot(loss_plot, "training_validation_loss")
+            loss_plot = data_explore.create_loss_plot(
+                json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
+            )
+            logger.save_plot(loss_plot, "training_validation_loss")
+    else:
+        ckpt_path = args.model_path
 
     # TODO: Testing for lm
     if task != "masked_lm":
