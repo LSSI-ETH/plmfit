@@ -2,6 +2,7 @@ from plmfit.logger import Logger
 import os
 import argparse
 import traceback
+from plmfit.shared_utils.random_state import set_seed
 
 NUM_WORKERS = 0
 
@@ -69,11 +70,15 @@ def main():
     parser.add_argument('--split_size', default=0, type=int)
     parser.add_argument('--model_path', default=None)
     parser.add_argument('--evaluate', default="False")
+    parser.add_argument('--seed', default=42, type=int)
 
     args = parser.parse_args()
     experiment_dir = args.experiment_dir
     if not os.path.exists(experiment_dir):
         os.makedirs(experiment_dir, exist_ok=True)
+
+    # Set global seed
+    set_seed(args.seed)
         
     # Removing the output_dir prefix from experiment_dir
     trimmed_experiment_dir = experiment_dir.removeprefix(f"{args.output_dir}/")

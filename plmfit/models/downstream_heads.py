@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn import init
 import torch.nn.functional as F
 from plmfit.shared_utils.utils import get_activation_function
+from plmfit.shared_utils.random_state import get_random_state
 
 class LinearHead(nn.Module):
     def __init__(self, config):
@@ -12,8 +13,9 @@ class LinearHead(nn.Module):
         self.config = config
         # Check if there's an activation function specified for the layer
         if "output_activation" in config:
+            random_state = get_random_state()
             # Initialize weights with a normal distribution around zero
-            init.normal_(self.linear.weight, mean=0.0, std=0.01)
+            init.normal_(self.linear.weight, mean=0.0, std=0.01, generator=random_state)
             # Initialize biases to zero
             init.zeros_(self.linear.bias)
 
@@ -60,15 +62,16 @@ class MLP(nn.Module):
     def init_weights(self):
         """Initialize weights using Xavier initialization for internal layers 
         and near-zero initialization for the output layer."""
+        random_state = get_random_state()
         for i, layer in enumerate(self.layers):
             if isinstance(layer, nn.Linear):
                 if i == len(self.layers) - 2:  # Check if it's the output layer
                     # Initialize output layer weights near zero for classification
-                    init.normal_(layer.weight, mean=0.0, std=0.01)
+                    init.normal_(layer.weight, mean=0.0, std=0.01, generator=random_state)
                     init.constant_(layer.bias, 0)
                 else:
                     # Xavier initialization for internal layers
-                    init.xavier_uniform_(layer.weight)
+                    init.xavier_uniform_(layer.weight, generator=random_state)
                     if layer.bias is not None:
                         init.constant_(layer.bias, 0)
 
@@ -88,6 +91,20 @@ class RNN(nn.Module):
         out = self.fc(out[:, -1, :])
         out = self.activation(out)
         return out
+    
+    def init_weights(self):
+        """Initialize weights using Xavier initialization for internal layers 
+        and near-zero initialization for the output layer."""
+        random_state = get_random_state()
+        # Initialize RNN weights
+        for name, param in self.rnn.named_parameters():
+            if 'weight' in name:
+                init.xavier_uniform_(param, generator=random_state)
+            else:
+                init.constant_(param, 0)
+        # Initialize output layer weights
+        init.normal_(self.fc.weight, mean=0.0, std=0.01, generator=random_state)
+        init.constant_(self.fc.bias, 0)
 
 class AdapterLayer(nn.Module):
     def __init__(self, in_features, bottleneck_dim ,dropout= 0.25 , eps = 1e-5):
@@ -97,14 +114,15 @@ class AdapterLayer(nn.Module):
         self.fc_up = nn.Linear(bottleneck_dim, in_features)
         self.dropout = nn.Dropout(dropout)
         self.init_weights()
-        
+
     def init_weights(self):
+        random_state = get_random_state()
         self.ln.weight.data.fill_(0.01)
-        init.kaiming_normal_(self.fc_down.weight)
+        init.kaiming_normal_(self.fc_down.weight, generator=random_state)
         self.fc_down.bias.data.zero_()
-        init.kaiming_normal_(self.fc_up.weight)
+        init.kaiming_normal_(self.fc_up.weight, generator=random_state)
         self.fc_up.bias.data.zero_()
-        
+
     def forward(self, src):
         src = self.ln(src)
         src = nn.relu(self.fc_down(src))
