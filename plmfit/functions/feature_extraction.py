@@ -40,6 +40,9 @@ def feature_extraction(args, logger):
     )
     sampler = head_config["training_parameters"].get("sampler", False) == True
 
+    if args.evaluate == "True" and split is None:
+        raise ValueError("Cannot evaluate without a standard testing split")
+
     ### TODO: Extract embeddings if do not exist & get path optionally from args
     embeddings = utils.load_embeddings(
         emb_path=(
@@ -57,6 +60,8 @@ def feature_extraction(args, logger):
     ), "Couldn't find embeddings, use the full path of the embeddings file (.pt) or you can use extract_embeddings function to create and save the embeddings."
 
     if args.ray_tuning == "True":
+        assert args.evaluate == "False", "Cannot evaluate and tune at the same time"
+
         head_config = hyperparameter_tuning(
             task,
             args,
@@ -239,27 +244,31 @@ def objective(
             ]
 
         trainer.logger.log_hyperparams(hyperparameters)
-    model.train()
-    trainer.fit(model, data_loaders["train"], data_loaders["val"])
 
-    if on_ray_tuning:
-        callbacks[0].check_pruned()
-        loss = trainer.callback_metrics[f"val_loss"].item()
-        del trainer
-        del data
-        del data_loaders
-        del scores
-        del model
-        gc.collect()
-        return loss
-    loss_plot = data_explore.create_loss_plot(
-        json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
-    )
-    logger.save_plot(loss_plot, "training_validation_loss")
+    if args.evaluate != "True":
+        model.train()
+        trainer.fit(model, data_loaders["train"], data_loaders["val"])
 
+        if on_ray_tuning:
+            callbacks[0].check_pruned()
+            loss = trainer.callback_metrics[f"val_loss"].item()
+            del trainer
+            del data
+            del data_loaders
+            del scores
+            del model
+            gc.collect()
+            return loss
+        loss_plot = data_explore.create_loss_plot(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
+        )
+        logger.save_plot(loss_plot, "training_validation_loss")
+        ckpt_path = f"{logger.base_dir}/lightning_logs/best_model.ckpt"
+    else:
+        ckpt_path = args.model_path
     trainer.test(
         model=model,
-        ckpt_path=f"{logger.base_dir}/lightning_logs/best_model.ckpt",
+        ckpt_path=ckpt_path,
         dataloaders=data_loaders["test"],
     )
 

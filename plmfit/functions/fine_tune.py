@@ -35,6 +35,9 @@ def fine_tune(args, logger):
         if args.split == "sampled" and "sampled" not in data
         else data.get(args.split)
     )
+    if args.evaluate == "True" and split is None:
+        raise ValueError("Cannot evaluate without a standard testing split")
+
     weights = (
         None
         if head_config["training_parameters"].get("weights") is None
