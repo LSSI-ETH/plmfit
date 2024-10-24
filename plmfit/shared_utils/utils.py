@@ -4,7 +4,13 @@ import json
 import pandas as pd
 from tokenizers import Tokenizer
 from transformers import PreTrainedTokenizerFast
-from torch.utils.data import TensorDataset, DataLoader, Subset, random_split, WeightedRandomSampler
+from torch.utils.data import (
+    TensorDataset,
+    DataLoader,
+    Subset,
+    random_split,
+    WeightedRandomSampler,
+)
 from sklearn.model_selection import train_test_split
 import numpy as np
 from pynvml import *
@@ -95,7 +101,7 @@ def create_data_loaders(
     num_workers=0,
     weights=None,
     sampler=False,
-    dataset_type="tensor"
+    dataset_type="tensor",
 ):
     """
     Create DataLoader objects for training, validation, and testing.
@@ -219,11 +225,11 @@ def create_data_loaders(
         val_dataset = Dataset(X_val, y_val)
         test_dataset = Dataset(X_test, y_test, test_ids)
 
-    if sampler: 
+    if sampler:
         train_sampler = init_weighted_sampler(train_dataset, weights_train)
         val_sampler = init_weighted_sampler(val_dataset, weights_val)
         test_sampler = None
-    else: 
+    else:
         train_sampler = None
         val_sampler = None
         test_sampler = None
@@ -231,7 +237,7 @@ def create_data_loaders(
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=sampler==False, # If sampler is used, shuffle is not needed
+        shuffle=sampler == False,  # If sampler is used, shuffle is not needed
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=train_sampler,
@@ -254,7 +260,6 @@ def create_data_loaders(
     )
 
     return {"train": train_loader, "val": val_loader, "test": test_loader}
-
 
 def create_predict_data_loader(
     dataset,
@@ -294,10 +299,11 @@ def create_predict_data_loader(
 
 
 class OneHotDataset(TensorDataset):
-    '''
+    """
     A custom dataset class that one-hot encodes the first tensor in the dataset.
     set_num_classes must be called before using this dataset, to set the number of classes.
-    '''
+    """
+
     def __init__(self, *tensors):
         assert all(
             tensors[0].size(0) == tensor.size(0) for tensor in tensors
@@ -314,6 +320,7 @@ class OneHotDataset(TensorDataset):
             for i, tensor in enumerate(self.tensors)
         )
 
+
 def one_hot_encode(seqs, num_classes):
     # get dtype and save it
     dtype = seqs.dtype
@@ -326,12 +333,13 @@ def one_hot_encode(seqs, num_classes):
     # return the tensor flattened
     return encs.flatten()
 
-def init_weighted_sampler(dataset, weights, num_samples_method='min'):
+
+def init_weighted_sampler(dataset, weights, num_samples_method="min"):
     # Count the occurrences of each class in the dataset
     labels = dataset.tensors[1].numpy()  # Assuming that labels are in the second tensor
     class_counts = Counter(labels)
 
-    if num_samples_method == 'min':
+    if num_samples_method == "min":
         # Find the class with the least count
         min_class_count = min(class_counts.values())
         # Calculate the number of unique classes
@@ -363,6 +371,7 @@ def convert_or_clone_to_tensor(data, dtype):
         raise TypeError(
             "Input data must be a NumPy array, a DataFrame Series, a list or a PyTorch tensor."
         )
+
 
 def convert_string_list_to_list_of_int_lists(data):
     """
@@ -417,11 +426,10 @@ def pad_list_of_lists(
             ]
         )
     return [
-        pad_list(
-            sample, max_len, pad_value, prepend_single_pad, append_single_pad
-        )
+        pad_list(sample, max_len, pad_value, prepend_single_pad, append_single_pad)
         for sample in data
     ]
+
 
 def pad_list(
     data, max_len, pad_value=0, prepend_single_pad=False, append_single_pad=False
