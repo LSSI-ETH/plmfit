@@ -314,9 +314,9 @@ class LightningModel(L.LightningModule):
 
         if self.model.task == 'classification' and self.hparams.no_classes > 1:
             labels = torch.argmax(labels, dim=1)
-            outputs = torch.argmax(outputs, dim=1)
+            # outputs = torch.argmax(outputs, dim=1)
         if self.model.task == 'token_classification' and self.hparams.no_classes > 1:
-            # Get the maxium value of the 3rd dimension
+            # Get the maximum value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
         self.metrics.add(outputs, labels, ids)
 

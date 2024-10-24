@@ -22,7 +22,8 @@ def onehot(args, logger):
 
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    # data = data.sample(30000)
+    # data = data[:1000]
+    
     # if args.experimenting == "True": data = data.sample(100)
 
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
@@ -39,19 +40,16 @@ def onehot(args, logger):
         else data.get(head_config["training_parameters"]["weights"])
     )
     sampler = head_config["training_parameters"].get("sampler", False) == True
-
+    max_len = max(data["len"].values)
     if args.evaluate == "True" and split is None:
         raise ValueError("Cannot evaluate without a standard testing split")
-    if args.evaluate == "True":
-        data = data[split=='test']
-        
 
     tokenizer = utils.load_tokenizer("proteinbert")  # Use same tokenizer as proteinbert
     num_classes = tokenizer.get_vocab_size(with_added_tokens=False)
     encs = utils.categorical_encode(
         data["aa_seq"].values,
         tokenizer,
-        max(data["len"].values),
+        max_len,
         logger=logger,
         model_name="proteinbert",
     )
@@ -146,6 +144,7 @@ def objective(
         raise ValueError("Task not supported")
 
     training_params = config["training_parameters"]
+    
     data_loaders = utils.create_data_loaders(
         embeddings,
         scores,
