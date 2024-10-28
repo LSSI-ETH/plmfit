@@ -11,7 +11,8 @@ def get_random_state():
 
 def set_seed(seed):
     global GLOBAL_RANDOM_STATE
-    GLOBAL_RANDOM_STATE = np.random.RandomState(seed=seed)
+    GLOBAL_RANDOM_STATE = torch.Generator()
+    GLOBAL_RANDOM_STATE.manual_seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
