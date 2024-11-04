@@ -312,24 +312,28 @@ class OneHotDataset(TensorDataset):
     set_num_classes must be called before using this dataset, to set the number of classes.
     """
 
-    def __init__(self, *tensors):
+    def __init__(self, *tensors, flatten=True):
         assert all(
             tensors[0].size(0) == tensor.size(0) for tensor in tensors
         ), "Size mismatch between tensors"
         self.tensors = tensors
+        self.flatten = True
 
     def set_num_classes(self, num_classes):
         self.num_classes = num_classes
 
+    def set_flatten(self, flatten):
+        self.flatten = flatten
+
     def __getitem__(self, index):
         # one hot the first tensor index and the others as is and then return
         return tuple(
-            one_hot_encode(tensor[index], self.num_classes) if i == 0 else tensor[index]
+            one_hot_encode(tensor[index], self.num_classes, self.flatten) if i == 0 else tensor[index]
             for i, tensor in enumerate(self.tensors)
         )
 
 
-def one_hot_encode(seqs, num_classes):
+def one_hot_encode(seqs, num_classes, flatten=True):
     # get dtype and save it
     dtype = seqs.dtype
     # convert to long
@@ -339,7 +343,7 @@ def one_hot_encode(seqs, num_classes):
     # convert back to original dtype
     encs = encs.to(dtype=dtype)
     # return the tensor flattened
-    return encs.flatten()
+    return encs.flatten() if flatten else encs
 
 
 def init_weighted_sampler(dataset, weights, num_samples_method="min"):

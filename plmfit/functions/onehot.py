@@ -23,7 +23,7 @@ def onehot(args, logger):
     # Load dataset
     data = utils.load_dataset(args.data_type)
     # data = data[:1000]
-    
+
     # if args.experimenting == "True": data = data.sample(100)
 
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
@@ -54,6 +54,29 @@ def onehot(args, logger):
         model_name="proteinbert",
     )
 
+    if task == "regression":
+        scores = data["score"].values
+    elif task == "classification":
+        if "binary_score" in data:
+            scores = data["binary_score"].values
+        elif "label" in data:
+            scores = data["label"].values
+        else:
+            raise KeyError("Neither 'binary_score' nor 'label' found in data")
+    elif task == "token_classification":
+        scores = data["label"].values
+        # Convert list of strings to list of list of integers
+        scores = utils.convert_string_list_to_list_of_int_lists(scores)
+        # Pad with -100 to match the sequence length
+        scores = utils.pad_list_of_lists(
+            scores,
+            max(data["len"].values),
+            pad_value=-100,
+            convert_to_np=True,
+        )
+    else:
+        raise ValueError("Task not supported")
+
     if args.ray_tuning == "True":
         assert args.evaluate == "False", "Cannot evaluate and tune at the same time"
 
@@ -62,7 +85,7 @@ def onehot(args, logger):
             args,
             head_config,
             encs,
-            data,
+            scores,
             logger,
             split=split,
             num_workers=0,
@@ -81,7 +104,7 @@ def onehot(args, logger):
         args,
         head_config,
         encs,
-        data,
+        scores,
         logger,
         split=split,
         on_ray_tuning=False,
@@ -98,7 +121,7 @@ def objective(
     args,
     head_config,
     embeddings,
-    data,
+    scores,
     logger,
     split=None,
     on_ray_tuning=False,
@@ -131,20 +154,9 @@ def objective(
             config["architecture_parameters"]["hidden_dropout"] = (
                 trial.suggest_float("hidden_dropout", 0.0, 1.0)
             )
-    if task == "regression":
-        scores = data["score"].values
-    elif task == "classification":
-        if "binary_score" in data:
-            scores = data["binary_score"].values
-        elif "label" in data:
-            scores = data["label"].values
-        else:
-            raise KeyError("Neither 'binary_score' nor 'label' found in data")
-    else:
-        raise ValueError("Task not supported")
 
     training_params = config["training_parameters"]
-    
+
     data_loaders = utils.create_data_loaders(
         embeddings,
         scores,
@@ -161,18 +173,27 @@ def objective(
     data_loaders["train"].dataset.set_num_classes(num_classes)
     data_loaders["val"].dataset.set_num_classes(num_classes)
     data_loaders["test"].dataset.set_num_classes(num_classes)
+    if task == "token_classification":
+        data_loaders["train"].dataset.set_flatten(False)
+        data_loaders["val"].dataset.set_flatten(False)
+        data_loaders["test"].dataset.set_flatten(False)
 
     network_type = config["architecture_parameters"]["network_type"]
     if network_type == "linear":
         config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[1] * num_classes
+            embeddings.shape[1] * num_classes if task != "token_classification" else embeddings.shape[1]
         )  # Account for one-hot encodings
         model = heads.LinearHead(config["architecture_parameters"])
     elif network_type == "mlp":
         config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[1] * num_classes
+            embeddings.shape[1] * num_classes if task != "token_classification" else embeddings.shape[1]
         )  # Account for one-hot encodings
         model = heads.MLP(config["architecture_parameters"])
+    elif network_type == "rnn":
+        config["architecture_parameters"]["input_dim"] = (
+            embeddings.shape[1] * num_classes if task != "token_classification" else embeddings.shape[1]
+        )  # Account for one-hot encodings
+        model = heads.RNN(config["architecture_parameters"])
     else:
         raise ValueError("Head type not supported")
 
@@ -276,6 +297,11 @@ def objective(
             json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
         )
         logger.save_plot(fig, "actual_vs_predicted")
+    elif task == "token_classification":
+        fig = data_explore.plot_confusion_matrix_heatmap(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
+        )
+        logger.save_plot(fig, "confusion_matrix")
 
 
 def hyperparameter_tuning(
@@ -283,7 +309,7 @@ def hyperparameter_tuning(
     args,
     head_config,
     embeddings,
-    data,
+    scores,
     logger,
     split=None,
     num_workers=0,
@@ -319,7 +345,7 @@ def hyperparameter_tuning(
             args,
             head_config,
             embeddings,
-            data,
+            scores,
             logger,
             split,
             on_ray_tuning=True,
