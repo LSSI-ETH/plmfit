@@ -30,7 +30,7 @@ def extract_embeddings(args, logger):
     logger.save_data(vars(args), "arguments")
 
     # TODO: Create predict dataloaders
-    data_loader = utils.create_predict_data_loader(encs)
+    data_loader = utils.create_predict_data_loader(encs, batch_size=4)
 
     model = LightningModel(
         model.py_model,
