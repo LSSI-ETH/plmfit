@@ -59,6 +59,31 @@ def feature_extraction(args, logger):
         embeddings != None
     ), "Couldn't find embeddings, use the full path of the embeddings file (.pt) or you can use extract_embeddings function to create and save the embeddings."
 
+    if task == "regression":
+        scores = data["score"].values
+    elif task == "classification":
+        if "binary_score" in data:
+            scores = data["binary_score"].values
+        elif "label" in data:
+            scores = data["label"].values
+        else:
+            raise KeyError("Neither 'binary_score' nor 'label' found in data")
+    elif task == "token_classification":
+        scores = data["label"].values
+        # Convert list of strings to list of list of integers
+        scores = utils.convert_string_list_to_list_of_int_lists(scores)
+        # Pad with -100 to match the sequence length
+        scores = utils.pad_list_of_lists(
+            scores,
+            max(data["len"].values),
+            pad_value=-100,
+            convert_to_np=True,
+            prepend_single_pad=True,
+            append_single_pad=True,
+        )
+    else:
+        raise ValueError("Task not supported")
+
     if args.ray_tuning == "True":
         assert args.evaluate == "False", "Cannot evaluate and tune at the same time"
 
@@ -67,7 +92,7 @@ def feature_extraction(args, logger):
             args,
             head_config,
             embeddings,
-            data,
+            scores,
             logger,
             split=split,
             num_workers=0,
@@ -85,7 +110,7 @@ def feature_extraction(args, logger):
         args,
         head_config,
         embeddings,
-        data,
+        scores,
         logger,
         split=split,
         on_ray_tuning=False,
@@ -94,13 +119,14 @@ def feature_extraction(args, logger):
         sampler=sampler,
     )
 
+
 def objective(
     trial,
     task,
     args,
     head_config,
     embeddings,
-    data,
+    scores,
     logger,
     split=None,
     on_ray_tuning=False,
@@ -132,30 +158,13 @@ def objective(
             config["architecture_parameters"]["hidden_dropout"] = (
                 trial.suggest_float("hidden_dropout", 0.0, 1.0)
             )
-    if task == "regression":
-        scores = data["score"].values
-    elif task == "classification":
-        if "binary_score" in data:
-            scores = data["binary_score"].values
-        elif "label" in data:
-            scores = data["label"].values
-        else:
-            raise KeyError("Neither 'binary_score' nor 'label' found in data")
-    elif task == "token_classification":
-        scores = data["label"].values
-        # Convert list of strings to list of list of integers
-        scores = utils.convert_string_list_to_list_of_int_lists(scores)
-        # Pad with -100 to match the sequence length
-        scores = utils.pad_list_of_lists(
-            scores,
-            max(data["len"].values),
-            pad_value=-100,
-            convert_to_np=True,
-            prepend_single_pad=True,
-            append_single_pad=True,
-        )
-    else:
-        raise ValueError("Task not supported")
+        if network_type == "rnn":
+            config["architecture_parameters"]["hidden_dim"] = trial.suggest_int(
+                "hidden_dim", 16, 512
+            )
+            config["architecture_parameters"]["dropout"] = trial.suggest_float(
+                "dropout", 0.0, 1.0
+            )
 
     training_params = config["training_parameters"]
     data_loaders = utils.create_data_loaders(
@@ -177,6 +186,11 @@ def objective(
     elif network_type == "mlp":
         config["architecture_parameters"]["input_dim"] = embeddings.shape[1]
         model = heads.MLP(config["architecture_parameters"])
+    elif network_type == "rnn":
+        config["architecture_parameters"]["input_dim"] = (
+            embeddings.shape[1]
+        )  # Account for one-hot encodings
+        model = heads.RNN(config["architecture_parameters"])
     else:
         raise ValueError("Head type not supported")
 
@@ -242,6 +256,11 @@ def objective(
             hyperparameters["hidden_dropout"] = config["architecture_parameters"][
                 "hidden_dropout"
             ]
+        if network_type == "rnn":
+            hyperparameters["hidden_dim"] = config["architecture_parameters"][
+                "hidden_dim"
+            ]
+            hyperparameters["dropout"] = config["architecture_parameters"]["dropout"]
 
         trainer.logger.log_hyperparams(hyperparameters)
 
@@ -253,7 +272,7 @@ def objective(
             callbacks[0].check_pruned()
             loss = trainer.callback_metrics[f"val_loss"].item()
             del trainer
-            del data
+            del scores
             del data_loaders
             del scores
             del model
@@ -299,7 +318,7 @@ def hyperparameter_tuning(
     args,
     head_config,
     embeddings,
-    data,
+    scores,
     logger,
     split=None,
     num_workers=0,
@@ -334,7 +353,7 @@ def hyperparameter_tuning(
             args,
             head_config,
             embeddings,
-            data,
+            scores,
             logger,
             split,
             on_ray_tuning=True,
@@ -362,5 +381,10 @@ def hyperparameter_tuning(
         head_config["architecture_parameters"]["hidden_dropout"] = study.best_params[
             "hidden_dropout"
         ]
+    if network_type == "rnn":
+        head_config["architecture_parameters"]["hidden_dim"] = study.best_params[
+            "hidden_dim"
+        ]
+        head_config["architecture_parameters"]["dropout"] = study.best_params["dropout"]
 
     return head_config
