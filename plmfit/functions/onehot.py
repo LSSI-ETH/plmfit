@@ -154,6 +154,13 @@ def objective(
             config["architecture_parameters"]["hidden_dropout"] = (
                 trial.suggest_float("hidden_dropout", 0.0, 1.0)
             )
+        if network_type == "rnn":
+            config["architecture_parameters"]["hidden_dim"] = trial.suggest_int(
+                "hidden_dim", 16, 512
+            )
+            config["architecture_parameters"]["dropout"] = trial.suggest_float(
+                "dropout", 0.0, 1.0
+            )
 
     training_params = config["training_parameters"]
 
@@ -181,17 +188,23 @@ def objective(
     network_type = config["architecture_parameters"]["network_type"]
     if network_type == "linear":
         config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[1] * num_classes if task != "token_classification" else embeddings.shape[1]
+            embeddings.shape[1] * num_classes
+            if task != "token_classification"
+            else num_classes
         )  # Account for one-hot encodings
         model = heads.LinearHead(config["architecture_parameters"])
     elif network_type == "mlp":
         config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[1] * num_classes if task != "token_classification" else embeddings.shape[1]
+            embeddings.shape[1] * num_classes
+            if task != "token_classification"
+            else num_classes
         )  # Account for one-hot encodings
         model = heads.MLP(config["architecture_parameters"])
     elif network_type == "rnn":
         config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[1] * num_classes if task != "token_classification" else embeddings.shape[1]
+            embeddings.shape[1] * num_classes
+            if task != "token_classification"
+            else num_classes
         )  # Account for one-hot encodings
         model = heads.RNN(config["architecture_parameters"])
     else:
@@ -257,6 +270,11 @@ def objective(
             hyperparameters["hidden_dropout"] = config["architecture_parameters"][
                 "hidden_dropout"
             ]
+        if network_type == "rnn":
+            hyperparameters["hidden_dim"] = config["architecture_parameters"][
+                "hidden_dim"
+            ]
+            hyperparameters["dropout"] = config["architecture_parameters"]["dropout"]
 
         trainer.logger.log_hyperparams(hyperparameters)
 
@@ -376,5 +394,8 @@ def hyperparameter_tuning(
     if network_type == "mlp":
         head_config["architecture_parameters"]["hidden_dim"] = study.best_params["hidden_dim"]
         head_config["architecture_parameters"]["hidden_dropout"] = study.best_params["hidden_dropout"]
+    if network_type == "rnn":
+        head_config["architecture_parameters"]["hidden_dim"] = study.best_params["hidden_dim"]
+        head_config["architecture_parameters"]["dropout"] = study.best_params["dropout"]
 
     return head_config

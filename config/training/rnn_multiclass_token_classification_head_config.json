@@ -1,7 +1,8 @@
 {
   "architecture_parameters":
   {
-    "network_type": "linear",
+    "network_type": "rnn",
+    "hidden_dim": 128,
     "output_dim": 3,
     "task": "token_classification",
     "dropout": 0,

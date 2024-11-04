@@ -82,16 +82,19 @@ class RNN(nn.Module):
         self.task = config['task']
         self.rnn = nn.RNN(input_size=config['input_dim'], hidden_size=config['hidden_dim'], num_layers=config['num_layers'],
                           batch_first=True, dropout=config['dropout'], bidirectional=config['bidirectional'])
-        self.fc = nn.Linear(config['hidden_dim'], config['output_dim'])
+        fc_input_dim = (
+            config["hidden_dim"] * 2 if self.rnn.bidirectional else config["hidden_dim"]
+        )
+        self.fc = nn.Linear(fc_input_dim, config["output_dim"])
         self.activation = get_activation_function(config['output_activation'])
         self.init_weights()
 
     def forward(self, x):
         out, _ = self.rnn(x)
-        out = self.fc(out[:, -1, :])
+        out = self.fc(out)
         out = self.activation(out)
         return out
-    
+
     def init_weights(self):
         """Initialize weights using Xavier initialization for internal layers 
         and near-zero initialization for the output layer."""
