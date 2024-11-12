@@ -181,14 +181,14 @@ def objective(
 
     network_type = config["architecture_parameters"]["network_type"]
     if network_type == "linear":
-        config["architecture_parameters"]["input_dim"] = embeddings.shape[1]
+        config["architecture_parameters"]["input_dim"] = embeddings.shape[-1]
         model = heads.LinearHead(config["architecture_parameters"])
     elif network_type == "mlp":
-        config["architecture_parameters"]["input_dim"] = embeddings.shape[1]
+        config["architecture_parameters"]["input_dim"] = embeddings.shape[-1]
         model = heads.MLP(config["architecture_parameters"])
     elif network_type == "rnn":
         config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[1]
+            embeddings.shape[-1]
         )  # Account for one-hot encodings
         model = heads.RNN(config["architecture_parameters"])
     else:
@@ -274,7 +274,6 @@ def objective(
             del trainer
             del scores
             del data_loaders
-            del scores
             del model
             gc.collect()
             return loss

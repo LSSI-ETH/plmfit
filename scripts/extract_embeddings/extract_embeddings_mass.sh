@@ -32,7 +32,7 @@ done &
 CPU_FREE_PID=$!
 
 python3 plmfit --function $1 --layer $5 --reduction $4 \
-         --data_type $2 --plm $3 --output_dir $6 --experiment_dir $7 --experiment_name $8
+         --data_type $2 --plm $3 --output_dir $6 --experiment_dir $7 --experiment_name $8 --gpus ${9}
 
 kill $NVIDIA_SMI_PID
 kill $CPU_FREE_PID
