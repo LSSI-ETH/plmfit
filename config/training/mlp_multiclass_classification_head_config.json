@@ -2,7 +2,7 @@
   "architecture_parameters":
   {
     "network_type": "mlp",
-    "output_dim": 7,
+    "output_dim": 8,
     "hidden_dim": 1024,
     "hidden_activation": "relu",
     "hidden_dropout": 0.25,
@@ -26,6 +26,8 @@
     "gradient_accumulation": false,
     "epoch_sizing": false,
     "early_stopping": 30,
-    "no_classes": 7
+    "weights": "weights",
+    "sampler": true,
+    "no_classes": 8
   }
 }

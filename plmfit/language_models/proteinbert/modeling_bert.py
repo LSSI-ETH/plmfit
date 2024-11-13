@@ -380,6 +380,8 @@ class ProteinBertPooler(nn.Module):
             pooled_output = hidden_states[:, 0]
         elif pooling_method == 'mean':
             pooled_output = torch.mean(hidden_states, dim=1)
+        elif pooling_method == 'none':
+            pooled_output = hidden_states
         return pooled_output
 
 
@@ -590,3 +592,70 @@ class ProteinBertForContactPrediction(ProteinBertAbstractModel):
         outputs = self.predict(sequence_output, protein_length, targets) + outputs[2:]
         # (loss), prediction_scores, (hidden_states), (attentions)
         return outputs
+
+
+class ProteinBertForEmbeddingsExtraction(ProteinBertAbstractModel):
+
+    def __init__(self, config):
+        config.output_hidden_states = True
+        super().__init__(config)
+        self.bert = ProteinBertModel(config)
+        self.reduction = "bos"
+        self.init_weights()
+
+    def trim_model(self, layer_to_use):
+        self.bert.encoder.layer = nn.ModuleList(
+            list(self.bert.encoder.layer.children())[: layer_to_use + 1]
+        )
+
+    def forward(self, input_ids, input_mask=None, targets=None):
+        if input_ids is not None:
+            input_ids = input_ids.int()
+        outputs = self.bert(input_ids, input_mask=input_mask)
+
+        # The first element of outputs is the last layer hidden-state
+        sequence_output = outputs[0]
+        # The third element of outputs is the hidden states from all layers
+        all_hidden_states = outputs[2]
+        pooled_output = self.bert.pooler(sequence_output, pooling_method=self.reduction)
+
+        # (loss), prediction_scores, (hidden_states), (attentions)
+        return SequenceClassifierOutputWithPast(
+            logits=pooled_output, hidden_states=all_hidden_states
+        )
+
+
+class ProteinBertForTokenClassification(ProteinBertAbstractModel):
+
+    def __init__(self, config):
+        config.output_hidden_states = True
+        super().__init__(config)
+        self.num_labels = config.num_labels
+        self.bert = ProteinBertModel(config)
+        self.classifier = nn.Linear(config.hidden_size, self.num_labels, bias=False)
+        self.init_weights()
+
+    def set_head(self, head):
+        self.classifier = head
+
+    def trim_model(self, layer_to_use):
+        self.bert.encoder.layer = nn.ModuleList(
+            list(self.bert.encoder.layer.children())[: layer_to_use + 1]
+        )
+
+    def forward(self, input_ids, input_mask=None, targets=None):
+        if input_ids is not None:
+            input_ids = input_ids.int()
+        outputs = self.bert(input_ids, input_mask=input_mask)
+
+        # The first element of outputs is the last layer hidden-state
+        sequence_output = outputs[0]
+        # The third element of outputs is the hidden states from all layers
+        all_hidden_states = outputs[2]
+
+        logits = self.classifier(sequence_output)
+        
+        # (loss), prediction_scores, (hidden_states), (attentions)
+        return SequenceClassifierOutputWithPast(
+            logits=logits, hidden_states=all_hidden_states
+        )

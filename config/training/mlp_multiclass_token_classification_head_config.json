@@ -1,15 +1,18 @@
 {
   "architecture_parameters": {
-    "network_type": "linear",
-    "output_dim": 8,
-    "task": "classification",
+    "network_type": "mlp",
+    "output_dim": 3,
+    "hidden_dim": 1024,
+    "hidden_activation": "relu",
+    "hidden_dropout": 0.25,
+    "task": "token_classification",
     "dropout": 0,
     "output_activation": "softmax"
   },
   "training_parameters": {
-    "learning_rate": 0.0001,
-    "epochs": 15,
-    "batch_size": 4,
+    "learning_rate": 0.00005,
+    "epochs": 200,
+    "batch_size": 64,
     "loss_f": "cross_entropy",
     "optimizer": "adam",
     "val_split": 0.2,
@@ -20,10 +23,7 @@
     "scaler": false,
     "gradient_accumulation": false,
     "epoch_sizing": false,
-    "early_stopping": 3,
-    "model_output": "logits",
-    "weights": "weights",
-    "sampler": true,
-    "no_classes": 8
+    "early_stopping": 30,
+    "no_classes": 3
   }
 }

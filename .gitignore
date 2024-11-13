@@ -204,3 +204,6 @@ data/paratope/sabdab_val.parquet
 data/paratope/sabdab_test.parquet
 data/paratope/paratope_data_full.csv
 plmfit-venv/
+test.py
+config/training/*/
+*.ckpt

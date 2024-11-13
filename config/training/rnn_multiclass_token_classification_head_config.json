@@ -1,10 +1,13 @@
 {
   "architecture_parameters":
   {
-    "network_type": "linear",
-    "output_dim": 8,
-    "task": "classification",
+    "network_type": "rnn",
+    "hidden_dim": 128,
+    "output_dim": 3,
+    "task": "token_classification",
     "dropout": 0,
+    "bidirectional": true,
+    "num_layers": 2,
     "output_activation": "softmax"
   },
   "training_parameters":
@@ -23,8 +26,6 @@
     "gradient_accumulation": false,
     "epoch_sizing": false,
     "early_stopping": 30,
-    "weights": "weights",
-    "sampler": true,
-    "no_classes": 8
+    "no_classes": 3
   }
 }

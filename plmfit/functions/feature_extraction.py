@@ -1,13 +1,29 @@
-from plmfit.shared_utils import utils
 import torch
 import plmfit.models.downstream_heads as heads
-from plmfit.models.fine_tuners import FullRetrainFineTuner
-from plmfit.models.hyperparameter_tuner import HyperTuner
+from lightning import Trainer
+from lightning.pytorch.loggers import TensorBoardLogger
+from plmfit.models.lightning_model import LightningModel
+import optuna
+from optuna.storages import JournalStorage
+from optuna.storages.journal import JournalFileBackend
+import lightning.pytorch as pl
+from optuna.integration import PyTorchLightningPruningCallback
+from packaging import version
+from optuna.visualization import plot_optimization_history, plot_slice
+from plmfit.shared_utils import utils, data_explore
+from plmfit.logger import LogOptunaTrialCallback
+import gc
+import copy
 
 
 def feature_extraction(args, logger):
+    head_config = utils.load_config(f"training/{args.head_config}")
+    task = head_config["architecture_parameters"]["task"]
+
     # Load dataset
     data = utils.load_dataset(args.data_type)
+    # data = data.sample(30000)
+    # if args.experimenting == "True": data = data.sample(100)
 
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
     split = (
@@ -15,13 +31,25 @@ def feature_extraction(args, logger):
         if args.split == "sampled" and "sampled" not in data
         else data.get(args.split)
     )
-    head_config = utils.load_config(f"training/{args.head_config}")
-    weights = None if args.weights is None else data.get(args.weights)
-    sampler = args.sampler == "True"
 
-    ### TODO : Extract embeddings if do not exist
+    # Load class weights if they exist
+    weights = (
+        None
+        if head_config["training_parameters"].get("weights") is None
+        else data.get(head_config["training_parameters"]["weights"])
+    )
+    sampler = head_config["training_parameters"].get("sampler", False) == True
+
+    if args.evaluate == "True" and split is None:
+        raise ValueError("Cannot evaluate without a standard testing split")
+
+    ### TODO: Extract embeddings if do not exist & get path optionally from args
     embeddings = utils.load_embeddings(
-        emb_path=f"{args.output_dir}/extract_embeddings",
+        emb_path=(
+            f"{args.output_dir}/extract_embeddings"
+            if args.embeddings_path is None
+            else args.embeddings_path
+        ),
         data_type=args.data_type,
         model=args.plm,
         layer=args.layer,
@@ -29,130 +57,74 @@ def feature_extraction(args, logger):
     )
     assert (
         embeddings != None
-    ), "Couldn't find embeddings, you can use extract_embeddings function to create and save the embeddings"
+    ), "Couldn't find embeddings, use the full path of the embeddings file (.pt) or you can use extract_embeddings function to create and save the embeddings."
 
-    if head_config["architecture_parameters"]["task"] == "regression":
+    if task == "regression":
         scores = data["score"].values
-    elif head_config["architecture_parameters"]["task"] == "classification":
-        scores = data["binary_score"].values
-    # TODO: Make scores data type agnostic
-    elif "multilabel" in head_config["architecture_parameters"]["task"]:
-        scores = data[["mouse", "cattle", "bat"]].values
+    elif task == "classification":
+        if "binary_score" in data:
+            scores = data["binary_score"].values
+        elif "label" in data:
+            scores = data["label"].values
+        else:
+            raise KeyError("Neither 'binary_score' nor 'label' found in data")
+    elif task == "token_classification":
+        scores = data["label"].values
+        # Convert list of strings to list of list of integers
+        scores = utils.convert_string_list_to_list_of_int_lists(scores)
+        # Pad with -100 to match the sequence length
+        scores = utils.pad_list_of_lists(
+            scores,
+            max(data["len"].values),
+            pad_value=-100,
+            convert_to_np=True,
+            prepend_single_pad=True,
+            append_single_pad=True,
+        )
     else:
-        raise f"Task type {head_config['architecture_parameters']['task']} not supported."
-    scores = torch.tensor(scores, dtype=torch.float32)
-
-    logger.save_data(vars(args), "arguments")
+        raise ValueError("Task not supported")
 
     if args.ray_tuning == "True":
-        head_config = ray_tuning(
-            runner,
-            config=head_config,
-            embeddings=embeddings,
-            scores=scores,
-            logger=logger,
+        assert args.evaluate == "False", "Cannot evaluate and tune at the same time"
+
+        head_config = hyperparameter_tuning(
+            task,
+            args,
+            head_config,
+            embeddings,
+            scores,
+            logger,
             split=split,
+            num_workers=0,
             weights=weights,
             sampler=sampler,
-            experiment_dir=args.experiment_dir,
+            n_trials=100,
         )
 
-    runner(
-        config=head_config,
-        embeddings=embeddings,
-        scores=scores,
-        logger=logger,
+    logger.save_data(vars(args), "arguments")
+    logger.save_data(head_config, "head_config")
+
+    objective(
+        None,
+        task,
+        args,
+        head_config,
+        embeddings,
+        scores,
+        logger,
         split=split,
+        on_ray_tuning=False,
+        num_workers=0,
         weights=weights,
-        sampler=sampler
+        sampler=sampler,
     )
 
 
-# def feature_extraction_lightning(config, args, logger, on_ray_tuning=False):
-#     # Load dataset
-#     data = utils.load_dataset(args.data_type)
-#     head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
-#     split = None if args.split is None else data[args.split]
-
-#     # Load embeddings and scores
-#     ### TODO : Load embeddings if do not exist
-#     embeddings = utils.load_embeddings(emb_path=f'{args.output_dir}/extract_embeddings', data_type=args.data_type, model=args.plm, layer=args.layer, reduction=args.reduction)
-#     assert embeddings != None, "Couldn't find embeddings, you can use extract_embeddings function to save {}"
-
-#     scores = data['score'].values if head_config['architecture_parameters']['task'] == 'regression' else data['binary_score'].values
-#     scores = torch.tensor(scores, dtype=torch.float32)
-
-#     training_params = head_config['training_parameters']
-#     data_loaders = utils.create_data_loaders(
-#             embeddings, scores, scaler=training_params['scaler'], batch_size=training_params['batch_size'], validation_size=training_params['val_split'], split=split, num_workers=NUM_WORKERS)
-
-#     logger.save_data(vars(args), 'arguments')
-#     logger.save_data(head_config, 'head_config')
-
-#     network_type = head_config['architecture_parameters']['network_type']
-#     if network_type == 'linear':
-#         head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
-#         pred_model = heads.LinearHead(head_config['architecture_parameters'])
-#     elif network_type == 'mlp':
-#         head_config['architecture_parameters']['input_dim'] = embeddings.shape[1]
-#         pred_model = heads.MLP(head_config['architecture_parameters'])
-#     else:
-#         raise ValueError('Head type not supported')
-
-#     utils.set_trainable_parameters(pred_model)
-
-#     model = LightningModel(pred_model, head_config['training_parameters'], plmfit_logger=logger, log_interval=100)
-#     lightning_logger = TensorBoardLogger(save_dir=logger.base_dir, version=0, name="lightning_logs")
-
-#     callbacks = [DeviceStatsMonitor(True)]
-#     if model.early_stopping is not None: callbacks.append(model.early_stopping)
-#     if on_ray_tuning:
-#         ray_callback = TuneReportCallback(
-#             {
-#                 "loss": "val_loss"
-#             },
-#             on="validation_end"
-#         )
-#         callbacks.append(ray_callback)
-
-
-#     trainer = L.Trainer(
-#         default_root_dir=logger.base_dir,
-#         logger=lightning_logger,
-#         max_epochs=model.hparams.epochs,
-#         enable_progress_bar=False,
-#         accumulate_grad_batches=model.gradient_accumulation_steps(),
-#         gradient_clip_val=model.gradient_clipping(),
-#         limit_train_batches=model.epoch_sizing(),
-#         limit_val_batches=model.epoch_sizing(),
-#         strategy='deepspeed_stage_3_offload',
-#         precision=16,
-#         callbacks=callbacks
-#     )
-
-#     trainer.strategy.load_full_weights = True
-
-#     trainer.fit(model, data_loaders['train'], data_loaders['val'])
-
-#     model = convert_zero_checkpoint_to_fp32_state_dict(f'{logger.base_dir}/lightning_logs/best_model.ckpt', f'{logger.base_dir}/best_model.ckpt')
-
-#     trainer.test(model=model, ckpt_path=f'{logger.base_dir}/best_model.ckpt', dataloaders=data_loaders['test'])
-
-#     loss_plot = data_explore.create_loss_plot(json_path=f'{logger.base_dir}/{logger.experiment_name}_loss.json')
-#     logger.save_plot(loss_plot, "training_validation_loss")
-
-#     if pred_model.task == 'classification':
-#         fig, _ = data_explore.plot_roc_curve(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
-#         logger.save_plot(fig, 'roc_curve')
-#         fig = data_explore.plot_confusion_matrix_heatmap(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
-#         logger.save_plot(fig, 'confusion_matrix')
-#     elif pred_model.task == 'regression':
-#         fig = data_explore.plot_actual_vs_predicted(json_path=f'{logger.base_dir}/{logger.experiment_name}_metrics.json')
-#         logger.save_plot(fig, 'actual_vs_predicted')
-
-
-def runner(
-    config,
+def objective(
+    trial,
+    task,
+    args,
+    head_config,
     embeddings,
     scores,
     logger,
@@ -161,10 +133,40 @@ def runner(
     num_workers=0,
     weights=None,
     sampler=False,
+    patience=5,
 ):
-    head_config = config if not on_ray_tuning else utils.adjust_config_to_int(config)
+    config = copy.deepcopy(head_config)
 
-    training_params = head_config["training_parameters"]
+    network_type = config["architecture_parameters"]["network_type"]
+
+    epochs = config["training_parameters"]["epochs"]
+    if trial is not None and on_ray_tuning:
+        epochs = config["training_parameters"]["epochs"] // 4
+        config["training_parameters"]["learning_rate"] = trial.suggest_float(
+            "learning_rate", 1e-6, 1e-2
+        )
+        config["training_parameters"]["batch_size"] = trial.suggest_int(
+            "batch_size", 8, 128
+        )
+        config["training_parameters"]["weight_decay"] = trial.suggest_float(
+            "weight_decay", 1e-6, 1e-2
+        )
+        if network_type == "mlp":
+            config["architecture_parameters"]["hidden_dim"] = trial.suggest_int(
+                "hidden_dim", 64, 2048
+            )
+            config["architecture_parameters"]["hidden_dropout"] = (
+                trial.suggest_float("hidden_dropout", 0.0, 1.0)
+            )
+        if network_type == "rnn":
+            config["architecture_parameters"]["hidden_dim"] = trial.suggest_int(
+                "hidden_dim", 16, 512
+            )
+            config["architecture_parameters"]["dropout"] = trial.suggest_float(
+                "dropout", 0.0, 1.0
+            )
+
+    training_params = config["training_parameters"]
     data_loaders = utils.create_data_loaders(
         embeddings,
         scores,
@@ -177,66 +179,211 @@ def runner(
         sampler=sampler,
     )
 
-    if not on_ray_tuning:
-        logger.save_data(head_config, "head_config")
-
-    network_type = head_config["architecture_parameters"]["network_type"]
+    network_type = config["architecture_parameters"]["network_type"]
     if network_type == "linear":
-        head_config["architecture_parameters"]["input_dim"] = embeddings.shape[1]
-        pred_model = heads.LinearHead(head_config["architecture_parameters"])
+        config["architecture_parameters"]["input_dim"] = embeddings.shape[-1]
+        model = heads.LinearHead(config["architecture_parameters"])
     elif network_type == "mlp":
-        head_config["architecture_parameters"]["input_dim"] = embeddings.shape[1]
-        pred_model = heads.MLP(head_config["architecture_parameters"])
+        config["architecture_parameters"]["input_dim"] = embeddings.shape[-1]
+        model = heads.MLP(config["architecture_parameters"])
+    elif network_type == "rnn":
+        config["architecture_parameters"]["input_dim"] = (
+            embeddings.shape[-1]
+        )  # Account for one-hot encodings
+        model = heads.RNN(config["architecture_parameters"])
     else:
         raise ValueError("Head type not supported")
 
-    utils.set_trainable_parameters(pred_model)
-    fine_tuner = FullRetrainFineTuner(training_config=training_params, logger=logger)
-    final_loss = fine_tuner.train(
-        pred_model, dataloaders_dict=data_loaders, on_ray_tuning=on_ray_tuning
+    if not on_ray_tuning:
+        logger.save_data(config, "head_config")
+
+    utils.set_trainable_parameters(model)
+
+    model = LightningModel(
+        model,
+        training_params,
+        plmfit_logger=logger,
+        log_interval=100 if not on_ray_tuning else -1,
+    )
+    lightning_logger = TensorBoardLogger(
+        save_dir=logger.base_dir, version=0, name="lightning_logs"
     )
 
-    return final_loss
+    # TODO make this through the configuration defined
+    if args.data_type == "gb1" and args.split == "one_vs_rest":
+        model.track_validation_after = 10
+    if args.data_type == "rbd" and args.split == "one_vs_rest":
+        model.track_validation_after = -1
+    if args.data_type == "herH3" and args.split == "one_vs_rest":
+        model.track_validation_after = -1
+
+    devices = 1
+    strategy = "auto"
+
+    callbacks = []
+    if on_ray_tuning:
+        callbacks.append(
+            PyTorchLightningPruningCallback(trial, monitor=f"val_loss")
+        )
+    callbacks.append(model.early_stopping() if not on_ray_tuning else model.early_stopping(patience))
+
+    trainer = Trainer(
+        default_root_dir=logger.base_dir,
+        logger=lightning_logger,
+        enable_checkpointing=False,
+        max_epochs=epochs,
+        enable_progress_bar=False,
+        accumulate_grad_batches=model.gradient_accumulation_steps(),
+        gradient_clip_val=model.gradient_clipping(),
+        limit_train_batches=(model.epoch_sizing()),
+        limit_val_batches=(model.epoch_sizing()),
+        devices=devices,
+        strategy=strategy,
+        precision="16-mixed",
+        callbacks=callbacks,
+    )
+
+    if on_ray_tuning:
+        hyperparameters = dict(
+            learning_rate=config["training_parameters"]["learning_rate"],
+            batch_size=config["training_parameters"]["batch_size"],
+            weight_decay=config["training_parameters"]["weight_decay"],
+        )
+        if network_type == "mlp":
+            hyperparameters["hidden_dim"] = config["architecture_parameters"][
+                "hidden_dim"
+            ]
+            hyperparameters["hidden_dropout"] = config["architecture_parameters"][
+                "hidden_dropout"
+            ]
+        if network_type == "rnn":
+            hyperparameters["hidden_dim"] = config["architecture_parameters"][
+                "hidden_dim"
+            ]
+            hyperparameters["dropout"] = config["architecture_parameters"]["dropout"]
+
+        trainer.logger.log_hyperparams(hyperparameters)
+
+    if args.evaluate != "True":
+        model.train()
+        trainer.fit(model, data_loaders["train"], data_loaders["val"])
+
+        if on_ray_tuning:
+            callbacks[0].check_pruned()
+            loss = trainer.callback_metrics[f"val_loss"].item()
+            del trainer
+            del scores
+            del data_loaders
+            del model
+            gc.collect()
+            return loss
+        loss_plot = data_explore.create_loss_plot(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
+        )
+        logger.save_plot(loss_plot, "training_validation_loss")
+        ckpt_path = f"{logger.base_dir}/lightning_logs/best_model.ckpt"
+    else:
+        ckpt_path = args.model_path
+    trainer.test(
+        model=model,
+        ckpt_path=ckpt_path,
+        dataloaders=data_loaders["test"],
+    )
+
+    if task == "classification":
+        if config["architecture_parameters"]["output_dim"] == 1:
+            fig, _ = data_explore.plot_roc_curve(
+                json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
+            )
+            logger.save_plot(fig, "roc_curve")
+        fig = data_explore.plot_confusion_matrix_heatmap(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
+        )
+        logger.save_plot(fig, "confusion_matrix")
+    elif task == "regression":
+        fig = data_explore.plot_actual_vs_predicted(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
+        )
+        logger.save_plot(fig, "actual_vs_predicted")
+    elif task == "token_classification":
+        fig = data_explore.plot_confusion_matrix_heatmap(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
+        )
+        logger.save_plot(fig, "confusion_matrix")
 
 
-def ray_tuning(
-    function_to_run,
-    config,
+def hyperparameter_tuning(
+    task,
+    args,
+    head_config,
     embeddings,
     scores,
     logger,
-    experiment_dir,
     split=None,
+    num_workers=0,
     weights=None,
     sampler=False,
+    n_trials=100,
 ):
+    if version.parse(pl.__version__) < version.parse("2.2.1"):
+        raise RuntimeError(
+                "PyTorch Lightning>=2.2.1 is required for hyper-parameter tuning."
+            )
+    network_type = head_config["architecture_parameters"]["network_type"]
 
-    network_type = config["architecture_parameters"]["network_type"]
-    trials = 500 if network_type == "mlp" else 100
-
-    config["training_parameters"]["learning_rate"] = (1e-6, 1e-2)
-    config["training_parameters"]["batch_size"] = (8, 128)
-    config["training_parameters"]["weight_decay"] = (1e-6, 1e-1)
-    if network_type == "mlp":
-        config["architecture_parameters"]["hidden_dim"] = (64, 2048)
-
-    tuner = HyperTuner(
-        function_to_run=function_to_run,
-        initial_config=config,
-        trials=trials,
-        experiment_dir=experiment_dir,
-        embeddings=embeddings,
-        scores=scores,
-        logger=logger,
-        split=split,
-        weights=weights,
-        sampler=sampler,
-        on_ray_tuning=True,
+    storage = JournalStorage(
+        JournalFileBackend(f"{logger.base_dir}/optuna_journal_storage.log")
+    )
+    pruner = optuna.pruners.MedianPruner()
+    study = optuna.create_study(
+        direction="minimize",
+        pruner=pruner,
+        study_name="plmfit",
+        storage=storage,
+        load_if_exists=True,
     )
 
-    best_config, best_loss = tuner.fit()
+    logger.log("Starting hyperparameter tuning...")
+    logger.mute = True
+    study.optimize(
+        lambda trial: objective(
+            trial,
+            task,
+            args,
+            head_config,
+            embeddings,
+            scores,
+            logger,
+            split,
+            on_ray_tuning=True,
+            num_workers=num_workers,
+            weights=weights,
+            sampler=sampler,
+        ),
+        n_trials=n_trials if network_type == "linear" else n_trials * 4,
+        callbacks=[LogOptunaTrialCallback(logger)],
+        n_jobs=int(args.gpus),
+        gc_after_trial=True,
+        catch=(FileNotFoundError,),
+    )
+    logger.mute = False
+    history = plot_optimization_history(study)
+    slice = plot_slice(study)
+    history.write_image(f"{logger.base_dir}/optuna_optimization_history.png")
+    slice.write_image(f"{logger.base_dir}/optuna_slice.png")
 
-    logger.log(f"Best trial config: {best_config}")
-    logger.log(f"Best trial metrics: {best_loss}")
+    head_config["training_parameters"]["learning_rate"] = study.best_params["learning_rate"]
+    head_config["training_parameters"]["batch_size"] = study.best_params["batch_size"]
+    head_config["training_parameters"]["weight_decay"] = study.best_params["weight_decay"]
+    if network_type == "mlp":
+        head_config["architecture_parameters"]["hidden_dim"] = study.best_params["hidden_dim"]
+        head_config["architecture_parameters"]["hidden_dropout"] = study.best_params[
+            "hidden_dropout"
+        ]
+    if network_type == "rnn":
+        head_config["architecture_parameters"]["hidden_dim"] = study.best_params[
+            "hidden_dim"
+        ]
+        head_config["architecture_parameters"]["dropout"] = study.best_params["dropout"]
 
-    return best_config
+    return head_config
