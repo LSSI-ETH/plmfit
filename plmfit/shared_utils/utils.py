@@ -4,7 +4,13 @@ import json
 import pandas as pd
 from tokenizers import Tokenizer
 from transformers import PreTrainedTokenizerFast
-from torch.utils.data import TensorDataset, DataLoader, Subset, random_split, WeightedRandomSampler
+from torch.utils.data import (
+    TensorDataset,
+    DataLoader,
+    Subset,
+    random_split,
+    WeightedRandomSampler,
+)
 from sklearn.model_selection import train_test_split
 import numpy as np
 from pynvml import *
@@ -23,6 +29,9 @@ from plmfit.models.pretrained_models import (
 from dotenv import load_dotenv
 import blosum as bl
 from collections import Counter
+import torch.nn.functional as F
+import ast
+from plmfit.shared_utils.random_state import get_random_state
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
@@ -70,7 +79,15 @@ def load_embeddings(
         # embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
         return embeddings.clone().detach().to(dtype=torch.float32)
     except:
-        return None
+        try:
+            embeddings = torch.load(
+                f"{emb_path}",
+                map_location=torch.device(device),
+            )
+            # embeddings = embeddings.numpy() if embeddings.is_cuda else embeddings
+            return embeddings.clone().detach().to(dtype=torch.float32)
+        except:
+            return None
 
 
 def create_data_loaders(
@@ -85,6 +102,7 @@ def create_data_loaders(
     num_workers=0,
     weights=None,
     sampler=False,
+    dataset_type="tensor",
 ):
     """
     Create DataLoader objects for training, validation, and testing.
@@ -102,23 +120,27 @@ def create_data_loaders(
     Returns:
         dict: Dictionary containing DataLoader objects for train, validation, and test.
     """
-
+    random_state = get_random_state()
     if split is None:
         X_train, X_test, y_train, y_test = train_test_split(
-            dataset, scores, test_size=test_size, random_state=42
+            dataset, scores, test_size=test_size, random_state=random_state
         )
         X_train, X_val, y_train, y_val = train_test_split(
             X_train,
             y_train,
             test_size=validation_size / (1 - test_size),
-            random_state=42,
+            random_state=random_state,
         )
 
         if weights is not None:
             # Splitting with weights for the initial train-test split
             X_train, X_test, y_train, y_test, weights_train, weights_test = (
                 train_test_split(
-                    dataset, scores, weights, test_size=test_size, random_state=42
+                    dataset,
+                    scores,
+                    weights,
+                    test_size=test_size,
+                    random_state=random_state,
                 )
             )
 
@@ -129,7 +151,7 @@ def create_data_loaders(
                     y_train,
                     weights_train,
                     test_size=validation_size / (1 - test_size),
-                    random_state=42,
+                    random_state=random_state,
                 )
             )
 
@@ -155,7 +177,7 @@ def create_data_loaders(
         # Check if the validation set is empty and split the training data if necessary
         if X_val.shape[0] == 0 or y_val.shape[0] == 0:
             X_train, X_val, y_train, y_val = train_test_split(
-                X_train, y_train, test_size=validation_size, random_state=42
+                X_train, y_train, test_size=validation_size, random_state=random_state
             )
             if weights is not None:
                 X_train, X_val, y_train, y_val, weights_train, weights_val = (
@@ -164,7 +186,7 @@ def create_data_loaders(
                         y_train,
                         weights_train,
                         test_size=validation_size,
-                        random_state=42,
+                        random_state=random_state,
                     )
                 )
 
@@ -191,21 +213,28 @@ def create_data_loaders(
         weights_val = convert_or_clone_to_tensor(weights_val, dtype=torch.float32)
         weights_test = convert_or_clone_to_tensor(weights_test, dtype=torch.float32)
 
+    if dataset_type == "tensor":
+        Dataset = TensorDataset
+    elif dataset_type == "one_hot":
+        Dataset = OneHotDataset
+    else:
+        raise ValueError("dataset_type must be either 'tensor' or 'one_hot'")
+
     # Create DataLoader for training, validation, and testing
     if weights is not None and sampler is False:
-        train_dataset = TensorDataset(X_train, y_train, weights_train)
-        val_dataset = TensorDataset(X_val, y_val, weights_val)
-        test_dataset = TensorDataset(X_test, y_test, test_ids, weights_test)
+        train_dataset = Dataset(X_train, y_train, weights_train)
+        val_dataset = Dataset(X_val, y_val, weights_val)
+        test_dataset = Dataset(X_test, y_test, test_ids, weights_test)
     else:
-        train_dataset = TensorDataset(X_train, y_train)
-        val_dataset = TensorDataset(X_val, y_val)
-        test_dataset = TensorDataset(X_test, y_test, test_ids)
+        train_dataset = Dataset(X_train, y_train)
+        val_dataset = Dataset(X_val, y_val)
+        test_dataset = Dataset(X_test, y_test, test_ids)
 
-    if sampler: 
+    if sampler:
         train_sampler = init_weighted_sampler(train_dataset, weights_train)
         val_sampler = init_weighted_sampler(val_dataset, weights_val)
         test_sampler = None
-    else: 
+    else:
         train_sampler = None
         val_sampler = None
         test_sampler = None
@@ -213,10 +242,11 @@ def create_data_loaders(
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=sampler==False, # If sampler is used, shuffle is not needed
+        shuffle=sampler == False,  # If sampler is used, shuffle is not needed
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=train_sampler,
+        generator=random_state,
     )
     val_loader = DataLoader(
         val_dataset,
@@ -225,6 +255,7 @@ def create_data_loaders(
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=val_sampler,
+        generator=random_state,
     )
     test_loader = DataLoader(
         test_dataset,
@@ -233,16 +264,94 @@ def create_data_loaders(
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=test_sampler,
+        generator=random_state,
     )
 
     return {"train": train_loader, "val": val_loader, "test": test_loader}
 
-def init_weighted_sampler(dataset, weights, num_samples_method='min'):
+def create_predict_data_loader(
+    dataset,
+    batch_size=64,
+    dtype=torch.int8,
+    num_workers=0,
+    dataset_type="tensor",
+):
+    """
+    Create DataLoader objects for prediction.
+
+    Parameters:
+        dataset (numpy.ndarray): Input dataset.
+        batch_size (int): Batch size for DataLoader (default is 64).
+
+    Returns:
+        DataLoader: DataLoader object for prediction.
+    """
+    X = convert_or_clone_to_tensor(dataset, dtype=dtype)
+
+    if dataset_type == "tensor":
+        Dataset = TensorDataset
+    elif dataset_type == "one_hot":
+        Dataset = OneHotDataset
+    else:
+        raise ValueError("dataset_type must be either 'tensor' or 'one_hot'")
+
+    dataset = Dataset(X)
+
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=num_workers > 0,
+    )
+
+
+class OneHotDataset(TensorDataset):
+    """
+    A custom dataset class that one-hot encodes the first tensor in the dataset.
+    set_num_classes must be called before using this dataset, to set the number of classes.
+    """
+
+    def __init__(self, *tensors, flatten=True):
+        assert all(
+            tensors[0].size(0) == tensor.size(0) for tensor in tensors
+        ), "Size mismatch between tensors"
+        self.tensors = tensors
+        self.flatten = True
+
+    def set_num_classes(self, num_classes):
+        self.num_classes = num_classes
+
+    def set_flatten(self, flatten):
+        self.flatten = flatten
+
+    def __getitem__(self, index):
+        # one hot the first tensor index and the others as is and then return
+        return tuple(
+            one_hot_encode(tensor[index], self.num_classes, self.flatten) if i == 0 else tensor[index]
+            for i, tensor in enumerate(self.tensors)
+        )
+
+
+def one_hot_encode(seqs, num_classes, flatten=True):
+    # get dtype and save it
+    dtype = seqs.dtype
+    # convert to long
+    seqs = seqs.long()
+    # one hot encode
+    encs = F.one_hot(seqs, num_classes)
+    # convert back to original dtype
+    encs = encs.to(dtype=dtype)
+    # return the tensor flattened
+    return encs.flatten() if flatten else encs
+
+
+def init_weighted_sampler(dataset, weights, num_samples_method="min"):
     # Count the occurrences of each class in the dataset
     labels = dataset.tensors[1].numpy()  # Assuming that labels are in the second tensor
     class_counts = Counter(labels)
 
-    if num_samples_method == 'min':
+    if num_samples_method == "min":
         # Find the class with the least count
         min_class_count = min(class_counts.values())
         # Calculate the number of unique classes
@@ -258,6 +367,7 @@ def init_weighted_sampler(dataset, weights, num_samples_method='min'):
         weights=weights,
         num_samples=num_samples,
         replacement=True,  # To allow resampling
+        generator=get_random_state()
     )
 
 
@@ -274,6 +384,85 @@ def convert_or_clone_to_tensor(data, dtype):
         raise TypeError(
             "Input data must be a NumPy array, a DataFrame Series, a list or a PyTorch tensor."
         )
+
+
+def convert_string_list_to_list_of_int_lists(data):
+    """
+    Converts a list of strings, where each string represents a list of integers,
+    into a list of lists of integers.
+
+    Args:
+        data (list of str): List of strings, each representing a list of integers.
+
+    Returns:
+        list of list of int: List of lists of integers.
+    """
+    list_data = [ast.literal_eval(sample) for sample in data]
+
+    return list_data
+
+
+def pad_list_of_lists(
+    data,
+    max_len,
+    pad_value=0,
+    convert_to_np=False,
+    prepend_single_pad=False,
+    append_single_pad=False,
+):
+    """
+    Pads a list of lists with a specified pad value to a maximum length.
+
+    Args:
+        data (list of list): List of lists to pad.
+        max_len (int): Maximum length to pad each list to.
+        pad_value (int): Value to use for padding.
+
+    Returns:
+        list of list: Padded list of lists.
+    """
+    if prepend_single_pad:
+        max_len += 1
+    if append_single_pad:
+        max_len += 1
+    if convert_to_np:
+        return np.array(
+            [
+                pad_list(
+                    sample,
+                    max_len,
+                    pad_value,
+                    prepend_single_pad,
+                    append_single_pad,
+                )
+                for sample in data
+            ]
+        )
+    return [
+        pad_list(sample, max_len, pad_value, prepend_single_pad, append_single_pad)
+        for sample in data
+    ]
+
+
+def pad_list(
+    data, max_len, pad_value=0, prepend_single_pad=False, append_single_pad=False
+):
+    """
+    Pads a list with a specified pad value to a maximum length.
+
+    Args:
+        data (list): List to pad.
+        max_len (int): Maximum length to pad the list to.
+        pad_value (int): Value to use for padding.
+
+    Returns:
+        list: Padded list.
+    """
+    if prepend_single_pad:
+        data = [pad_value] + data
+    if append_single_pad:
+        data = data + [pad_value]
+    return data + [pad_value] * (max_len - len(data))
 
 
 def get_epoch_dataloaders(dataloader, epoch_size=0):
@@ -304,6 +493,7 @@ def get_epoch_dataloaders(dataloader, epoch_size=0):
         shuffle=True,
         num_workers=dataloader["train"].num_workers,
         pin_memory=dataloader["train"].pin_memory,
+        generator=get_random_state(),
     )
     val_dataloader = DataLoader(
         val_set,
@@ -311,6 +501,7 @@ def get_epoch_dataloaders(dataloader, epoch_size=0):
         shuffle=False,
         num_workers=dataloader["val"].num_workers,
         pin_memory=dataloader["val"].pin_memory,
+        generator=get_random_state(),
     )
 
     return {
@@ -347,7 +538,7 @@ def get_activation_function(name):
     elif name == "sigmoid":
         return nn.Sigmoid()
     elif name == "softmax":
-        return nn.Softmax()
+        return nn.Softmax(dim=-1)
     elif name == "tanh":
         return nn.Tanh()
     # Add more activation functions as needed
@@ -415,10 +606,6 @@ def load_transformer_tokenizer(model_name, tokenizer):
         return tokenizer
     else:
         raise "Transformer tokenizer not supported (yet)"
-
-
-def one_hot_encode(seqs):
-    return torch.tensor([0])
 
 
 def blosum62_encode(sequences, pad_to_length, logger=None):
@@ -828,22 +1015,21 @@ def init_plm(model_name, logger, task="regression"):
         "esm2_t36_3B_UR50D",
         "esm2_t48_15B_UR50D",
     ]
-    supported_Ankh = ["ankh-base", "ankh-large", "ankh2-large"]
+    # supported_Ankh = ["ankh-base", "ankh-large", "ankh2-large"]
     supported_Proteinbert = ["proteinbert"]
 
     if "progen" in model_name:
         assert model_name in supported_progen2, "Progen version is not supported"
-        model = ProGenFamily(model_name, logger)
+        model = ProGenFamily(model_name, logger, task)
 
     elif "esm" in model_name:
         assert model_name in supported_ESM, "ESM version is not supported"
         model = ESMFamily(model_name, logger, task)
-
-    elif "ankh" in model_name:
-        assert model_name in supported_Ankh, "Ankh version is not supported"
-        model = AnkhFamily(model_name)
-    elif "antiberty" in model_name:
-        model = Antiberty()
+    # elif "ankh" in model_name:
+    #     assert model_name in supported_Ankh, "Ankh version is not supported"
+    #     model = AnkhFamily(model_name)
+    # elif "antiberty" in model_name:
+    #     model = Antiberty()
     elif "proteinbert" in model_name:
         assert (
             model_name in supported_Proteinbert
@@ -893,24 +1079,26 @@ def masking_collator(
     ):
         special_tokens_mask = special_tokens_mask.bool()
     probability_matrix.masked_fill_(special_tokens_mask, value=0.0)
+    random_state = get_random_state()
 
     # Create mask array
-    masked_indices = torch.bernoulli(probability_matrix).bool()
+    masked_indices = torch.bernoulli(probability_matrix, generator=random_state).bool()
 
     # Apply 80-10-10 masking strategy:
     # 80% MASK
     indices_replaced_with_mask = (
-        torch.bernoulli(torch.full(labels.shape, 0.8)).bool() & masked_indices
+        torch.bernoulli(torch.full(labels.shape, 0.8), generator=random_state).bool()
+        & masked_indices
     )
     input_ids[indices_replaced_with_mask] = tokenizer.mask_token_id
 
     # 10% random token
     indices_replaced_with_random = (
-        torch.bernoulli(torch.full(labels.shape, 0.1)).bool()
+        torch.bernoulli(torch.full(labels.shape, 0.1), generator=random_state).bool()
         & masked_indices
         & ~indices_replaced_with_mask
     )
-    random_tokens = torch.randint(low=0, high=tokenizer.vocab_size, size=labels.shape)
+    random_tokens = torch.randint(low=0, high=tokenizer.vocab_size, size=labels.shape, generator=random_state)
     input_ids[indices_replaced_with_random] = random_tokens[
         indices_replaced_with_random
     ]
@@ -961,14 +1149,18 @@ def create_mlm_data_loaders(
     val_size = int(len(dataset) * split_ratios[1])
     test_size = len(dataset) - train_size - val_size
 
+    random_state = get_random_state()
+
     # Randomly split the dataset
     train_dataset, val_dataset, test_dataset = random_split(
-        dataset, [train_size, val_size, test_size]
+        dataset, [train_size, val_size, test_size], generator=random_state
     )
 
     # Create data loaders for each split
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, generator=random_state
+    )
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, generator=random_state)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, generator=random_state)
 
     return {"train": train_loader, "val": val_loader, "test": test_loader}

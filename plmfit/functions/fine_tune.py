@@ -28,12 +28,21 @@ def fine_tune(args, logger):
     # if args.experimenting == "True": data = data.sample(100)
 
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
+
+    # TODO Fix for domain adaptation
     split = (
         None
         if args.split == "sampled" and "sampled" not in data
         else data.get(args.split)
     )
-    weights = None if head_config["training_parameters"].get("weights") is None else data.get(head_config["training_parameters"]["weights"])
+    if args.evaluate == "True" and split is None:
+        raise ValueError("Cannot evaluate without a standard testing split")
+
+    weights = (
+        None
+        if head_config["training_parameters"].get("weights") is None
+        else data.get(head_config["training_parameters"]["weights"])
+    )
     sampler = head_config["training_parameters"].get("sampler", False) == True
     model = utils.init_plm(args.plm, logger, task=task)
     assert model != None, "Model is not initialized"
@@ -131,12 +140,8 @@ def fine_tune(args, logger):
         enable_progress_bar=False,
         accumulate_grad_batches=model.gradient_accumulation_steps(),
         gradient_clip_val=model.gradient_clipping(),
-        limit_train_batches=(
-            model.epoch_sizing() if len(data_loaders["train"].dataset) > 30000 else 1.0
-        ),
-        limit_val_batches=(
-            model.epoch_sizing() if len(data_loaders["train"].dataset) > 30000 else 1.0
-        ),
+        limit_train_batches=(model.epoch_sizing()),
+        limit_val_batches=(model.epoch_sizing()),
         devices=devices,
         strategy=strategy,
         precision="16-mixed",
@@ -147,28 +152,32 @@ def fine_tune(args, logger):
             model, num_gpus_per_node=int(args.gpus), num_nodes=1
         )
 
-    model.train()
-    trainer.fit(model, data_loaders["train"], data_loaders["val"])
+    if args.evaluate != "True":
+        model.train()
+        trainer.fit(model, data_loaders["train"], data_loaders["val"])
 
-    if torch.cuda.is_available():
-        convert_zero_checkpoint_to_fp32_state_dict(
-            f"{logger.base_dir}/lightning_logs/best_model.ckpt",
-            f"{logger.base_dir}/best_model.ckpt",
-        )
+        ckpt_path = f"{logger.base_dir}/lightning_logs/best_model.ckpt"
+        if torch.cuda.is_available():
+            convert_zero_checkpoint_to_fp32_state_dict(
+                f"{logger.base_dir}/lightning_logs/best_model.ckpt",
+                f"{logger.base_dir}/best_model.ckpt",
+            )
+            ckpt_path = f"{logger.base_dir}/best_model.ckpt"
 
-    loss_plot = data_explore.create_loss_plot(
-        json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
-    )
-    logger.save_plot(loss_plot, "training_validation_loss")
+            loss_plot = data_explore.create_loss_plot(
+                json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
+            )
+            logger.save_plot(loss_plot, "training_validation_loss")
+    else:
+        ckpt_path = args.model_path
 
     # TODO: Testing for lm
     if task != "masked_lm":
         trainer.test(
             model=model,
-            ckpt_path=f"{logger.base_dir}/best_model.ckpt",
+            ckpt_path=ckpt_path,
             dataloaders=data_loaders["test"],
         )
-
     if task == "classification":
         if head_config["architecture_parameters"]["output_dim"] == 1:
             fig, _ = data_explore.plot_roc_curve(
@@ -184,6 +193,11 @@ def fine_tune(args, logger):
             json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
         )
         logger.save_plot(fig, "actual_vs_predicted")
+    elif task == "token_classification":
+        fig = data_explore.plot_confusion_matrix_heatmap(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
+        )
+        logger.save_plot(fig, "confusion_matrix")
 
     if torch.cuda.is_available():
         shutil.rmtree(f"{logger.base_dir}/lightning_logs/best_model.ckpt")
@@ -217,6 +231,19 @@ def downstream_prep(
             scores = data["label"].values
         else:
             raise KeyError("Neither 'binary_score' nor 'label' found in data")
+    elif task == "token_classification":
+        scores = data["label"].values
+        # Convert list of strings to list of list of integers
+        scores = utils.convert_string_list_to_list_of_int_lists(scores)
+        # Pad with -100 to match the sequence length
+        scores = utils.pad_list_of_lists(
+            scores,
+            max(data["len"].values),
+            pad_value=-100,
+            convert_to_np=True,
+            prepend_single_pad=True,
+            append_single_pad=True,
+        )
     else:
         raise ValueError("Task not supported")
 

@@ -20,5 +20,5 @@ do
          --gpus-per-node="$gpus" \
          --gres="gpumem:$gres" \
          scripts/extract_embeddings/extract_embeddings_mass.sh \
-         "$function" "$data_type" "$plm" "$reduction" "$layer" "$output_dir" "$experiment_dir" "$experiment_name"
+         "$function" "$data_type" "$plm" "$reduction" "$layer" "$output_dir" "$experiment_dir" "$experiment_name" "$gpus"
 done

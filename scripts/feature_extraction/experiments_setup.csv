@@ -1,101 +1,141 @@
-function	ft_method	data_type	split	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	linear	classification	linear_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	linear	classification	linear_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	linear	classification	linear_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	linear	classification	linear_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	linear	classification	linear_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	linear	classification	linear_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	linear	classification	linear_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	linear	classification	linear_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	linear	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	linear	classification	linear_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	mlp	classification	linear_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	mlp	classification	linear_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	mlp	classification	linear_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	mlp	classification	linear_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	mlp	classification	linear_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	mlp	classification	linear_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	mlp	classification	linear_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	mlp	classification	linear_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	mlp	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t33_650M_UR50D	mlp	classification	linear_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	linear	classification	linear_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	linear	classification	linear_classification_head_config.json	True	first	eos	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	linear	classification	linear_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	linear	classification	linear_classification_head_config.json	True	quarter1	eos	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	linear	classification	linear_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	linear	classification	linear_classification_head_config.json	True	middle	eos	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	linear	classification	linear_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	linear	classification	linear_classification_head_config.json	True	quarter3	eos	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	linear	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	linear	classification	linear_classification_head_config.json	True	last	eos	/cluster/scratch/estamkopoulo	1	24g	14g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	mlp	classification	linear_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	mlp	classification	linear_classification_head_config.json	True	first	eos	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	mlp	classification	linear_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	mlp	classification	linear_classification_head_config.json	True	quarter1	eos	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	mlp	classification	linear_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	mlp	classification	linear_classification_head_config.json	True	middle	eos	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	mlp	classification	linear_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	mlp	classification	linear_classification_head_config.json	True	quarter3	eos	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	mlp	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-medium	mlp	classification	linear_classification_head_config.json	True	last	eos	/cluster/scratch/estamkopoulo	1	24g	14g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	linear_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	linear_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	linear_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	linear_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	linear_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	linear_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	linear_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	linear_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	linear	classification	linear_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	mlp	classification	linear_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	mlp	classification	linear_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	mlp	classification	linear_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	mlp	classification	linear_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	mlp	classification	linear_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	mlp	classification	linear_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	mlp	classification	linear_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	mlp	classification	linear_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	mlp	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t36_3B_UR50D	mlp	classification	linear_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	linear	classification	linear_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	linear	classification	linear_classification_head_config.json	True	first	eos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	linear	classification	linear_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	linear	classification	linear_classification_head_config.json	True	quarter1	eos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	linear	classification	linear_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	linear	classification	linear_classification_head_config.json	True	middle	eos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	linear	classification	linear_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	linear	classification	linear_classification_head_config.json	True	quarter3	eos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	linear	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	linear	classification	linear_classification_head_config.json	True	last	eos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	mlp	classification	linear_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	mlp	classification	linear_classification_head_config.json	True	first	eos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	mlp	classification	linear_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	mlp	classification	linear_classification_head_config.json	True	quarter1	eos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	mlp	classification	linear_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	mlp	classification	linear_classification_head_config.json	True	middle	eos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	mlp	classification	linear_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	mlp	classification	linear_classification_head_config.json	True	quarter3	eos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	mlp	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	progen2-xlarge	mlp	classification	linear_classification_head_config.json	True	last	eos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	linear	classification	linear_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	linear	classification	linear_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	linear	classification	linear_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	linear	classification	linear_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	linear	classification	linear_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	linear	classification	linear_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	linear	classification	linear_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	linear	classification	linear_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	linear	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	linear	classification	linear_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	4
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	mlp	classification	linear_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	mlp	classification	linear_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	mlp	classification	linear_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	mlp	classification	linear_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	mlp	classification	linear_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	mlp	classification	linear_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	mlp	classification	linear_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	mlp	classification	linear_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	mlp	classification	linear_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
-fine_tuning	feature_extraction	rbd	one_vs_rest	esm2_t48_15B_UR50D	mlp	classification	linear_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	1	24g	24g	1	10
+function	ft_method	data_type	split	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir		gpus	gres	mem-per-cpu	nodes	run_time	experimenting
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	linear	classification	linear_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	linear	classification	linear_multiclass_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	linear	classification	linear_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	linear	classification	linear_multiclass_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	linear	classification	linear_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	linear	classification	linear_multiclass_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	proteinbert	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	linear	classification	linear_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	linear	classification	linear_multiclass_classification_head_config.json	True	first	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	linear	classification	linear_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	linear	classification	linear_multiclass_classification_head_config.json	True	middle	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	linear	classification	linear_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	linear	classification	linear_multiclass_classification_head_config.json	True	last	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-small	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t33_650M_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	linear	classification	linear_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	linear	classification	linear_multiclass_classification_head_config.json	True	first	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	linear	classification	linear_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	linear	classification	linear_multiclass_classification_head_config.json	True	middle	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	linear	classification	linear_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	linear	classification	linear_multiclass_classification_head_config.json	True	last	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-medium	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t36_3B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	linear	classification	linear_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	linear	classification	linear_multiclass_classification_head_config.json	True	first	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	linear	classification	linear_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	linear	classification	linear_multiclass_classification_head_config.json	True	middle	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	linear	classification	linear_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	linear	classification	linear_multiclass_classification_head_config.json	True	last	eos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	progen2-xlarge	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	eos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	2	rtx_3090	10g	1	12	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	first	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter1	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	middle	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	quarter3	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	mean	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False
+fine_tuning	feature_extraction	ezy1	sampled	esm2_t48_15B_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	bos	/cluster/scratch/estamkopoulo	2	quadro_rtx_6000	20g	1	24	False

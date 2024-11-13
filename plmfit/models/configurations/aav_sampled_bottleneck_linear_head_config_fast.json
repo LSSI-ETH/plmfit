@@ -1,0 +1,26 @@
+{
+  "architecture_parameters":
+  {
+    "network_type": "linear",
+    "output_dim": 1,
+    "task": "regression",
+    "dropout": 0
+  },
+  "training_parameters": {
+    "learning_rate": 0.0001,
+    "epochs": 3,
+    "batch_size": 4,
+    "loss_f": "mse",
+    "optimizer": "adam",
+    "val_split": 0.2,
+    "weight_decay": 0.0001,
+    "warmup_steps": 0,
+    "gradient_clipping": false,
+    "scheduler": false,
+    "scaler": false,
+    "gradient_accumulation": 1,
+    "early_stopping": 20,
+    "epoch_sizing": 0.15,
+    "model_output": "logits"
+  }
+}

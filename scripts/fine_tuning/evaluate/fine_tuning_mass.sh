@@ -21,23 +21,24 @@ echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
 
 
 export CUDA_LAUNCH_BLOCKING=1
+export HF_HOME="/cluster/scratch/$SLURM_USERNAME/"
+export HF_HUB_CACHE="/cluster/scratch/$SLURM_USERNAME/"
 source $VIRTUAL_ENV/bin/activate
 
 nvidia-smi
-nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used --format=csv -l 1 > ${7}/gpu_usage.log 2>&1 &
+nvidia-smi --query-gpu=timestamp,name,utilization.gpu,memory.total,memory.used --format=csv -l 1 > ${11}/gpu_usage.log 2>&1 &
 # Store the PID of the nvidia-smi background process
 NVIDIA_SMI_PID=$!
 
 while true; do
-  myjobs -j $SLURM_JOBID >> ${7}/task_monitor.log 2>&1
+  myjobs -j $SLURM_JOBID >> ${11}/task_monitor.log 2>&1
   sleep 1
 done &
 CPU_FREE_PID=$!
 
-python3 plmfit --function $1 --head_config $2 \
-        --data_type $4 --split $5 --ray_tuning $3 \
-        --output_dir ${6} --experiment_dir ${7} --experiment_name ${8} \
-        --gpus ${9} --nodes ${10} --beta True --experimenting ${11}
+srun python3 plmfit --function $1 --ft_method $2 --target_layers $3 --head_config $4 \
+        --data_type $5 --split $6 --plm $7 --layer $8 --reduction $9 \
+        --output_dir ${10} --experiment_dir ${11} --experiment_name ${12} --gpus ${13} --nodes ${14} --beta True --experimenting ${15} --model_path ${16} --evaluate True
 
 kill $NVIDIA_SMI_PID
 kill $CPU_FREE_PID

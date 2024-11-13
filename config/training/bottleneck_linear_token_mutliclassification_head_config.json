@@ -1,19 +1,19 @@
 {
   "architecture_parameters": {
     "network_type": "linear",
-    "output_dim": 8,
-    "task": "classification",
+    "output_dim": 3,
+    "task": "token_classification",
     "dropout": 0,
     "output_activation": "softmax"
   },
   "training_parameters": {
     "learning_rate": 0.0001,
-    "epochs": 15,
+    "epochs": 20,
     "batch_size": 4,
     "loss_f": "cross_entropy",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 0.01,
+    "weight_decay": 0.0001,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,
@@ -22,8 +22,6 @@
     "epoch_sizing": false,
     "early_stopping": 3,
     "model_output": "logits",
-    "weights": "weights",
-    "sampler": true,
-    "no_classes": 8
+    "no_classes": 3
   }
 }

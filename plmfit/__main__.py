@@ -2,6 +2,7 @@ from plmfit.logger import Logger
 import os
 import argparse
 import traceback
+from plmfit.shared_utils.random_state import set_seed
 
 NUM_WORKERS = 0
 
@@ -53,6 +54,8 @@ def main():
                         help='Output directory for created files')
     parser.add_argument('--experiment_dir', type=str, default='./output',
                         help='Output directory for created files')
+    parser.add_argument('--embeddings_path', type=str, default=None,
+                        help='Path where embeddings are stored')
     parser.add_argument('--logger', type=str, default='local')
     parser.add_argument('--cpus', default=1)
     parser.add_argument('--gpus', default=0)
@@ -64,11 +67,18 @@ def main():
     parser.add_argument('--nulled', default="False")
     parser.add_argument('--weights', default=None)
     parser.add_argument('--sampler', default="False")
+    parser.add_argument('--split_size', default=0, type=int)
+    parser.add_argument('--model_path', default=None)
+    parser.add_argument('--evaluate', default="False")
+    parser.add_argument('--seed', default=42, type=int)
 
     args = parser.parse_args()
     experiment_dir = args.experiment_dir
     if not os.path.exists(experiment_dir):
         os.makedirs(experiment_dir, exist_ok=True)
+
+    # Set global seed
+    set_seed(args.seed)
         
     # Removing the output_dir prefix from experiment_dir
     trimmed_experiment_dir = experiment_dir.removeprefix(f"{args.output_dir}/")

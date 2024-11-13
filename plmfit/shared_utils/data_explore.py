@@ -85,7 +85,7 @@ def plot_normalized_score_distribution(data, column="normalized_score", text="Fi
 def plot_sequence_length_distribution(data, path=None):
     sns.set(style="whitegrid")
     plt.figure(figsize=(10, 6))
-    ax = sns.histplot(data['sequence_length'], discrete=True)
+    ax = sns.histplot(data['len'], discrete=True)
     plt.title('Sequence Length Distribution', fontsize=16)
     plt.xlabel('Length (Number of Amino Acids)', fontsize=14)
     plt.ylabel('Frequency', fontsize=14)
