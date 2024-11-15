@@ -39,11 +39,11 @@ baselines = [
 
 # Names for each dataset
 dict_names = [
-    'AAV - sampled',
-    'AAV - one_vs_rest',
-    'GB1 - three_vs_rest',
-    'GB1 - one_vs_rest',
-    'Meltome - mixed'
+    'AAV-sampled',
+    'AAV-one vs rest',
+    'GB1-three vs rest',
+    'GB1-one vs rest',
+    'Meltome-mixed'
 ]
 
 fig = plt.figure(figsize=(30, 15))
@@ -87,12 +87,7 @@ num_ticks = len(dict_names)
 data_fe = []
 data_ft = []
 
-# Create a single subplot spanning the entire second row
-ax_joint = fig.add_subplot(gs[1, :])
 
-num_ticks = len(dict_names)
-data_fe = []
-data_ft = []
 
 # Prepare the data for boxplots
 for dataset, baseline in zip(datasets, baselines):
@@ -149,27 +144,6 @@ ax_joint.set_title("                  ", fontsize=55)  # Remove title from the s
 plt.tight_layout()
 
 # Print statistics for each task below the x-axis
-def print_boxplot_stats(bp, positions, task_names):
-    for i, pos in enumerate(positions):
-        q1 = bp['whiskers'][i*2].get_ydata()[1]
-        q3 = bp['whiskers'][i*2+1].get_ydata()[1]
-        median = bp['medians'][i].get_ydata()[1]
-        min_val = bp['caps'][i*2].get_ydata()[1]
-        max_val = bp['caps'][i*2+1].get_ydata()[1]
-        
-        # Get the outliers
-        outliers = bp['fliers'][i].get_ydata()
-        
-        # Add the outliers to the printed stats
-        ax_joint.text(pos, -75, f"Q1: {q1:.2f}\nQ3: {q3:.2f}\nMin: {min_val:.2f}\nMax: {max_val:.2f}\nMed: {median:.2f}\nOutliers: {list(outliers)}", 
-                     ha='center', va='top', fontsize=12, color='black')
-        
-        # Print the stats including outliers
-        print(f'//////// {task_names[i]} ////////')
-        print(f"Q1: {q1:.2f}\nQ3: {q3:.2f}\nMin: {min_val:.2f}\nMax: {max_val:.2f}\nMed: {median:.2f}\nOutliers: {list(outliers)}")
-# Print stats for FE and FT boxplots
-print_boxplot_stats(bp_fe, positions_fe, dict_names)
-print_boxplot_stats(bp_ft, positions_ft, dict_names)
 
 # Save the figure
 plt.savefig('results_visualization/til_overview_with_joint_boxplots_and_legend_spaced.png', bbox_inches='tight', dpi=300)

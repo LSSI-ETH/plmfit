@@ -61,9 +61,9 @@ baselines = [
 
 
 dict_names = [
-    'AAV - sampled',
-    'GB1 - three_vs_rest',
-    'Meltome - mixed'
+    'AAV-sampled',
+    'GB1-three vs rest',
+    'Meltome-mixed'
 ]
 
 from matplotlib.lines import Line2D
@@ -90,6 +90,26 @@ fig, axes = plt.subplots(nrows=3, ncols=len(dict_names), figsize=(50, 30), share
 handles_dict = {}
 
 # Plot Feature Extraction (Row 1)
+# Function to filter out extrapolation and reduce marker size when y == 0.2
+def process_plot(numeric_x, numeric_y, ax, model, colors, markers):
+    # Split the data into two parts: one with y != 0.2 and the other with y == 0.2
+    small_marker_x = [x for x, y in zip(numeric_x, numeric_y) if y == 0.2]
+    small_marker_y = [y for y in numeric_y if y == 0.2]
+    
+    full_marker_x = [x for x, y in zip(numeric_x, numeric_y) if y != 0.2]
+    full_marker_y = [y for y in numeric_y if y != 0.2]
+    
+    # Plot points with y != 0.2 using normal line and markers
+    if full_marker_x and full_marker_y:
+        sns.lineplot(x=full_marker_x, y=full_marker_y, label=model, color=colors[model], 
+                     marker=markers[model], markersize=20, ax=ax, linewidth=4)
+    
+    # Plot points where y == 0.2 using very small markers and no line
+    if small_marker_x and small_marker_y:
+        sns.scatterplot(x=small_marker_x, y=small_marker_y, label=model, color=colors[model], 
+                        marker=markers[model], s=10, ax=ax)  # 's' controls marker size in scatterplot
+
+# Plot Feature Extraction (Row 1)
 for idx, (data, ax, baseline, name) in enumerate(zip(datasets_fe, axes[0, :], baselines, dict_names)):
     y_values_matrix = []
     numeric_x = convert_to_numeric(list(index_layers.values()))
@@ -97,9 +117,8 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_fe, axes[0, :], ba
     for model, values in data.items():
         numeric_y = convert_to_numeric(values)
 
-        # Plot the value lines for each protein language model with increased line thickness
-        line = sns.lineplot(x=numeric_x, y=numeric_y, label=model, color=colors[model], marker=markers[model], 
-                            markersize=20, ax=ax, linewidth=4)
+        # Process plotting with reduced marker size and no extrapolation for y == 0.2
+        process_plot(numeric_x, numeric_y, ax, model, colors, markers)
 
         # Create custom handle for this line if not already added
         if model not in handles_dict:
@@ -113,15 +132,10 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_fe, axes[0, :], ba
     min_y_values = np.min(y_values_matrix, axis=0)
     max_y_values = np.max(y_values_matrix, axis=0)
 
-    # Shade the area between the min and max values in light gray
-   # ax.fill_between(numeric_x, min_y_values, max_y_values, color='lightgray', alpha=0.3)
-
     # Plot baseline as a dashed line with thicker line
-    baseline_handle = Line2D([0], [0], color='red', linestyle='--', linewidth=4,  label='OHE - baseline')
-    ax.axhline(y=baseline, color='red', linestyle='--',  label='OHE - baseline', linewidth=4)
+    baseline_handle = Line2D([0], [0], color='red', linestyle='--', linewidth=4, label='OHE - baseline')
+    ax.axhline(y=baseline, color='red', linestyle='--', label='OHE - baseline', linewidth=4)
     
-    # Add baseline handle to dictionary
-
     # Set y-axis limits and customize ticks
     ax.set_ylim(0.3, 1)  # Adjust y-axis limits
     ax.set_yticks(get_y_ticks(ax))  # Set custom y-ticks
@@ -136,6 +150,7 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_fe, axes[0, :], ba
     # Remove individual legends from subplots
     ax.legend_.remove()
 
+
 # Plot LoRA (Row 2)
 for idx, (data, ax, baseline, name) in enumerate(zip(datasets_lora, axes[1, :], baselines, dict_names)):
     y_values_matrix = []
@@ -144,9 +159,8 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_lora, axes[1, :], 
     for model, values in data.items():
         numeric_y = convert_to_numeric(values)
 
-        # Plot the value lines for each protein language model with increased line thickness
-        line = sns.lineplot(x=numeric_x, y=numeric_y, label=model, color=colors[model], marker=markers[model], 
-                            markersize=20, ax=ax, linewidth=4)
+        # Process plotting with reduced marker size and no extrapolation for y == 0.2
+        process_plot(numeric_x, numeric_y, ax, model, colors, markers)
 
         # Create custom handle for this line if not already added
         if model not in handles_dict:
@@ -159,21 +173,16 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_lora, axes[1, :], 
     y_values_matrix = np.array(y_values_matrix)
     min_y_values = np.min(y_values_matrix, axis=0)
     max_y_values = np.max(y_values_matrix, axis=0)
-    
-    # Shade the area between the min and max values in light gray
-    #ax.fill_between(numeric_x, min_y_values, max_y_values, color='lightgray', alpha=0.3)
 
     # Plot baseline as a dashed line with thicker line
     baseline_handle = Line2D([0], [0], color='red', linestyle='--', linewidth=4, label='OHE - baseline')
     ax.axhline(y=baseline, color='red', linestyle='--', label='OHE - baseline', linewidth=4)
     
-    # Add baseline handle to dictionary
-    handles_dict['OHE - baseline'] = baseline_handle
-
     # Set y-axis limits and customize ticks
     ax.set_ylim(0.3, 1)  # Adjust y-axis limits
     ax.set_yticks(get_y_ticks(ax))  # Set custom y-ticks
     
+    ax.set_title(f'{name}', fontsize=35)
     ax.set_xlabel('')
     ax.set_xticklabels([])
     ax.tick_params(axis='x', which='both', labelsize=35)
@@ -183,7 +192,6 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_lora, axes[1, :], 
     # Remove individual legends from subplots
     ax.legend_.remove()
 
-# Plot Adapters (Row 3)
 for idx, (data, ax, baseline, name) in enumerate(zip(datasets_adapters, axes[2, :], baselines, dict_names)):
     y_values_matrix = []
     numeric_x = convert_to_numeric(list(index_layers.values()))
@@ -191,9 +199,8 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_adapters, axes[2, 
     for model, values in data.items():
         numeric_y = convert_to_numeric(values)
 
-        # Plot the value lines for each protein language model with increased line thickness
-        line = sns.lineplot(x=numeric_x, y=numeric_y, label=model, color=colors[model], marker=markers[model], 
-                            markersize=20, ax=ax, linewidth=4)
+        # Process plotting with reduced marker size and no extrapolation for y == 0.2
+        process_plot(numeric_x, numeric_y, ax, model, colors, markers)
 
         # Create custom handle for this line if not already added
         if model not in handles_dict:
@@ -206,23 +213,24 @@ for idx, (data, ax, baseline, name) in enumerate(zip(datasets_adapters, axes[2, 
     y_values_matrix = np.array(y_values_matrix)
     min_y_values = np.min(y_values_matrix, axis=0)
     max_y_values = np.max(y_values_matrix, axis=0)
-    
-    # Shade the area between the min and max values in light gray
-    #ax.fill_between(numeric_x, min_y_values, max_y_values, color='lightgray', alpha=0.3)
 
     # Plot baseline as a dashed line with thicker line
-    baseline_handle = Line2D([0], [0], color='red', linestyle='--', linewidth=4,  label='OHE - baseline')
-    ax.axhline(y=baseline, color='red', linestyle='--',  label='OHE - baseline', linewidth=4)
-    
-    # Add baseline handle to dictionary
+    baseline_handle = Line2D([0], [0], color='red', linestyle='--', linewidth=4, label='OHE - baseline')
+    ax.axhline(y=baseline, color='red', linestyle='--', label='OHE - baseline', linewidth=4)
+
+    # Add baseline handle to the dictionary
+    handles_dict['OHE - baseline'] = baseline_handle  # Add this line
 
     # Set y-axis limits and customize ticks
     ax.set_ylim(0.3, 1)  # Adjust y-axis limits
     ax.set_yticks(get_y_ticks(ax))  # Set custom y-ticks
-
+    
+    ax.set_title(f'{name}', fontsize=35)
+    ax.set_xlabel('')
+    ax.set_xticks([0, 25, 50, 75, 100])  # Set x-axis ticks
+    ax.set_xticklabels(['0', '25', '50', '75', '100'], fontsize=30)  # Set x-axis tick labels
     ax.tick_params(axis='x', which='both', labelsize=35)
     ax.tick_params(axis='y', which='both', labelsize=35)
-    ax.set_xlabel('')
     ax.set_ylabel('Adapters - Performance', fontsize=35)
     
     # Remove individual legends from subplots
@@ -237,5 +245,6 @@ fig.legend(handles=list(handles_dict.values()), labels=list(handles_dict.keys())
 
 plt.tight_layout()
 plt.savefig('results_visualization/all_layer_analysis_with_lightgray_shaded_area_single_legend.png', bbox_inches='tight', dpi=300)
+
 
 

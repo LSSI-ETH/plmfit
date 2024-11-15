@@ -75,3 +75,13 @@ average_kl_divergence = compare_kl_divergence_avg(set2, set3)
 print(f"Average KL Divergence: {average_kl_divergence:.4f}")
 
 
+import pandas as pd
+
+# Creating a dummy pandas DataFrame to represent the approximated data points
+data = {
+    'Concentration (µM)': [0.002, 0.03, 0.1, 1, 3, 10, 30, 100],  # X values (approximate concentrations)
+    'Response Units': [1, 3, 5, 9, 13, 20, 25, 30]  # Y values (approximate responses)
+}
+
+df = pd.DataFrame(data)
+df
