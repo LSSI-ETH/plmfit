@@ -1,4 +1,3 @@
-import results_visualization.results_matrices as results_matrices
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -26,7 +25,6 @@ def main():
         gb1_three_vs_rest = results_json["GB1 three-vs-rest"]
         gb1_one_vs_rest = results_json["GB1 one-vs-rest"]
         meltome_mixed = results_json["Meltome mixed"]
-        ss3_sampled = results_json["SS3 sampled"]
 
     # Example datasets (replace these with actual data from results_matrices)
     datasets = [
@@ -35,7 +33,6 @@ def main():
         gb1_three_vs_rest["best_models"],
         gb1_one_vs_rest["best_models"],
         meltome_mixed["best_models"],
-        ss3_sampled["best_models"]
     ]
 
     # Baselines for each dataset
@@ -44,8 +41,7 @@ def main():
         aav_one_vs_rest["ohe_baseline"],
         gb1_three_vs_rest["ohe_baseline"],
         gb1_one_vs_rest["ohe_baseline"],
-        meltome_mixed["ohe_baseline"],
-        ss3_sampled["ohe_baseline"]
+        meltome_mixed["ohe_baseline"]
     ]
 
     # Names for each dataset
@@ -54,139 +50,8 @@ def main():
         'AAV - one_vs_rest',
         'GB1 - three_vs_rest',
         'GB1 - one_vs_rest',
-        'Meltome - mixed',
-        'SS3 - sampled'
+        'Meltome - mixed'
     ]
-
-    fig = plt.figure(figsize=(30, 15))
-    gs = GridSpec(2, 6, height_ratios=[1, 1])  # 2 rows, 6 columns (adjustable)
-
-    # Create the subplots for the datasets in the first row
-    axes = [fig.add_subplot(gs[0, i]) for i in range(6)]
-
-    # Plot each dataset in the first row
-    for ax, data, baseline, name in zip(axes[:6], datasets, baselines, dict_names):
-        for i in range(len(index_tl_techniques)):
-            color = 'lightgray' if i % 2 == 0 else 'white'
-            ax.axvspan(i - 0.5, i + 0.5, color=color, alpha=0.3)
-        
-        for model_name, values in data.items():
-            x = np.arange(len(values))  # x-axis: position in the list (0-indexed)
-            noise = np.random.uniform(-0.3, 0.3, len(values))  # Adding small noise to x positions
-            x_noise = x + noise  # Adding noise to x positions
-            color, marker = color_marker_dict[model_name]
-            ax.scatter(x_noise, values, label=model_name, color=color, marker=marker, s=100)  # Increased marker size
-        
-        # Plot the baseline
-        ax.axhline(y=baseline, color='red', linestyle='--', label='OHE baseline')
-        ax.tick_params(axis='y', labelsize=25)
-        ax.set_ylim(0, 1)  # Set the y-axis limit from 0 to 1
-        ax.set_xticks(range(len(index_tl_techniques)))
-        ax.set_xticklabels([index_tl_techniques[i] for i in range(len(index_tl_techniques))], fontsize=25, rotation=45)
-        ax.grid(True)
-        ax.set_title(name, fontsize=25)
-        ax.set_ylabel('Performance', fontsize=23, labelpad=27)
-
-    # Remove y-ticks and labels for all but the first subplot in the first row
-    for ax in axes[1:5]:
-        ax.set_yticklabels([])
-        ax.set_ylabel('')  # Remove y-axis label for these plots
-
-    # Create a single subplot spanning the entire second row
-    ax_joint = fig.add_subplot(gs[1, :])
-
-    num_ticks = len(dict_names)
-    data_fe = []
-    data_ft = []
-
-    # Create a single subplot spanning the entire second row
-    ax_joint = fig.add_subplot(gs[1, :])
-
-    num_ticks = len(dict_names)
-    data_fe = []
-    data_ft = []
-
-    # Prepare the data for boxplots
-    for dataset, baseline in zip(datasets, baselines):
-        # Extract values at the 0th position (for FE)
-        values_0 = [values[0] for values in dataset.values()]
-        # Compute percentage difference from baseline
-        percentage_diff_0 = [(v - baseline) / baseline * 100 for v in values_0]
-        data_fe.append(percentage_diff_0)
-        
-        # Extract all remaining values (for FT)
-        values_remaining = [values[1:] for values in dataset.values()]
-        # Flatten the list and compute percentage differences
-        percentage_diff_remaining = [(v - baseline) / baseline * 100 for sublist in values_remaining for v in sublist]
-        data_ft.append(percentage_diff_remaining)
-
-    # Set positions for the boxplots
-    positions_fe = np.arange(num_ticks) - 0.1  # Shift 'FE' boxplot slightly to the left
-    positions_ft = np.arange(num_ticks) + 0.1  # Shift 'FT' boxplot slightly to the right
-
-    # Create boxplots with specified colors and closer together
-    bp_fe = ax_joint.boxplot(data_fe, positions=positions_fe, widths=0.15, patch_artist=True, 
-                            boxprops=dict(facecolor='#0066CC'),
-                            medianprops=dict(color='black', linewidth=2))  # Black and wider median line
-    bp_ft = ax_joint.boxplot(data_ft, positions=positions_ft, widths=0.15, patch_artist=True, 
-                            boxprops=dict(facecolor='#009900'),
-                            medianprops=dict(color='black', linewidth=2))  # Black and wider median line
-
-    # Color the area below y=0 in light gray
-    ax_joint.axhspan(ax_joint.get_ylim()[0], 0, color='lightgray', alpha=0.5)
-
-    # Evenly distribute x-ticks along the x-axis
-    ax_joint.set_xticks(np.arange(num_ticks))  # Set x-ticks for each task
-    ax_joint.set_xticklabels(dict_names, fontsize=25, rotation=0)  # Set labels from dict_names
-
-    # Add a grid to the plot (only y-axis)
-    ax_joint.tick_params(axis='y', labelsize=23)
-    ax_joint.set_ylabel('% difference in performance', fontsize=23)
-    ax_joint.grid(axis='y')  # Add only y-axis grid lines
-
-    # Add a red dotted line at y=0
-    ax_joint.axhline(y=0, color='red', linestyle='--')
-    ax_joint.text(x=num_ticks - 0.5, y=5, s='Baseline', color='black', fontsize=20, horizontalalignment='right')
-
-    # Add a legend for the boxplots
-    ax_joint.legend([bp_ft["boxes"][0], bp_fe["boxes"][0]], ['Fine tuning', 'Feature extraction'], loc='lower right', fontsize=25)
-
-    # Add a legend for the subplots in the first row
-    handles, labels = axes[0].get_legend_handles_labels()  # Taking handles and labels from one of the axes
-    fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, 0.44), ncol=len(labels), fontsize=22, frameon=False)
-
-    # Adjust the layout for the figure
-    plt.subplots_adjust(hspace=0.3)  # Increase space between rows (adjust the 0.3 as needed)
-    ax_joint.set_title("                  ", fontsize=55)  # Remove title from the subplot
-    plt.tight_layout()
-
-    # Print statistics for each task below the x-axis
-    def print_boxplot_stats(bp, positions, task_names):
-        for i, pos in enumerate(positions):
-            q1 = bp['whiskers'][i*2].get_ydata()[1]
-            q3 = bp['whiskers'][i*2+1].get_ydata()[1]
-            median = bp['medians'][i].get_ydata()[1]
-            min_val = bp['caps'][i*2].get_ydata()[1]
-            max_val = bp['caps'][i*2+1].get_ydata()[1]
-            
-            # Get the outliers
-            outliers = bp['fliers'][i].get_ydata()
-            
-            # Add the outliers to the printed stats
-            ax_joint.text(pos, -75, f"Q1: {q1:.2f}\nQ3: {q3:.2f}\nMin: {min_val:.2f}\nMax: {max_val:.2f}\nMed: {median:.2f}\nOutliers: {list(outliers)}", 
-                        ha='center', va='top', fontsize=12, color='black')
-            
-            # Print the stats including outliers
-            print(f'//////// {task_names[i]} ////////')
-            print(f"Q1: {q1:.2f}\nQ3: {q3:.2f}\nMin: {min_val:.2f}\nMax: {max_val:.2f}\nMed: {median:.2f}\nOutliers: {list(outliers)}")
-    # Print stats for FE and FT boxplots
-    print_boxplot_stats(bp_fe, positions_fe, dict_names)
-    print_boxplot_stats(bp_ft, positions_ft, dict_names)
-
-    # Save the figure
-    plt.savefig('results/til_overview_with_joint_boxplots_and_legend_spaced.png', bbox_inches='tight', dpi=300)
-
-
 
     fig = plt.figure(figsize=(30, 15))
     gs = GridSpec(2, 5, height_ratios=[1, 1])  # 2 rows, 5 columns (adjustable)
@@ -199,14 +64,14 @@ def main():
         for i in range(len(index_tl_techniques)):
             color = 'lightgray' if i % 2 == 0 else 'white'
             ax.axvspan(i - 0.5, i + 0.5, color=color, alpha=0.3)
-        
+
         for model_name, values in data.items():
             x = np.arange(len(values))  # x-axis: position in the list (0-indexed)
             noise = np.random.uniform(-0.3, 0.3, len(values))  # Adding small noise to x positions
             x_noise = x + noise  # Adding noise to x positions
             color, marker = color_marker_dict[model_name]
             ax.scatter(x_noise, values, label=model_name, color=color, marker=marker, s=100)  # Increased marker size
-        
+
         # Plot the baseline
         ax.axhline(y=baseline, color='red', linestyle='--', label='OHE baseline')
         ax.tick_params(axis='y', labelsize=25)
@@ -229,8 +94,6 @@ def main():
     data_fe = []
     data_ft = []
 
-
-
     # Prepare the data for boxplots
     for dataset, baseline in zip(datasets, baselines):
         # Extract values at the 0th position (for FE)
@@ -238,7 +101,7 @@ def main():
         # Compute percentage difference from baseline
         percentage_diff_0 = [(v - baseline) / baseline * 100 for v in values_0]
         data_fe.append(percentage_diff_0)
-        
+
         # Extract all remaining values (for FT)
         values_remaining = [values[1:] for values in dataset.values()]
         # Flatten the list and compute percentage differences
@@ -288,8 +151,7 @@ def main():
     # Print statistics for each task below the x-axis
 
     # Save the figure
-    plt.savefig('results_visualization/til_overview_with_joint_boxplots_and_legend_spaced.png', bbox_inches='tight', dpi=300)
-
+    plt.savefig('results/til_overview_with_joint_boxplots_and_legend_spaced.png', bbox_inches='tight', dpi=300)
 
 
 # # Custom colors for legend and bars
@@ -352,3 +214,6 @@ def main():
 # # Adjust layout
 # plt.tight_layout()
 # plt.savefig('results_visualization/perf_trainable.png', bbox_inches='tight',dpi=300)
+
+if __name__ == "__main__":
+    main()
