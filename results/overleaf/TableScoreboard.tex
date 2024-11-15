@@ -1,0 +1,18 @@
+\documentclass{standalone}
+\usepackage{graphicx}
+\usepackage{multirow}
+\begin{document}
+\begin{tabular}{c|ccccccc}
+\hline
+\multirow{2}{*}{\textbf{Task}} & \multicolumn{1}{c|}{\multirow{2}{*}{\textbf{Score}}} & \multicolumn{1}{c|}{\multirow{2}{*}{\textbf{Metric}}} & \multicolumn{5}{c}{\textbf{Best configuration}} \\ \cline{4-8}
+ & \multicolumn{1}{c|}{} & \multicolumn{1}{c|}{} & \textbf{PLM} & \textbf{TL-method} & \textbf{Layers used} & \textbf{Pooling} & \textbf{Downstream head} \\ \hline
+AAV one-vs-rest & 0.8315 & Spearman's Corr. & ProGen2-xlarge & LoRA & quarter3 & cls & linear \\ \hline
+AAV sampled & 0.9320 & Spearman's Corr. & ESM2-15B & Adapters & last & mean & linear \\ \hline
+GB1 one-vs-rest & 0.4571 & Spearman's Corr. & ProGen2-small & FE & quarter3 & mean & linear \\ \hline
+GB1 three-vs-rest & 0.8791 & Spearman's Corr. & ProGen2-medium & Adapters & middle & cls & linear \\ \hline
+Meltome mixed & 0.7232 & Spearman's Corr. & ProGen2-xlarge & LoRA & last & mean & linear \\ \hline
+HER2 one-vs-rest & 0.3898 & MCC & ProGen2-xlarge & LoRA- & quarter1 & cls & linear \\ \hline
+RBD one-vs-rest & 0.5545 & MCC & ProGen2-small & LoRA & middle & mean & linear \\ \hline
+SS3 sampled & 0.8594 & Accuracy & ESM2-3B & LoRA & last & - & linear \\ \hline
+\end{tabular}
+\end{document}
