@@ -309,9 +309,6 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits.squeeze(dim=1)
                 else:
                     outputs = outputs.squeeze(dim=1)
-            self.plmfit_logger.log(labels)
-            self.plmfit_logger.log(labels.shape)
-            self.plmfit_logger.log(outputs.shape)
             loss = self.loss_function(outputs, labels)
         self.log('test_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False)
 
