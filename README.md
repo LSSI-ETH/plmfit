@@ -1,6 +1,6 @@
 # PLMFit
 
-PLMFit is a powerful framework designed to democratize the fine-tuning of Protein Language Models (PLMs) for researchers with varying levels of computational expertise. With PLMFit, you can fine-tune state-of-the-art models on your experimental data through simple command-line instructions. This tool is particularly valuable for laboratory researchers seeking to leverage deep learning without needing in-depth programming knowledge. PLMFit also includes SCRUM scripts optimized for Euler, the ETH Zurich supercomputing cluster.
+PLMFit is a powerful framework designed to democratize the fine-tuning of Protein Language Models (PLMs) for researchers with varying levels of computational expertise. With PLMFit, you can fine-tune state-of-the-art models on your experimental data through simple command-line instructions. This tool is particularly valuable for laboratory researchers seeking to leverage deep learning without needing in-depth programming knowledge. PLMFit also includes SLURM scripts optimized for Euler, the ETH Zurich supercomputing cluster.
 
 ## Table of contents
 
@@ -40,7 +40,7 @@ Before you start, make sure Python 3.11 is installed on your system. Higher vers
       python3 -m venv venv
       source venv/bin/activate
       ```
-   - For SCRUM setups (Euler):
+   - For SLURM setups (Euler):
       Load a python module to subsequently be able to install PLMFit. For example, in ETH Euler Cluster:
       ```bash
       module load stack/2024-06 gcc/12.2.0
@@ -65,7 +65,7 @@ DATA_DIR='./data'
 CONFIG_DIR='./config'
 ```
 
-For Euler and SCRUM an absolute path is required. To use the SCRUM scripts, the username and virtual environment need to be defined as well:
+For Euler and SLURM an absolute path is required. To use the SLURM scripts, the username and virtual environment need to be defined as well:
 ```
 DATA_DIR='/absolute/path/to/plmfit'
 CONFIG_DIR='/absolute/path/to/config'
@@ -135,13 +135,17 @@ python3 -u plmfit --function fine_tuning \
                   --plm <model_name> \
                   --output_dir <output_directory> \
                   --experiment_dir <experiment_directory> \
-                  --experiment_name <name_of_experiment>
+                  --experiment_name <name_of_experiment> \
+                  --embeddings_path <embeddings_path_including_filename> \
+                  --ray_tuning <bool>
 ```
 
 **Fine-Tuning methods:**
 - `--ft_method`: Specifies the fine-tuning method ('feature_extraction', 'full', 'lora', 'bottleneck_adapters').
 - `--target_layers`: Targets specific layers ('all' or 'last'), not applicable for 'feature_extraction'.
 - `--head_config`: JSON configuration file for the head, defining the task (regression, classification, domain adaptation). This JSON file needs to be located in `./config/training/` folder. The argument should be the relative path of the file to the `./config/training/` folder. For further documentation on how the head should be structured, refer to the [training management guide](./config/training/README.md).
+- `--embeddings_path`: Path to the previously generated embeddings.
+- `--ray_tuning`: Specifies if hyperparameter optimization is performed ('True' or 'False')
 
 **Understanding Fine-Tuning methods:**
 1. **Feature Extraction:**
@@ -179,7 +183,7 @@ python3 -u plmfit --function one_hot \
                   --experiment_name <name_of_experiment>
 ```
 
-### Using PLMFit on a SCRUM setup (e.g. Euler)
+### Using PLMFit on a SLURM setup (e.g. Euler)
 Navigate to the `scripts` folder, where you will find subfolders for each of the platform's features. Adjust the `experiments_setup.csv` file according to your needs and simply call `./scripts/{function}/submit_{function}_mass.sh` from the parent directory. The columns in this file represent various arguments, most of which are the same as those mentioned previously. Here are the key columns:
 
 - `gpus`: The number of GPUs to request.

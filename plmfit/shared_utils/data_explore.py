@@ -97,6 +97,24 @@ def plot_sequence_length_distribution(data, path=None):
         plt.ion()
         plt.show()
 
+def plot_label_distribution_token_level_classification(data, path=None):
+    """
+    Plots the distribution of the number of positively labeled residues in the dataset.
+    """
+    sns.set(style="whitegrid")
+    plt.figure(figsize=(10, 6))
+    ax = sns.histplot(data['no_pos'], discrete=True)
+    plt.title('Distribution of positive labels', fontsize=16)
+    plt.xlabel('Number of positively labeled residues', fontsize=14)
+    plt.ylabel('Frequency', fontsize=14)
+    ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    plt.tight_layout()
+    if path is not None:
+        plt.savefig(path, format='png')
+    else:
+        plt.ion()
+        plt.show()
+
 
 def plot_mutations_number(data, column='number_of_mutations', annotation=False, path=None):
     sns.set(style="whitegrid")

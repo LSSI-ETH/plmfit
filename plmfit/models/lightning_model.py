@@ -56,6 +56,8 @@ class LightningModel(L.LightningModule):
 
         self.experimenting = experimenting
 
+
+
     def forward(self, input, **args):
         output = self.model(input, **args)
         return output
@@ -124,7 +126,7 @@ class LightningModel(L.LightningModule):
             input, labels = batch
             outputs = self(input)
             # No squeezing, leave logits as is for CrossEntropyLoss
-            if self.model.task == 'classification' and self.hparams.no_classes > 1:
+            if self.model.task == 'classification' and self.hparams.no_classes > 2:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
                 labels = torch.nn.functional.one_hot(labels.long(), num_classes=self.hparams.no_classes)
@@ -136,7 +138,6 @@ class LightningModel(L.LightningModule):
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
                 labels = labels.long()
-
             else:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits.squeeze(dim=1)
@@ -145,10 +146,10 @@ class LightningModel(L.LightningModule):
             loss = self.loss_function(outputs, labels)
             
         
-        if self.model.task == 'classification' and self.hparams.no_classes > 1:
+        if self.model.task == 'classification' and self.hparams.no_classes > 2:
             labels = torch.argmax(labels, dim=1)
             outputs = torch.argmax(outputs, dim=1)
-        if self.model.task == 'token_classification' and self.hparams.no_classes > 1:
+        if self.model.task == 'token_classification' and self.hparams.no_classes > 2:
             # Get the maxium value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
         # if batch_idx % 100 == 0: 
@@ -162,7 +163,6 @@ class LightningModel(L.LightningModule):
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(f'(train) batch : {batch_idx + 1}  / {len(self.trainer.train_dataloader)} | running_loss : {loss} (batch time : {time.time() - batch_start_time:.4f})')
-
         return loss
     
     def on_train_batch_end(self, outputs, batch, batch_idx):
@@ -175,6 +175,7 @@ class LightningModel(L.LightningModule):
 
             print('Successful test')
             raise SystemExit('Experiment over')
+
     
     def on_train_epoch_end(self):
         self.log(f'train_{self.metric_label}_epoch', self.train_metric, sync_dist=True)
@@ -217,11 +218,11 @@ class LightningModel(L.LightningModule):
             loss = outputs.loss
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
-        else:    
+        else:
             input, labels = batch
             outputs = self(input)
             # No squeezing, leave logits as is for CrossEntropyLoss
-            if self.model.task == 'classification' and self.hparams.no_classes > 1:
+            if self.model.task == 'classification' and self.hparams.no_classes > 2:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
                 labels = torch.nn.functional.one_hot(labels.long(), num_classes=self.hparams.no_classes)
@@ -229,7 +230,6 @@ class LightningModel(L.LightningModule):
             elif self.model.task == 'token_classification' and self.hparams.no_classes > 1:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
-                # swap 3rd dimension to 2nd dimension
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
                 labels = labels.long()
@@ -238,14 +238,15 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits.squeeze(dim=1)
                 else:
                     outputs = outputs.squeeze(dim=1)
+
             loss = self.loss_function(outputs, labels)
 
         self.log('val_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False, sync_dist=True)
 
-        if self.model.task == 'classification' and self.hparams.no_classes > 1:
+        if self.model.task == 'classification' and self.hparams.no_classes > 2:
             labels = torch.argmax(labels, dim=1)
             outputs = torch.argmax(outputs, dim=1)
-        if self.model.task == 'token_classification' and self.hparams.no_classes > 1:
+        if self.model.task == 'token_classification' and self.hparams.no_classes > 2:
             # Get the maxium value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
         self.val_metric.update(outputs, labels)
@@ -253,7 +254,6 @@ class LightningModel(L.LightningModule):
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(f'(val) batch : {batch_idx + 1}  / {len(self.trainer.val_dataloaders)} | running_loss : {loss} (batch time : {time.time() - batch_start_time:.4f})')
-    
         return loss
     
     def on_validation_epoch_end(self):
@@ -292,7 +292,7 @@ class LightningModel(L.LightningModule):
             outputs = self(input)
 
             # No squeezing, leave logits as is for CrossEntropyLoss
-            if self.model.task == 'classification' and self.hparams.no_classes > 1:
+            if self.model.task == 'classification' and self.hparams.no_classes > 2:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
                 labels = torch.nn.functional.one_hot(labels.long(), num_classes=self.hparams.no_classes)
@@ -312,10 +312,10 @@ class LightningModel(L.LightningModule):
             loss = self.loss_function(outputs, labels)
         self.log('test_loss', loss, on_step=True, on_epoch=True, logger=True, prog_bar=False)
 
-        if self.model.task == 'classification' and self.hparams.no_classes > 1:
+        if self.model.task == 'classification' and self.hparams.no_classes > 2:
             labels = torch.argmax(labels, dim=1)
             # outputs = torch.argmax(outputs, dim=1)
-        if self.model.task == 'token_classification' and self.hparams.no_classes > 1:
+        if self.model.task == 'token_classification' and self.hparams.no_classes > 2:
             # Get the maximum value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
         self.metrics.add(outputs, labels, ids)
