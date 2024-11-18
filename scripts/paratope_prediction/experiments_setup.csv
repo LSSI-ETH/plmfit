@@ -1,3 +1,0 @@
-function	ft_method	data_type	split	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir		gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-fine_tuning	feature_extraction	paratope	sampled	proteinbert	linear	classification	paratope_linear_token_classification_head_config.json	True	first	none	/cluster/scratch/wglaenzzer	2	rtx_3090	10g	1	12	False
-fine_tuning	feature_extraction	paratope	sampled	proteinbert	mlp	classification	paratope_mlp_token_classification_head_config.json	True	first	none	/cluster/scratch/wglaenzzer	2	rtx_3090	10g	1	12	False
