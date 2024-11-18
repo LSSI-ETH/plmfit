@@ -1,11 +1,7 @@
-import numpy as np
 import pandas as pd
 import os
 import plmfit.shared_utils.utils as utils
-from tqdm import tqdm
 from plmfit.shared_utils.data_explore import plot_label_distribution
-from plmfit.shared_utils.data_explore import plot_mutations_number
-from plmfit.shared_utils.data_explore import plot_mutations_heatmap
 import plmfit.shared_utils.data_explore as data_explore
 import ast
 
@@ -15,8 +11,6 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # Read the paratope dataset from the csv file
 data = pd.read_csv(os.path.join(script_dir, "paratope_data_full.csv"))
 sequences = data["aa_seq"]
-max_length = max(data['len'].values)
-seq_count = len(sequences)
 
 # Count the number of paratope positions = number of 1s in the label array
 paratope_positions = data["label"]
