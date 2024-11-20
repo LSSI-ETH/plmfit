@@ -15,7 +15,6 @@ def main():
         gb1_one_vs_rest = results_json["GB1 one-vs-rest"]
         meltome_mixed = results_json["Meltome mixed"]
 
-
     colors = {
         'ProteinBERT': '#FF8C00',
         'ProGen2-small': '#98FB98',
@@ -35,7 +34,6 @@ def main():
         'ESM2-3B': 'X',
         'ESM2-15B': 'D'
     }
-
 
     # Define datasets, baselines, and dict_names
     datasets_fe = [
@@ -61,7 +59,6 @@ def main():
         gb1_three_vs_rest["ohe_baseline"],
         meltome_mixed["ohe_baseline"],
     ]
-
 
     dict_names = [
         'AAV-sampled',
@@ -89,24 +86,26 @@ def main():
     # Set up the figure with 3 rows and 3 columns for the plots
     fig, axes = plt.subplots(nrows=3, ncols=len(dict_names), figsize=(50, 30), sharey='row')
 
+    # Add some white space to the left of the whole figure
+    fig.subplots_adjust(left=0.5)
+
     # Dictionary to hold handles and labels for the legend
     handles_dict = {}
 
-    # Plot Feature Extraction (Row 1)
     # Function to filter out extrapolation and reduce marker size when y == 0.2
     def process_plot(numeric_x, numeric_y, ax, model, colors, markers):
         # Split the data into two parts: one with y != 0.2 and the other with y == 0.2
         small_marker_x = [x for x, y in zip(numeric_x, numeric_y) if y == 0.2]
         small_marker_y = [y for y in numeric_y if y == 0.2]
-        
+
         full_marker_x = [x for x, y in zip(numeric_x, numeric_y) if y != 0.2]
         full_marker_y = [y for y in numeric_y if y != 0.2]
-        
+
         # Plot points with y != 0.2 using normal line and markers
         if full_marker_x and full_marker_y:
             sns.lineplot(x=full_marker_x, y=full_marker_y, label=model, color=colors[model], 
                         marker=markers[model], markersize=20, ax=ax, linewidth=4)
-        
+
         # Plot points where y == 0.2 using very small markers and no line
         if small_marker_x and small_marker_y:
             sns.scatterplot(x=small_marker_x, y=small_marker_y, label=model, color=colors[model], 
@@ -116,7 +115,7 @@ def main():
     for idx, (data, ax, baseline, name) in enumerate(zip(datasets_fe, axes[0, :], baselines, dict_names)):
         y_values_matrix = []
         numeric_x = convert_to_numeric(list(index_layers.values()))
-        
+
         for model, values in data.items():
             numeric_y = convert_to_numeric(values)
 
@@ -126,10 +125,10 @@ def main():
             # Create custom handle for this line if not already added
             if model not in handles_dict:
                 handles_dict[model] = Line2D([0], [0], color=colors[model], marker=markers[model], markersize=20, linewidth=4, label=model)
-            
+
             # Store the y-values to compute the min/max later
             y_values_matrix.append(numeric_y)
-        
+
         # Compute the min and max y-values for each x-value
         y_values_matrix = np.array(y_values_matrix)
         min_y_values = np.min(y_values_matrix, axis=0)
@@ -138,27 +137,45 @@ def main():
         # Plot baseline as a dashed line with thicker line
         baseline_handle = Line2D([0], [0], color='red', linestyle='--', linewidth=4, label='OHE - baseline')
         ax.axhline(y=baseline, color='red', linestyle='--', label='OHE - baseline', linewidth=4)
-        
+
         # Set y-axis limits and customize ticks
         ax.set_ylim(0.3, 1)  # Adjust y-axis limits
         ax.set_yticks(get_y_ticks(ax))  # Set custom y-ticks
-        
+
         ax.set_title(f'{name}', fontsize=35)
         ax.set_xlabel('')
         ax.set_xticklabels([])
         ax.tick_params(axis='x', which='both', labelsize=35)
         ax.tick_params(axis='y', which='both', labelsize=35)
         ax.set_ylabel('Feature extraction - Performance', fontsize=35)
-        
+
+        # Make borders of sublot black and thicker
+        for spine in ax.spines.values():
+            spine.set_edgecolor('black')
+            spine.set_linewidth(2)
+
         # Remove individual legends from subplots
         ax.legend_.remove()
 
+        # On the left white space add the letter 'A', 'B', 'C' for each subplot in Arial bold font and 32 size
+        if idx == 0:
+            ax.text(
+                -0.15, 0.9, f"A", fontsize=56, fontweight="bold", transform=ax.transAxes
+            )
+        ax.text(
+            0.95,
+            0.03,
+            f"{'i'*(idx+1)}",
+            fontsize=44,
+            fontweight="bold",
+            transform=ax.transAxes,
+        )
 
     # Plot LoRA (Row 2)
     for idx, (data, ax, baseline, name) in enumerate(zip(datasets_lora, axes[1, :], baselines, dict_names)):
         y_values_matrix = []
         numeric_x = convert_to_numeric(list(index_layers.values()))
-        
+
         for model, values in data.items():
             numeric_y = convert_to_numeric(values)
 
@@ -168,10 +185,10 @@ def main():
             # Create custom handle for this line if not already added
             if model not in handles_dict:
                 handles_dict[model] = Line2D([0], [0], color=colors[model], marker=markers[model], markersize=20, linewidth=4, label=model)
-            
+
             # Store the y-values to compute the min/max later
             y_values_matrix.append(numeric_y)
-        
+
         # Compute the min and max y-values for each x-value
         y_values_matrix = np.array(y_values_matrix)
         min_y_values = np.min(y_values_matrix, axis=0)
@@ -180,25 +197,43 @@ def main():
         # Plot baseline as a dashed line with thicker line
         baseline_handle = Line2D([0], [0], color='red', linestyle='--', linewidth=4, label='OHE - baseline')
         ax.axhline(y=baseline, color='red', linestyle='--', label='OHE - baseline', linewidth=4)
-        
+
         # Set y-axis limits and customize ticks
         ax.set_ylim(0.3, 1)  # Adjust y-axis limits
         ax.set_yticks(get_y_ticks(ax))  # Set custom y-ticks
-        
+
         ax.set_title(f'{name}', fontsize=35)
         ax.set_xlabel('')
         ax.set_xticklabels([])
         ax.tick_params(axis='x', which='both', labelsize=35)
         ax.tick_params(axis='y', which='both', labelsize=35)
-        ax.set_ylabel('LoRA - Performance', fontsize=35)
-        
+        ax.set_ylabel("LoRA - Performance", fontsize=35)
+
+        # Make borders of sublot black and thicker
+        for spine in ax.spines.values():
+            spine.set_edgecolor("black")
+            spine.set_linewidth(2)
+
         # Remove individual legends from subplots
         ax.legend_.remove()
+
+        if idx == 0:
+            ax.text(
+                -0.15, 0.9, f"B", fontsize=56, fontweight="bold", transform=ax.transAxes
+            )
+        ax.text(
+            0.95,
+            0.03,
+            f"{'i'*(idx+1)}",
+            fontsize=44,
+            fontweight="bold",
+            transform=ax.transAxes,
+        )
 
     for idx, (data, ax, baseline, name) in enumerate(zip(datasets_adapters, axes[2, :], baselines, dict_names)):
         y_values_matrix = []
         numeric_x = convert_to_numeric(list(index_layers.values()))
-        
+
         for model, values in data.items():
             numeric_y = convert_to_numeric(values)
 
@@ -208,10 +243,10 @@ def main():
             # Create custom handle for this line if not already added
             if model not in handles_dict:
                 handles_dict[model] = Line2D([0], [0], color=colors[model], marker=markers[model], markersize=20, linewidth=4, label=model)
-            
+
             # Store the y-values to compute the min/max later
             y_values_matrix.append(numeric_y)
-        
+
         # Compute the min and max y-values for each x-value
         y_values_matrix = np.array(y_values_matrix)
         min_y_values = np.min(y_values_matrix, axis=0)
@@ -227,7 +262,7 @@ def main():
         # Set y-axis limits and customize ticks
         ax.set_ylim(0.3, 1)  # Adjust y-axis limits
         ax.set_yticks(get_y_ticks(ax))  # Set custom y-ticks
-        
+
         ax.set_title(f'{name}', fontsize=35)
         ax.set_xlabel('')
         ax.set_xticks([0, 25, 50, 75, 100])  # Set x-axis ticks
@@ -235,9 +270,22 @@ def main():
         ax.tick_params(axis='x', which='both', labelsize=35)
         ax.tick_params(axis='y', which='both', labelsize=35)
         ax.set_ylabel('Adapters - Performance', fontsize=35)
-        
+
+        # Make borders of sublot black and thicker
+        for spine in ax.spines.values():
+            spine.set_edgecolor("black")
+            spine.set_linewidth(2)
+
         # Remove individual legends from subplots
         ax.legend_.remove()
+
+        if idx == 0:
+            ax.text(
+                -0.15, 0.9, f"C", fontsize=56, fontweight="bold", transform=ax.transAxes
+            )
+        ax.text(
+            0.95, 0.03, f"{'i'*(idx+1)}", fontsize=44, fontweight="bold", transform=ax.transAxes
+        )
 
     # Set common x-axis label
     fig.text(0.5, -0.01, '% of Layers used', ha='center', va='center', fontsize=35)

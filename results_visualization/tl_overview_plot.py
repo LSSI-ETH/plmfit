@@ -55,12 +55,20 @@ def main():
 
     fig = plt.figure(figsize=(30, 15))
     gs = GridSpec(2, 5, height_ratios=[1, 1])  # 2 rows, 5 columns (adjustable)
+    # Add some white space to the left of the whole figure
+    # fig.subplots_adjust(left=0.1)
 
     # Create the subplots for the datasets in the first row
     axes = [fig.add_subplot(gs[0, i]) for i in range(5)]
+    axes[0].text(
+        -0.25, 0.95, f"A", fontsize=40, fontweight="bold", transform=axes[0].transAxes
+    )
 
     # Plot each dataset in the first row
-    for ax, data, baseline, name in zip(axes[:5], datasets, baselines, dict_names):
+    roman_numerals = ["i", "ii", "iii", "iv", "v"]
+    for ax, data, baseline, name, roman in zip(
+        axes[:5], datasets, baselines, dict_names, roman_numerals
+    ):
         for i in range(len(index_tl_techniques)):
             color = 'lightgray' if i % 2 == 0 else 'white'
             ax.axvspan(i - 0.5, i + 0.5, color=color, alpha=0.3)
@@ -81,6 +89,15 @@ def main():
         ax.grid(True)
         ax.set_title(name, fontsize=25)
         ax.set_ylabel('Performance', fontsize=23, labelpad=27)
+
+        ax.text(
+            0.9,
+            0.03,
+            roman,
+            fontsize=30,
+            fontweight="bold",
+            transform=ax.transAxes,
+        )
 
     # Remove y-ticks and labels for all but the first subplot in the first row
     for ax in axes[1:5]:
@@ -134,7 +151,10 @@ def main():
 
     # Add a red dotted line at y=0
     ax_joint.axhline(y=0, color='red', linestyle='--')
-    ax_joint.text(x=num_ticks - 0.5, y=5, s='Baseline', color='black', fontsize=20, horizontalalignment='right')
+    ax_joint.text(x=num_ticks - 0.5, y=5, s='Baseline', color='black', fontsize=22, horizontalalignment='right')
+    ax_joint.text(
+        -0.05, 0.95, f"B", fontsize=40, fontweight="bold", transform=ax_joint.transAxes
+    )
 
     # Add a legend for the boxplots
     ax_joint.legend([bp_ft["boxes"][0], bp_fe["boxes"][0]], ['Fine tuning', 'Feature extraction'], loc='lower right', fontsize=25)
@@ -152,6 +172,72 @@ def main():
 
     # Save the figure
     plt.savefig('results/til_overview_with_joint_boxplots_and_legend_spaced.png', bbox_inches='tight', dpi=300)
+
+    """ Save the same type of information in a tex file that looks like that:
+        \begin{table}
+            \caption{\centering Statistical summaries (quarter1, quarter3, median and max) of the box plots depicted in \autoref{fig:3}B.}
+            \label{tab:box}
+            \centering
+            \renewcommand{\arraystretch}{1.5}
+            \begin{tabular}{cccc}
+            \toprule
+            \multicolumn{1}{c}{\multirow{2}{*}{Task}}                  & \multicolumn{1}{c}{\multirow{2}{*}{Box plot stats}} & \multicolumn{1}{c}{\multirow{2}{*}{FE}} & \multirow{2}{*}{FT} \\
+            \multicolumn{1}{c}{}                                       & \multicolumn{1}{c}{}                               & \multicolumn{1}{c}{}                    &                     \\ \midrule
+            \multicolumn{1}{c}{\multirow{4}{*}{AAV - sampled}}         & Q1                                                  & -5.62\%                                    & -0.39\%                \\
+            \multicolumn{1}{c}{}                                       & Q3                                                  & -1.48\%                                     & 7.45\%                 \\
+            \multicolumn{1}{c}{}                                       & Median                                              & -3.2\%                                      & 3.95\%                 \\
+            \multicolumn{1}{c}{}                                       & Max                                                 & 2.32\%                                      & 7.45\%                 \\ \hline
+            \multicolumn{1}{c}{\multirow{4}{*}{AAV - one\_vs\_rest}}   & Q1                                                  & -38.61\%                                    & 8.38\%                 \\
+            \multicolumn{1}{c}{}                                       & Q3                                                  & 8.45\%                                      & 47.17\%                \\
+            \multicolumn{1}{c}{}                                       & Median                                              & -30.54\%                                    & 38.03\%                \\
+            \multicolumn{1}{c}{}                                       & Max                                                 & 8.45\%                                      & 47.17\%                \\ \hline
+            \multicolumn{1}{c}{\multirow{4}{*}{GB1 - three\_vs\_rest}} & Q1                                                  & -14.05\%                                    & -8.56\%                \\
+            \multicolumn{1}{c}{}                                       & Q3                                                  & -4\%                                       & 4.9\%                  \\
+            \multicolumn{1}{c}{}                                       & Median                                              & -5.65\%                                     & 2.89\%                 \\
+            \multicolumn{1}{c}{}                                       & Max                                                 & -4\%                                        & 4.9\%                  \\ \hline
+            \multicolumn{1}{c}{\multirow{4}{*}{GB1 - one\_vs\_rest}}   & Q1                                                  & -6.41\%                                     & -34.65\%               \\
+            \multicolumn{1}{c}{}                                       & Q3                                                  & 37.67\%                                     & 30.98\%                \\
+            \multicolumn{1}{c}{}                                       & Median                                              & 31.46\%                                     & 0.74\%                 \\
+            \multicolumn{1}{c}{}                                       & Max                                                 & 37.67\%                                     & 30.98\%                \\ \hline
+            \multicolumn{1}{c}{\multirow{4}{*}{Meltome - mixed}}       & Q1                                                  & 58.12\%                                     & 31.47\%                \\
+            \multicolumn{1}{c}{}                                       & Q3                                                  & 71.27\%                                     & 117.83\%               \\
+            \multicolumn{1}{c}{}                                       & Median                                              & 68.71\%                                     & 70.79\%                \\
+            \multicolumn{1}{c}{}                                       & Max                                                 & 102.22\%                                    & 117.83\%               \\ \bottomrule
+            \end{tabular}
+        \end{table}
+    """
+
+    with open('results/overleaf/box_plot_stats.tex', 'w') as file:
+        file.write("\\begin{table}\n")
+        file.write("\t\\caption{\\centering Statistical summaries (Q1, Q3, median, and max) of the box plots depicted in \\autoref{fig:3}B.}\n")
+        file.write("\t\\label{tab:box}\n")
+        file.write("\t\\centering\n")
+        file.write("\t\\renewcommand{\\arraystretch}{1.5}\n")
+        file.write("\t\\begin{tabular}{cccc}\n")
+        file.write("\t\\toprule\n")
+        file.write("\t\\multicolumn{1}{c}{\\multirow{2}{*}{Task}} & \\multicolumn{1}{c}{\\multirow{2}{*}{Stat}} & \\multicolumn{1}{c}{FE} & FT \\\\\n")
+        file.write("\t\\multicolumn{1}{c}{} & \\multicolumn{1}{c}{} & \\multicolumn{1}{c}{} & \\\\\n")
+        file.write("\t\\midrule\n")
+
+        for task, fe_data, ft_data in zip(dict_names, data_fe, data_ft):
+            # Clean task name by escaping underscores
+            task_cleaned = task.replace('_', '\\_')
+
+            # Compute statistics for FE and FT
+            fe_q1, fe_q3 = np.percentile(fe_data, [25, 75])
+            ft_q1, ft_q3 = np.percentile(ft_data, [25, 75])
+            fe_median, ft_median = np.median(fe_data), np.median(ft_data)
+            fe_max, ft_max = np.max(fe_data), np.max(ft_data)
+
+            # Write statistics for each task
+            file.write(f"\t\\multirow{{4}}{{*}}{{{task_cleaned}}} & Q1 & {fe_q1:.2f}\\% & {ft_q1:.2f}\\% \\\\\n")
+            file.write(f"\t & Q3 & {fe_q3:.2f}\\% & {ft_q3:.2f}\\% \\\\\n")
+            file.write(f"\t & Median & {fe_median:.2f}\\% & {ft_median:.2f}\\% \\\\\n")
+            file.write(f"\t & Max & {fe_max:.2f}\\% & {ft_max:.2f}\\% \\\\\n")
+            file.write("\t\\hline\n")
+
+        file.write("\t\\end{tabular}\n")
+        file.write("\\end{table}\n")
 
 
 # # Custom colors for legend and bars
