@@ -246,7 +246,7 @@ class LightningModel(L.LightningModule):
         if self.model.task == 'classification' and self.hparams.no_classes > 2:
             labels = torch.argmax(labels, dim=1)
             outputs = torch.argmax(outputs, dim=1)
-        if self.model.task == 'token_classification' and self.hparams.no_classes > 2:
+        if self.model.task == 'token_classification' and self.hparams.no_classes > 1:
             # Get the maxium value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
         self.val_metric.update(outputs, labels)
@@ -268,8 +268,11 @@ class LightningModel(L.LightningModule):
             self.trainer.save_checkpoint(f'{self.plmfit_logger.base_dir}/lightning_logs/best_model.ckpt')
             self.best_epoch = self.current_epoch
             self.epochs_no_improve = 0
+            #self.plmfit_logger.log(f'Best model saved at epoch {self.best_epoch}')
         else:
             self.epochs_no_improve += 1
+        self.plmfit_logger.log(f'Best model saved at epoch {self.best_epoch}')
+
 
     ### TESTING STEPS ###
     def on_test_start(self) -> None:
@@ -390,7 +393,7 @@ class LightningModel(L.LightningModule):
         elif self.hparams.loss_f == 'mse':
             return torch.nn.MSELoss()
         elif self.hparams.loss_f == 'cross_entropy':  # Add cross-entropy loss for multiclass
-            return torch.nn.CrossEntropyLoss()
+            return torch.nn.CrossEntropyLoss(ignore_index=-100)
         else:
             raise ValueError(f"Unsupported loss function: {self.hparams.loss_f}")
     
@@ -455,10 +458,11 @@ class Metrics(torch.nn.Module):
         elif task == 'masked_lm':
             self.perplexity = Perplexity(ignore_index=-100)
         elif task == 'token_classification':
-            self.acc = MulticlassAccuracy(num_classes=no_classes, ignore_index=-100)
-            self.micro_acc = MulticlassAccuracy(num_classes=no_classes, average='micro', ignore_index=-100)
-            self.mcc = MulticlassMatthewsCorrCoef(num_classes=no_classes, ignore_index=-100)
-            self.cm = MulticlassConfusionMatrix(num_classes=no_classes, ignore_index=-100)
+            self.no_classes=no_classes
+            self.acc = MulticlassAccuracy(num_classes=self.no_classes, ignore_index=-100)
+            self.micro_acc = MulticlassAccuracy(num_classes=self.no_classes, average='micro', ignore_index=-100)
+            self.mcc = MulticlassMatthewsCorrCoef(num_classes=self.no_classes, ignore_index=-100)
+            self.cm = MulticlassConfusionMatrix(num_classes=self.no_classes, ignore_index=-100)
 
     def add(self, preds, actual, ids):
         if self.task == 'token_classification':
@@ -543,6 +547,7 @@ class Metrics(torch.nn.Module):
             self.report = {
                 'main': {
                     'accuracy': self.acc.compute().item(),
+                    "micro_accuracy": self.micro_acc.compute().item(),
                     'mcc': self.mcc.compute().item(),
                     'confusion_matrix': self.cm.compute().tolist()
                 },
@@ -587,19 +592,34 @@ class Metrics(torch.nn.Module):
         return self.report
 
     def get_token_classification_metrics(self):
-        self.report = {
-            "main": {
-                "accuracy": self.acc.compute().item(),
-                "micro_accuracy": self.micro_acc.compute().item(),
-                "mcc": self.mcc.compute().item(),
-                "confusion_matrix": self.cm.compute().tolist(),
-            },
-            "pred_data": {
-                "preds": self.preds_list,
-                "actual": self.actual_list,
-                "ids": self.ids,
-            },
-        }
+        if self.no_classes == 1:
+            self.report = {
+                "main": {
+                    "accuracy": self.acc.compute().item(),
+                    "micro_accuracy": self.micro_acc.compute().item(),
+                    "mcc": self.mcc.compute().item(),
+                    "confusion_matrix": self.cm.compute().tolist(),
+                },
+                "pred_data": {
+                    "preds": self.preds_list,
+                    "actual": self.actual_list,
+                    "ids": self.ids,
+                },
+            }
+        else:
+            self.report = {
+                "main": {
+                    "accuracy": self.acc.compute().item(),
+                    "micro_accuracy": self.micro_acc.compute().item(),
+                    "mcc": self.mcc.compute().item(),
+                    "confusion_matrix": self.cm.compute().tolist(),
+                },
+                "pred_data": {
+                    "preds": self.preds_list,
+                    "actual": self.actual_list,
+                    "ids": self.ids,
+                },
+            }
         return self.report
 
     def save_metrics(self, path):
