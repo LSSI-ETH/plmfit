@@ -591,34 +591,19 @@ class Metrics(torch.nn.Module):
         return self.report
 
     def get_token_classification_metrics(self):
-        if self.no_classes == 1:
-            self.report = {
-                "main": {
-                    "accuracy": self.acc.compute().item(),
-                    "micro_accuracy": self.micro_acc.compute().item(),
-                    "mcc": self.mcc.compute().item(),
-                    "confusion_matrix": self.cm.compute().tolist(),
-                },
-                "pred_data": {
-                    "preds": self.preds_list,
-                    "actual": self.actual_list,
-                    "ids": self.ids,
-                },
-            }
-        else:
-            self.report = {
-                "main": {
-                    "accuracy": self.acc.compute().item(),
-                    "micro_accuracy": self.micro_acc.compute().item(),
-                    "mcc": self.mcc.compute().item(),
-                    "confusion_matrix": self.cm.compute().tolist(),
-                },
-                "pred_data": {
-                    "preds": self.preds_list,
-                    "actual": self.actual_list,
-                    "ids": self.ids,
-                },
-            }
+        self.report = {
+            "main": {
+                "accuracy": self.acc.compute().item(),
+                "micro_accuracy": self.micro_acc.compute().item(),
+                "mcc": self.mcc.compute().item(),
+                "confusion_matrix": self.cm.compute().tolist(),
+            },
+            "pred_data": {
+                "preds": self.preds_list,
+                "actual": self.actual_list,
+                "ids": self.ids,
+            },
+        }
         return self.report
 
     def save_metrics(self, path):
