@@ -97,7 +97,7 @@ class IPretrainedProteinLanguageModel(nn.Module):
 
 
 class Antiberty(IPretrainedProteinLanguageModel):
-    def __init__(self):
+    def __init__(self, logger):
         super().__init__()
         self.name = "antiberty"
         self.logger = l.Logger(f"{self.name}")

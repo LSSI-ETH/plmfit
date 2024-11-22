@@ -1028,13 +1028,13 @@ def init_plm(model_name, logger, task="regression"):
     # elif "ankh" in model_name:
     #     assert model_name in supported_Ankh, "Ankh version is not supported"
     #     model = AnkhFamily(model_name)
-    # elif "antiberty" in model_name:
-    #     model = Antiberty()
     elif "proteinbert" in model_name:
         assert (
             model_name in supported_Proteinbert
         ), "ProteinBERT version is not supported"
         model = ProteinBERTFamily(logger, task)
+    elif "antiberty" in model_name:
+        model = Antiberty()
     else:
         raise "PLM not supported"
 
