@@ -268,7 +268,6 @@ class LightningModel(L.LightningModule):
             self.trainer.save_checkpoint(f'{self.plmfit_logger.base_dir}/lightning_logs/best_model.ckpt')
             self.best_epoch = self.current_epoch
             self.epochs_no_improve = 0
-            #self.plmfit_logger.log(f'Best model saved at epoch {self.best_epoch}')
         else:
             self.epochs_no_improve += 1
         self.plmfit_logger.log(f'Best model saved at epoch {self.best_epoch}')
