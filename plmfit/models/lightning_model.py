@@ -270,7 +270,7 @@ class LightningModel(L.LightningModule):
             self.epochs_no_improve = 0
         else:
             self.epochs_no_improve += 1
-        self.plmfit_logger.log(f'Best model saved at epoch {self.best_epoch}')
+        self.plmfit_logger.log(f'The best model was last saved at epoch {self.best_epoch + 1}.')
 
 
     ### TESTING STEPS ###
