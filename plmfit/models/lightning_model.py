@@ -371,9 +371,6 @@ class LightningModel(L.LightningModule):
         batch_start_time = time.time()
         input,  = batch
         outputs = self(input)
-        print("Outputs prediction step.")
-        print(outputs[0])
-        print(outputs)
         if hasattr(outputs, "logits"):
             outputs = outputs.logits
         if hasattr(outputs, "prediction_logits"):
