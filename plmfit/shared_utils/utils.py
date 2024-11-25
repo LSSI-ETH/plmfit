@@ -20,11 +20,11 @@ import psutil
 from tokenizers.processors import TemplateProcessing
 from torch.utils.data import Dataset
 from plmfit.models.pretrained_models import (
-    Antiberty,
     ESMFamily,
     ProGenFamily,
     ProteinBERTFamily,
     AnkhFamily,
+    AntibertyFamily
 )
 from dotenv import load_dotenv
 import blosum as bl
@@ -32,6 +32,7 @@ from collections import Counter
 import torch.nn.functional as F
 import ast
 from plmfit.shared_utils.random_state import get_random_state
+from antiberty import AntiBERTy
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
@@ -698,7 +699,7 @@ def categorical_encode(
 
             if itr == 0 and logger is not None:
                 logger.log(f"First sequence tokens: {seq_tokens[0].tolist()}")
-    elif "bert" in model_name:
+    elif "proteinbert" in model_name:
         # Adjust max_len if BOS or EOS tokens are to be added
         internal_max_len = max_len + int(add_bos) + int(add_eos)
 
@@ -737,6 +738,24 @@ def categorical_encode(
         for itr, seq in enumerate(seqs):
             tok_seq = torch.tensor(tokenizer.encode(seq))
             seq_tokens[itr][: tok_seq.shape[0]] = tok_seq
+    elif "antiberty" in model_name:
+        internal_max_len = min(max_len + int(add_bos) + int(add_eos),512)
+        sequences = [list(s) for s in seqs]
+        for s in sequences:
+            for i, c in enumerate(s):
+                if c == "_":
+                    s[i] = "[MASK]"
+
+        sequences = [" ".join(s) for s in sequences]
+        tokenizer_out = tokenizer(
+            sequences,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=internal_max_len,
+        )
+        seq_tokens = tokenizer_out["input_ids"]
+        seq_tokens = torch.tensor(seq_tokens, dtype=torch.long)
     else:
         raise "Model tokenizer not defined"
     if logger != None:
@@ -1034,7 +1053,7 @@ def init_plm(model_name, logger, task="regression"):
         ), "ProteinBERT version is not supported"
         model = ProteinBERTFamily(logger, task)
     elif "antiberty" in model_name:
-        model = Antiberty()
+        model = AntibertyFamily(logger, task)
     else:
         raise "PLM not supported"
 

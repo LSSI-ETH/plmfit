@@ -119,6 +119,8 @@ class LightningModel(L.LightningModule):
             attention_mask = batch['attention_mask']
             labels = batch['labels']
             outputs = self(input, attention_mask=attention_mask, labels=labels)
+            print("Model outputs:") # TODO: Remove
+            print(outputs[0]) #TODO: Remove
             loss = outputs.loss
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
@@ -129,11 +131,15 @@ class LightningModel(L.LightningModule):
             if self.model.task == 'classification' and self.hparams.no_classes > 2:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
+                if hasattr(outputs, 'prediction_logits'):
+                    outputs = outputs.prediction_logits
                 labels = torch.nn.functional.one_hot(labels.long(), num_classes=self.hparams.no_classes)
                 labels = labels.float()
             elif self.model.task == 'token_classification' and self.hparams.no_classes > 1:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
+                if hasattr(outputs, 'prediction_logits'):
+                    outputs = outputs.prediction_logits
                 # swap 3rd dimension to 2nd dimension
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
@@ -141,6 +147,8 @@ class LightningModel(L.LightningModule):
             else:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits.squeeze(dim=1)
+                elif hasattr(outputs, 'prediction_logits'):
+                    outputs = outputs.prediction_logits
                 else:
                     outputs = outputs.squeeze(dim=1)
             loss = self.loss_function(outputs, labels)
@@ -225,17 +233,23 @@ class LightningModel(L.LightningModule):
             if self.model.task == 'classification' and self.hparams.no_classes > 2:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
+                if hasattr(outputs, 'prediction_logits'):
+                    outputs = outputs.prediction_logits
                 labels = torch.nn.functional.one_hot(labels.long(), num_classes=self.hparams.no_classes)
                 labels = labels.float()
             elif self.model.task == 'token_classification' and self.hparams.no_classes > 1:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
+                if hasattr(outputs, 'prediction_logits'):
+                    outputs = outputs.prediction_logits
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
                 labels = labels.long()
             else:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits.squeeze(dim=1)
+                elif hasattr(outputs, 'prediction_logits'):
+                    outputs = outputs.prediction_logits
                 else:
                     outputs = outputs.squeeze(dim=1)
 
@@ -298,11 +312,15 @@ class LightningModel(L.LightningModule):
             if self.model.task == 'classification' and self.hparams.no_classes > 2:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
+                if hasattr(outputs, 'prediction_logits'):
+                    outputs = outputs.prediction_logits
                 labels = torch.nn.functional.one_hot(labels.long(), num_classes=self.hparams.no_classes)
                 labels = labels.float()     
             elif self.model.task == 'token_classification' and self.hparams.no_classes > 1:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
+                if hasattr(outputs, 'prediction_logits'):
+                    outputs = outputs.prediction_logits
                 # swap 3rd dimension to 2nd dimension
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
@@ -310,6 +328,8 @@ class LightningModel(L.LightningModule):
             else:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits.squeeze(dim=1)
+                elif hasattr(outputs, 'prediction_logits'):
+                    outputs = outputs.prediction_logits
                 else:
                     outputs = outputs.squeeze(dim=1)
             loss = self.loss_function(outputs, labels)
@@ -351,9 +371,13 @@ class LightningModel(L.LightningModule):
         batch_start_time = time.time()
         input,  = batch
         outputs = self(input)
+        print("Outputs prediction step.")
+        print(outputs[0])
+        print(outputs)
         if hasattr(outputs, "logits"):
             outputs = outputs.logits
-
+        if hasattr(outputs, "prediction_logits"):
+            outputs = outputs.prediction_logits
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(f'(predict) batch : {batch_idx + 1}  / {len(self.trainer.predict_dataloaders)} (batch time : {time.time() - batch_start_time:.4f})')
             

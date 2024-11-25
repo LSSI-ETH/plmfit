@@ -30,7 +30,11 @@ def extract_embeddings(args, logger):
     logger.save_data(vars(args), "arguments")
 
     # TODO: Create predict dataloaders
-    data_loader = utils.create_predict_data_loader(encs, batch_size=4)
+    if "antiberty" in model.name:
+        # AntiBERTy model requires input in int64
+        data_loader = utils.create_predict_data_loader(encs, batch_size=4, dtype=torch.int64)
+    else:
+        data_loader = utils.create_predict_data_loader(encs, batch_size=4)
 
     model = LightningModel(
         model.py_model,
@@ -74,5 +78,4 @@ def extract_embeddings(args, logger):
         estimate_zero3_model_states_mem_needs_all_live(
             model, num_gpus_per_node=int(args.gpus), num_nodes=1
         )
-
     trainer.predict(model=model, dataloaders=data_loader)
