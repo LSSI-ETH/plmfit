@@ -25,6 +25,7 @@ def main():
         gb1_three_vs_rest = results_json["GB1 three-vs-rest"]
         gb1_one_vs_rest = results_json["GB1 one-vs-rest"]
         meltome_mixed = results_json["Meltome mixed"]
+        ss3_sampled = results_json["SS3 sampled"]
 
     # Example datasets (replace these with actual data from results_matrices)
     datasets = [
@@ -33,6 +34,7 @@ def main():
         gb1_three_vs_rest["best_models"],
         gb1_one_vs_rest["best_models"],
         meltome_mixed["best_models"],
+        ss3_sampled["best_models"]
     ]
 
     # Baselines for each dataset
@@ -41,7 +43,8 @@ def main():
         aav_one_vs_rest["ohe_baseline"],
         gb1_three_vs_rest["ohe_baseline"],
         gb1_one_vs_rest["ohe_baseline"],
-        meltome_mixed["ohe_baseline"]
+        meltome_mixed["ohe_baseline"],
+        ss3_sampled["ohe_baseline"]
     ]
 
     # Names for each dataset
@@ -50,24 +53,27 @@ def main():
         'AAV - one_vs_rest',
         'GB1 - three_vs_rest',
         'GB1 - one_vs_rest',
-        'Meltome - mixed'
+        'Meltome - mixed',
+        'SS3 - sampled'
     ]
 
     fig = plt.figure(figsize=(30, 15))
-    gs = GridSpec(2, 5, height_ratios=[1, 1])  # 2 rows, 5 columns (adjustable)
+    gs = GridSpec(
+        2, len(dict_names), height_ratios=[1, 1]
+    )  # 2 rows, 5 columns (adjustable)
     # Add some white space to the left of the whole figure
     # fig.subplots_adjust(left=0.1)
 
     # Create the subplots for the datasets in the first row
-    axes = [fig.add_subplot(gs[0, i]) for i in range(5)]
+    axes = [fig.add_subplot(gs[0, i]) for i in range(len(dict_names))]
     axes[0].text(
         -0.25, 0.95, f"A", fontsize=40, fontweight="bold", transform=axes[0].transAxes
     )
 
     # Plot each dataset in the first row
-    roman_numerals = ["i", "ii", "iii", "iv", "v"]
+    roman_numerals = ["i", "ii", "iii", "iv", "v", "vi"]
     for ax, data, baseline, name, roman in zip(
-        axes[:5], datasets, baselines, dict_names, roman_numerals
+        axes[:len(dict_names)], datasets, baselines, dict_names, roman_numerals
     ):
         for i in range(len(index_tl_techniques)):
             color = 'lightgray' if i % 2 == 0 else 'white'
@@ -100,7 +106,7 @@ def main():
         )
 
     # Remove y-ticks and labels for all but the first subplot in the first row
-    for ax in axes[1:5]:
+    for ax in axes[1:len(dict_names)]:
         ax.set_yticklabels([])
         ax.set_ylabel('')  # Remove y-axis label for these plots
 

@@ -14,6 +14,7 @@ def main():
         gb1_three_vs_rest = results_json["GB1 three-vs-rest"]
         gb1_one_vs_rest = results_json["GB1 one-vs-rest"]
         meltome_mixed = results_json["Meltome mixed"]
+        ss3_sampled = results_json["SS3 sampled"]
 
     colors = {
         'ProteinBERT': '#FF8C00',
@@ -40,30 +41,35 @@ def main():
         aav_sampled["feature_extraction"],
         gb1_three_vs_rest["feature_extraction"],
         meltome_mixed["feature_extraction"],
+        ss3_sampled["feature_extraction"]
     ]
 
     datasets_lora = [
         aav_sampled["lora"],
         gb1_three_vs_rest["lora"],
         meltome_mixed["lora"],
+        ss3_sampled["lora"]
     ]
 
     datasets_adapters = [
         aav_sampled["adapters"],
         gb1_three_vs_rest["adapters"],
         meltome_mixed["adapters"],
+        ss3_sampled["adapters"]
     ]
 
     baselines = [
         aav_sampled["ohe_baseline"],
         gb1_three_vs_rest["ohe_baseline"],
         meltome_mixed["ohe_baseline"],
+        ss3_sampled["ohe_baseline"]
     ]
 
     dict_names = [
         'AAV-sampled',
         'GB1-three vs rest',
-        'Meltome-mixed'
+        'Meltome-mixed',
+        'SS3-sampled'
     ]
 
     from matplotlib.lines import Line2D
@@ -84,7 +90,9 @@ def main():
         return ticks
 
     # Set up the figure with 3 rows and 3 columns for the plots
-    fig, axes = plt.subplots(nrows=3, ncols=len(dict_names), figsize=(50, 30), sharey='row')
+    fig, axes = plt.subplots(
+        nrows=3, ncols=len(dict_names), figsize=(50, 30), sharey="row"
+    )
 
     # Add some white space to the left of the whole figure
     fig.subplots_adjust(left=0.5)
@@ -165,7 +173,7 @@ def main():
         ax.text(
             0.95,
             0.03,
-            f"{'i'*(idx+1)}",
+            f"{'i'*(idx+1)}" if idx <= 3 else "iv",
             fontsize=44,
             fontweight="bold",
             transform=ax.transAxes,
@@ -224,7 +232,7 @@ def main():
         ax.text(
             0.95,
             0.03,
-            f"{'i'*(idx+1)}",
+            f"{'i'*(idx+1)}" if idx <= 3 else "iv",
             fontsize=44,
             fontweight="bold",
             transform=ax.transAxes,
@@ -284,7 +292,12 @@ def main():
                 -0.15, 0.9, f"C", fontsize=56, fontweight="bold", transform=ax.transAxes
             )
         ax.text(
-            0.95, 0.03, f"{'i'*(idx+1)}", fontsize=44, fontweight="bold", transform=ax.transAxes
+            0.95,
+            0.03,
+            f"{'i'*(idx+1)}" if idx <= 3 else "iv",
+            fontsize=44,
+            fontweight="bold",
+            transform=ax.transAxes,
         )
 
     # Set common x-axis label
