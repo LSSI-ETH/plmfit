@@ -171,9 +171,9 @@ def main():
                 -0.15, 0.9, f"A", fontsize=56, fontweight="bold", transform=ax.transAxes
             )
         ax.text(
-            0.95,
+            0.94,
             0.03,
-            f"{'i'*(idx+1)}" if idx <= 3 else "iv",
+            f"{'i'*(idx+1)}" if idx < 3 else "iv",
             fontsize=44,
             fontweight="bold",
             transform=ax.transAxes,
@@ -230,9 +230,9 @@ def main():
                 -0.15, 0.9, f"B", fontsize=56, fontweight="bold", transform=ax.transAxes
             )
         ax.text(
-            0.95,
+            0.94,
             0.03,
-            f"{'i'*(idx+1)}" if idx <= 3 else "iv",
+            f"{'i'*(idx+1)}" if idx < 3 else "iv",
             fontsize=44,
             fontweight="bold",
             transform=ax.transAxes,
@@ -292,9 +292,9 @@ def main():
                 -0.15, 0.9, f"C", fontsize=56, fontweight="bold", transform=ax.transAxes
             )
         ax.text(
-            0.95,
+            0.94,
             0.03,
-            f"{'i'*(idx+1)}" if idx <= 3 else "iv",
+            f"{'i'*(idx+1)}" if idx < 3 else "iv",
             fontsize=44,
             fontweight="bold",
             transform=ax.transAxes,
