@@ -699,7 +699,7 @@ def categorical_encode(
 
             if itr == 0 and logger is not None:
                 logger.log(f"First sequence tokens: {seq_tokens[0].tolist()}")
-    elif "proteinbert" in model_name:
+    elif "bert-base" in model_name:
         # Adjust max_len if BOS or EOS tokens are to be added
         internal_max_len = max_len + int(add_bos) + int(add_eos)
 

@@ -14,6 +14,7 @@ from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionM
 from torchmetrics.regression import MeanSquaredError, MeanAbsoluteError, R2Score, SpearmanCorrCoef
 from torchmetrics.text import Perplexity
 from lightning.pytorch.callbacks import BasePredictionWriter
+from  antiberty import AntiBERTy
 
 class LightningModel(L.LightningModule):
     def __init__(self,  model, training_config=None, plmfit_logger = None, log_interval=-1, method='lora', experimenting=False, train=True):
@@ -59,7 +60,12 @@ class LightningModel(L.LightningModule):
 
 
     def forward(self, input, **args):
+        print("Using lightning module forward function!")
+        #print(self.model)
+        #print(**args)
         output = self.model(input, **args)
+        if type(self.model) == "<class 'plmfit.language_models.antiberty.model.AntiBERTy.AntiBERTy'>":
+            print("made it to if")
         return output
     
     # If code hangs here, try https://github.com/microsoft/DeepSpeed/issues/2816
@@ -118,6 +124,7 @@ class LightningModel(L.LightningModule):
             input = batch['input_ids']
             attention_mask = batch['attention_mask']
             labels = batch['labels']
+            print("Training step")
             outputs = self(input, attention_mask=attention_mask, labels=labels)
             print("Model outputs:") # TODO: Remove
             print(outputs[0]) #TODO: Remove
@@ -126,6 +133,7 @@ class LightningModel(L.LightningModule):
             outputs = outputs.to(torch.float32)
         else:    
             input, labels = batch
+            print("Training step, else")
             outputs = self(input)
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == 'classification' and self.hparams.no_classes > 2:
@@ -138,8 +146,10 @@ class LightningModel(L.LightningModule):
             elif self.model.task == 'token_classification' and self.hparams.no_classes > 1:
                 if hasattr(outputs, 'logits'):
                     outputs = outputs.logits
-                if hasattr(outputs, 'prediction_logits'):
-                    outputs = outputs.prediction_logits
+                if hasattr(outputs, 'hidden_states'):
+                    outputs = outputs.hidden_states
+                    embeddings = torch.stack(embeddings, dim=1)
+                    outputs = embeddings[:, -1, :, :]
                 # swap 3rd dimension to 2nd dimension
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
@@ -222,12 +232,14 @@ class LightningModel(L.LightningModule):
             input = batch['input_ids']
             attention_mask = batch['attention_mask']
             labels = batch['labels']
+            print("Validation step")
             outputs = self(input, attention_mask=attention_mask, labels=labels)
             loss = outputs.loss
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
             input, labels = batch
+            print("Validation step else")
             outputs = self(input)
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == 'classification' and self.hparams.no_classes > 2:
@@ -242,6 +254,10 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits
                 if hasattr(outputs, 'prediction_logits'):
                     outputs = outputs.prediction_logits
+                if hasattr(outputs, 'hidden_states'):
+                    outputs = outputs.hidden_states
+                    embeddings = torch.stack(embeddings, dim=1)
+                    outputs = embeddings[:, -1, :, :]
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
                 labels = labels.long()
@@ -300,14 +316,15 @@ class LightningModel(L.LightningModule):
             input = batch['input_ids']
             attention_mask = batch['attention_mask']
             labels = batch['labels']
+            print("Test step")
             outputs = self(input, attention_mask=attention_mask, labels=labels)
             loss = outputs.loss
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:    
             input, labels, ids = batch
+            print("Test step else")
             outputs = self(input)
-
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == 'classification' and self.hparams.no_classes > 2:
                 if hasattr(outputs, 'logits'):
@@ -370,11 +387,11 @@ class LightningModel(L.LightningModule):
     def predict_step(self, batch, batch_idx):
         batch_start_time = time.time()
         input,  = batch
+        print("Predict step")
         outputs = self(input)
+        #print(f"Outputs: {outputs}")
         if hasattr(outputs, "logits"):
             outputs = outputs.logits
-        if hasattr(outputs, "prediction_logits"):
-            outputs = outputs.prediction_logits
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(f'(predict) batch : {batch_idx + 1}  / {len(self.trainer.predict_dataloaders)} (batch time : {time.time() - batch_start_time:.4f})')
             

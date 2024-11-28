@@ -58,6 +58,9 @@ for idx_name, indices in zip(['train_index', 'val_index', 'test_index'], [train_
 data["one_vs_rest"] = np.where(data["no_mut"] > 1, "test", data["one_vs_rest"])
 data["one_vs_rest"] = np.where(data['binary_score'] == -1, "", data["one_vs_rest"])
 
+# Fill len with 201 in every row
+data["len"] = 201
+
 # For the one_vs_rest column, keep only the first 15,000 'test' samples with binary_score 1 and 15,000 with binary_score 0
 test_indices = data[data["one_vs_rest"] == "test"].index
 test_indices_1 = test_indices[data.loc[test_indices, "binary_score"] == 1]
