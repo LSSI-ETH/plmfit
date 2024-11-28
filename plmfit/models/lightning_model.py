@@ -240,7 +240,10 @@ class LightningModel(L.LightningModule):
         else:
             input, labels = batch
             print("Validation step else")
+            print(type(input))
+            print(input)
             outputs = self(input)
+            print('After self(input)')
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == 'classification' and self.hparams.no_classes > 2:
                 if hasattr(outputs, 'logits'):

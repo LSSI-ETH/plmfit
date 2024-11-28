@@ -16,6 +16,7 @@ from plmfit.language_models.esm.modeling_esm import (
     PlmfitEsmForTokenClassification,
     PlmfitEsmForEmbdeddingsExtraction,
 )
+from plmfit.language_models.antiberty.model.AntiBERTy import AntiBERTy
 
 # from plmfit.shared_utils.data_explore import visualize_embeddings
 
@@ -37,8 +38,6 @@ from transformers import (
     BertTokenizer
 )
 from transformers.tokenization_utils_base import BatchEncoding, PreTrainedTokenizerBase
-from antiberty import AntiBERTyRunner
-from antiberty import AntiBERTy
 from numpy import array
 import psutil
 import traceback
@@ -376,6 +375,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         return 0
 
     def forward(self, src):
+        print("Using progen's custom forward function.")
         src = self.py_model(src).hidden_states[self.layer_to_use]
         src = torch.mean(src, dim=1)
         if self.head != None:
@@ -634,6 +634,7 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
         self.emb_layers_dim = self.py_model.bert.encoder.layer[
             0
         ].attention.output.dense.out_features
+        print(self.name)
         self.tokenizer = utils.load_tokenizer(self.name)
         self.layer_to_use = -1
         self.config = self.py_model.config
@@ -967,6 +968,7 @@ class SapiesFamily:
 
 class AntibertyFamily(IPretrainedProteinLanguageModel):
     tokenizer: PreTrainedTokenizerBase
+    py_model: AntiBERTy
 
     def __init__(self, logger: l.Logger, task: str='regression'):
         print("Initializing AntiBERTy")
@@ -976,7 +978,15 @@ class AntibertyFamily(IPretrainedProteinLanguageModel):
         self.py_model = AntiBERTy.from_pretrained("/cluster/home/wglaenzer/Coding/plmfit/venv/lib/python3.11/site-packages/antiberty/trained_models/AntiBERTy_md_smooth")
         self.tokenizer  = BertTokenizer(vocab_file="/cluster/home/wglaenzer/Coding/plmfit/venv/lib/python3.11/site-packages/antiberty/trained_models/vocab.txt", do_lower_case=False)
         self.no_layers = 8
-        #self.no_parameters = utils.get_parameters(self.py_model)
+        self.config = self.py_model.config
+        print(f"Model config:" + str(self.config))
+        self.no_parameters = utils.get_parameters(self.py_model)
+        print(f"Number of parameters:" + str(self.no_parameters))
+        self.no_layers = self.py_model.config.num_hidden_layers
+        self.emb_layers_dim = self.py_model.config.hidden_size
+        self.layer_to_use = -1
+        print(f"Number of layers:" + str(self.no_layers))
+        print(f"Embedding dimension:" + str(self.emb_layers_dim))
     
     def extract_embeddings(
         self, data_type, batch_size=1, layer=8, reduction="mean", log_interval=100
@@ -1162,5 +1172,13 @@ class AntibertyFamily(IPretrainedProteinLanguageModel):
         )
         return encs
 
+    def forward(self, input):
+        print("New forward function!")
+        embeddings = self.py_model(input, output_hidden_states=True).hidden_states
+        embeddings = torch.stack(embeddings, dim=1)
+        outputs = embeddings[:, -1, :, :] #replace -1 with the layer_to_use
+        print("New forward function!")
+        return outputs
+    
     def trim_model(self):
         return 

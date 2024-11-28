@@ -64,7 +64,7 @@ class AntiBERTy(BertPreTrainedModel):
     def set_output_embeddings(self, new_embeddings):
         self.cls.predictions.decoder = new_embeddings
 
-    def forward(
+    def forward2(
         self,
         input_ids,
         attention_mask=None,
@@ -157,7 +157,39 @@ class AntiBERTy(BertPreTrainedModel):
 
         embeddings = outputs_named.hidden_states
         embeddings = torch.stack(embeddings, dim=1)
-        outputs = embeddings[:, -1, :, :] #replace -1 with the layer_to_use
+        outputs = embeddings[:, -1, :, :].to(torch.long) #replace -1 with the layer_to_use
+        print(outputs.dtype)
+        return outputs
+    
+    def forward(self,
+        input_ids,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        species_label=None,
+        chain_label=None,
+        graft_label=None,
+        output_attentions=None,
+        output_hidden_states=True,
+        return_dict=None,):
+        print("AntiBERTy new forward function, from the language_models folder")
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+        embeddings = outputs.hidden_states
+        embeddings = torch.stack(embeddings, dim=1)
+        outputs = embeddings[:, -1, :, :]#TODO: replace -1 with the layer_to_use, maybe with .to(torch.long) at the end?
         return outputs
     
     def set_head(self, head):

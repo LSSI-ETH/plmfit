@@ -46,7 +46,7 @@ def fine_tune(args, logger):
     sampler = head_config["training_parameters"].get("sampler", False) == True
     model = utils.init_plm(args.plm, logger, task=task)
     assert model != None, "Model is not initialized"
-
+    print(model)
     if args.zeroed == "True":
         model.zeroed_model()
 
@@ -254,7 +254,7 @@ def downstream_prep(
         scaler=training_params["scaler"],
         batch_size=training_params["batch_size"],
         validation_size=training_params["val_split"],
-        dtype=torch.int8,
+        dtype=torch.int, # TODO: check if this works with all models
         split=split,
         num_workers=0,
         weights=weights,
