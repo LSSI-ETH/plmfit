@@ -25,6 +25,7 @@ from plmfit.models.pretrained_models import (
     ProGenFamily,
     ProteinBERTFamily,
     AnkhFamily,
+    AntibertyFamily,
 )
 from dotenv import load_dotenv
 import blosum as bl
@@ -272,7 +273,7 @@ def create_data_loaders(
 def create_predict_data_loader(
     dataset,
     batch_size=64,
-    dtype=torch.int8,
+    dtype=torch.int, #this was originally int8, check if this is okay for all models now
     num_workers=0,
     dataset_type="tensor",
 ):
@@ -541,6 +542,8 @@ def get_activation_function(name):
         return nn.Softmax(dim=-1)
     elif name == "tanh":
         return nn.Tanh()
+    elif name == "none":
+        return nn.Identity()
     # Add more activation functions as needed
     else:
         raise f"Unsupported activation function: {name}"
@@ -698,7 +701,7 @@ def categorical_encode(
 
             if itr == 0 and logger is not None:
                 logger.log(f"First sequence tokens: {seq_tokens[0].tolist()}")
-    elif "bert" in model_name:
+    elif "bert-base" in model_name:
         # Adjust max_len if BOS or EOS tokens are to be added
         internal_max_len = max_len + int(add_bos) + int(add_eos)
 
@@ -737,6 +740,24 @@ def categorical_encode(
         for itr, seq in enumerate(seqs):
             tok_seq = torch.tensor(tokenizer.encode(seq))
             seq_tokens[itr][: tok_seq.shape[0]] = tok_seq
+    elif "antiberty" in model_name:
+        internal_max_len = min(max_len + int(add_bos) + int(add_eos),512)
+        sequences = [list(s) for s in seqs]
+        for s in sequences:
+            for i, c in enumerate(s):
+                if c == "_":
+                    s[i] = "[MASK]"
+
+        sequences = [" ".join(s) for s in sequences]
+        tokenizer_out = tokenizer(
+            sequences,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=internal_max_len,
+        )
+        seq_tokens = tokenizer_out["input_ids"]
+        seq_tokens = torch.tensor(seq_tokens, dtype=torch.long)
     else:
         raise "Model tokenizer not defined"
     if logger != None:
@@ -1030,11 +1051,13 @@ def init_plm(model_name, logger, task="regression"):
     #     model = AnkhFamily(model_name)
     # elif "antiberty" in model_name:
     #     model = Antiberty()
-    elif "proteinbert" in model_name:
+    elif "bert-base" in model_name:
         assert (
             model_name in supported_Proteinbert
         ), "ProteinBERT version is not supported"
         model = ProteinBERTFamily(logger, task)
+    elif "antiberty" in model_name:
+        model = AntibertyFamily(logger, task)
     else:
         raise "PLM not supported"
 

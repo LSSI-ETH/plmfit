@@ -20,6 +20,7 @@ class LightningModel(L.LightningModule):
         torch.set_float32_matmul_precision('medium')
         super().__init__()
         self.model = model
+        print(model)
         self.save_hyperparameters(training_config)
         if train: self.loss_function = self.initialize_loss_function()
         self.plmfit_logger = plmfit_logger

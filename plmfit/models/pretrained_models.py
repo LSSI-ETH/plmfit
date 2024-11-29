@@ -34,13 +34,14 @@ from transformers import (
     AutoModel,
     EsmForMaskedLM,
     EsmForSequenceClassification,
+    PreTrainedTokenizerBase,
+    BertTokenizer,
 )
-from antiberty import AntiBERTyRunner
 from numpy import array
 import psutil
 import traceback
 import torch.nn.functional as F
-
+from plmfit.language_models.antiberty.model.AntiBERTy import AntiBERTy
 
 class IPretrainedProteinLanguageModel(nn.Module):
 
@@ -1044,3 +1045,220 @@ class AnkhFamily(IPretrainedProteinLanguageModel):
 
 class SapiesFamily:
     pass
+
+class AntibertyFamily(IPretrainedProteinLanguageModel):
+    tokenizer: PreTrainedTokenizerBase
+    py_model: AntiBERTy
+
+    def __init__(self, logger: l.Logger, task: str='regression'):
+        print("Initializing AntiBERTy")
+        super().__init__(logger, task)
+        self.name = "antiberty"
+        self.logger = l.Logger(f"{self.name}")
+        self.py_model = AntiBERTy.from_pretrained("/cluster/home/wglaenzer/Coding/plmfit/venv/lib/python3.11/site-packages/antiberty/trained_models/AntiBERTy_md_smooth")
+        self.tokenizer  = BertTokenizer(vocab_file="/cluster/home/wglaenzer/Coding/plmfit/venv/lib/python3.11/site-packages/antiberty/trained_models/vocab.txt", do_lower_case=False)
+        self.no_layers = 8
+        self.config = self.py_model.config
+        print(f"Model config:" + str(self.config))
+        self.no_parameters = utils.get_parameters(self.py_model)
+        print(f"Number of parameters:" + str(self.no_parameters))
+        self.no_layers = self.py_model.config.num_hidden_layers
+        self.emb_layers_dim = self.py_model.config.hidden_size
+        self.layer_to_use = -1
+        print(f"Number of layers:" + str(self.no_layers))
+        print(f"Embedding dimension:" + str(self.emb_layers_dim))
+    
+    def extract_embeddings(
+        self, data_type, batch_size=1, layer=8, reduction="mean", log_interval=100
+    ):
+        try:
+            self.set_layer_to_use(layer)
+            layer = (self.layer_to_use  + 1)
+            self.logger.log(f"Extracting embeddings from layer: {layer}")
+
+            # Choose the device GPU if it is available
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            memory_usage = psutil.virtual_memory()
+            max_mem_usage = utils.print_gpu_utilization(memory_usage, device)
+            fp16 = False
+            device_ids = []
+            if torch.cuda.is_available():
+                torch.cuda.set_per_process_memory_fraction(1 / 1)
+                torch.cuda.memory._record_memory_history(
+                    enabled="all", max_entries=100000
+                )
+                device = "cuda:0"
+                fp16 = True
+                self.logger.log(f"Available GPUs : {torch.cuda.device_count()}")
+                for i in range(torch.cuda.device_count()):
+                    self.logger.log(
+                        f"Running on {torch.cuda.get_device_properties(i).name}"
+                    )
+                    device_ids.append(i)
+
+            else:
+                self.logger.log(f"No gpu found rolling device back to {device}")
+
+            data = utils.load_dataset(data_type)
+            start_enc_time = time.time()
+            self.logger.log(f"Endocing {data.shape[0]} sequences...")
+            #encs = self.categorical_encode(data)
+            mem_usage = utils.print_gpu_utilization(memory_usage, device)
+            if mem_usage > max_mem_usage:
+                max_mem_usage = mem_usage
+            self.logger.log(f"Encoding completed! {time.time() -  start_enc_time:.4f}s")
+            enc_time = time.time() - start_enc_time
+            encs = encs.to(device)
+            seq_dataset = data_utils.TensorDataset(encs)
+            seq_loader = data_utils.DataLoader(
+                seq_dataset, batch_size=batch_size, shuffle=False
+            )
+            self.logger.log(
+                f"Extracting embeddings for {len(seq_dataset)} sequences..."
+            )
+            embs = torch.zeros((len(seq_dataset), self.emb_layers_dim)).to(device)
+            self.py_model = self.py_model.to(device)
+            i = 0
+            self.py_model.eval()
+            start_extraction_time = time.time()
+            with torch.no_grad():
+                with torch.cuda.amp.autocast(enabled=fp16, cache_enabled=False):
+                    for batch in seq_loader:
+                        start = time.time()
+                        current_batch_size = batch[0].shape[0]
+                        embeddings = self.py_model.embed(batch[0], return_attention = False)
+#
+#                        if layer == "logits":
+#                            out = self.py_model(batch[0]).logits
+#                        else:
+#                            model_output = self.py_model(batch[0])
+#                            hidden_states = model_output.hidden_states
+#
+#                            # Log the shape of each layer's embeddings for the first batch if we are unsure what our model outputs
+#                            # if i == 0:
+#                            #     for layer_index, layer_output in enumerate(hidden_states):
+#                            #         self.logger.log(f'Layer {layer_index} shape: {layer_output.shape}')
+#
+#                            # Now select the specific layer's output
+#                            out = hidden_states[layer]
+#                        if reduction == "mean":
+#                            embs[i : i + current_batch_size, :] = torch.mean(out, dim=1)
+#                            if i == 0:
+#                                self.logger.log(f"{(torch.mean(out, dim=1)).size()}")
+#                        elif reduction == "sum":
+#                            embs[i : i + current_batch_size, :] = torch.sum(out, dim=1)
+#                        elif reduction == "bos":
+#                            # Select the embeddings for the first token of each sequence in the batch
+#                            embs[i : i + current_batch_size, :] = out[:, 0, :]
+#                        elif reduction == "eos":
+#                            # Initialize a tensor to store the selected embeddings
+#                            selected_embs = torch.zeros(
+#                                current_batch_size, out.shape[2], device=out.device
+#                            )
+#
+#                            # Iterate over each sequence in the batch
+#                            for seq_idx in range(current_batch_size):
+#                                # Find the positions of the token with ID equal to 2 in the current sequence
+#                                token_positions = (batch[0][seq_idx] == 2).nonzero(
+#                                    as_tuple=True
+#                                )[0]
+#
+#                                # Check if the token ID is present in the sequence
+#                                if len(token_positions) > 0:
+#                                    # Select the position of the last occurrence of the token
+#                                    last_position = token_positions[-1].item()
+#
+#                                    # Select the embeddings for the last occurrence of the token
+#                                    selected_embs[seq_idx, :] = out[
+#                                        seq_idx, last_position, :
+#                                    ]
+#                                else:
+#                                    # If the token ID is not found, you might want to handle this case.
+#                                    # For example, use the embeddings of the last token of the sequence
+#                                    # or set to zeros, depending on your application's requirements.
+#                                    # Here, we use the embeddings of the last token as a fallback.
+#                                    selected_embs[seq_idx, :] = out[seq_idx, -1, :]
+#                                    self.logger.log(
+#                                        f"EOS token not found for sequence {i}"
+#                                    )
+#
+#                            # Update the embeddings tensor with the selected embeddings
+#                            embs[i : i + current_batch_size, :] = selected_embs
+#                        elif utils.convert_to_number(reduction) is not None:
+#                            # Select the embeddings for the i token of each sequence in the batch
+#                            embs[i : i + current_batch_size, :] = out[
+#                                :, utils.convert_to_number(reduction), :
+#                            ]
+#                        else:
+#                            raise ValueError("Unsupported reduction option")
+#                        del out
+#                        i = i + current_batch_size
+#                        if log_interval != -1 and i % log_interval == 0:
+#                            self.logger.log(
+#                                f" {i} / {len(seq_dataset)} | {time.time() - start:.2f}s "
+#                            )
+            mem_usage = utils.print_gpu_utilization(memory_usage, device)
+            if mem_usage > max_mem_usage:
+                max_mem_usage = mem_usage
+            extraction_time = time.time() - start_extraction_time
+            torch.save(embeddings, f"{self.logger.base_dir}/{self.logger.experiment_name}.pt")
+            file_size_bytes = os.path.getsize(
+                f"{self.logger.base_dir}/{self.logger.experiment_name}.pt"
+            )
+            file_size_mb = file_size_bytes / (1024 * 1024)  # Convert bytes to megabytes
+            report = {
+                "encoding_time_needed": f"{enc_time:.4f}",
+                "extraction_time_needed": f"{extraction_time:.4f}",
+                "avg_time_per_seq": f"{extraction_time / len(seq_dataset):.4f}",
+                "dataset_len": len(seq_dataset),
+                "embeddings_dim": embs.shape,
+                "data_type": data_type,
+                "layer": layer,
+                "reduction": reduction,
+                "batch_size": batch_size,
+                "embeddings_file_size_mb": f"{file_size_mb:.2f}",
+                "max_vram_usage_mb": max_mem_usage,
+            }
+            self.logger.save_data(report, "report")
+            t = torch.load(f"{self.logger.base_dir}/{self.logger.experiment_name}.pt")
+            self.logger.log(
+                f'Saved embeddings ({t.shape[1]}-d) as "{self.logger.experiment_name}.pt" ({time.time() - start_enc_time:.2f}s)'
+            )
+
+            if torch.cuda.is_available():
+                torch.cuda.memory._dump_snapshot(
+                    f"{self.logger.base_dir}/memory_profiler.pickle"
+                )
+            if torch.cuda.is_available():
+                torch.cuda.memory._record_memory_history(enabled=None)
+            return
+        except:
+            if torch.cuda.is_available():
+                torch.cuda.memory._dump_snapshot(
+                    f"{self.logger.base_dir}/memory_profiler.pickle"
+                )
+            if torch.cuda.is_available():
+                torch.cuda.memory._record_memory_history(enabled=None)
+            stack_trace = traceback.format_exc()
+            self.logger.log(stack_trace)
+        
+    def categorical_encode(self, data, max_length="default"):
+        encs = utils.categorical_encode(
+            data["aa_seq"].values,
+            self.tokenizer,
+            max(max(data["len"].values), 512),
+            logger=self.logger,
+            model_name="antiberty",
+        )
+        return encs
+
+    #def forward(self, input):
+    #    print("New forward function!")
+    #    embeddings = self.py_model(input, output_hidden_states=True).hidden_states
+    #    embeddings = torch.stack(embeddings, dim=1)
+    #    outputs = embeddings[:, -1, :, :] #replace -1 with the layer_to_use
+    #    print("New forward function!")
+    #    return outputs
+
+    def trim_model(self):
+        return self.py_model

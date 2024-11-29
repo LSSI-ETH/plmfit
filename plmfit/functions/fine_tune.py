@@ -254,7 +254,7 @@ def downstream_prep(
         scaler=training_params["scaler"],
         batch_size=training_params["batch_size"],
         validation_size=training_params["val_split"],
-        dtype=torch.int8,
+        dtype=torch.int, #TODO: this was originally int8, check if this is okay for all models now
         split=split,
         num_workers=0,
         weights=weights,
