@@ -3,8 +3,8 @@ from typing import Optional, Tuple
 import torch
 from torch import nn
 from transformers.models.bert.modeling_bert import BertPreTrainedModel, BertModel, BertLMPredictionHead, ModelOutput
-
 from antiberty.utils.general import exists
+from transformers.modeling_outputs import SequenceClassifierOutputWithPast, MaskedLMOutput, SequenceClassifierOutput
 
 
 class AntiBERTyHeads(nn.Module):
@@ -64,7 +64,7 @@ class AntiBERTy(BertPreTrainedModel):
     def set_output_embeddings(self, new_embeddings):
         self.cls.predictions.decoder = new_embeddings
 
-    def forward2(
+    def forward_old(
         self,
         input_ids,
         attention_mask=None,
@@ -81,10 +81,9 @@ class AntiBERTy(BertPreTrainedModel):
         return_dict=None,
     ):
         """ 
-        This is the original AntiBERTy forward function
+        This is the original AntiBERTy forward function, which is not used by PLMfit anymore
         """
 
-        print("Using AntiBERTy forward function.")
         return_dict = return_dict if exists(
             return_dict) else self.config.use_return_dict
 
@@ -173,8 +172,6 @@ class AntiBERTy(BertPreTrainedModel):
         Custom forward function that returns only the hidden states (embeddings).
         """
         
-        print("AntiBERTy new forward function, from the language_models folder")
-
         outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,
@@ -194,4 +191,91 @@ class AntiBERTy(BertPreTrainedModel):
         return outputs
 
     def trim_model(self, layer_to_use):
+        """
+        Truncates the model after the layer_to_use, this let's users choose the embeddings of which layer should be used.
+        """
         self.bert.encoder.layer = nn.ModuleList(list(self.bert.encoder.layer.children())[:layer_to_use + 1])
+
+    def set_head(self, head):
+        """
+        Changes the head of the model e.g. for finetuning
+        """
+        self.cls = head
+
+class AntiBERTyForTokenClassification(AntiBERTy):
+    def set_head(self, head):
+        """
+        Changes the head of the model e.g. for finetuning
+        """
+        self.cls = head
+    def forward(self,
+        input_ids,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        output_attentions=None,
+        output_hidden_states=True,
+        return_dict=None,):
+        """ 
+        Custom forward function that returns only the hidden states (embeddings).
+        """
+        
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        outputs = self.bert(input_ids)
+        #embeddings = torch.stack(embeddings, dim=1)
+        #outputs = embeddings[:, -1, :, :]#TODO: replace -1 with the layer_to_use, maybe with .to(torch.long) at the end?
+        print(outputs)
+        # The first element of outputs is the last layer hidden-state
+        sequence_output = outputs[0]
+        # The third element of outputs is the hidden states from all layers
+        #all_hidden_states = outputs[2]
+
+        logits = self.cls(sequence_output)
+        
+        # (loss), prediction_scores, (hidden_states), (attentions)
+        return SequenceClassifierOutput(logits=logits)
+    
+class AntiBERTyForSequenceClassification(AntiBERTy):
+
+    def __init__(self, config):
+        config.output_hidden_states = True
+        super().__init__(config)
+        self.num_labels = config.num_labels
+
+    def set_head(self, head):
+        self.classifier = head
+
+    def trim_model(self, layer_to_use):
+        self.bert.encoder.layer = nn.ModuleList(list(self.bert.encoder.layer.children())[:layer_to_use + 1])
+
+    def forward(self, input_ids, input_mask=None, targets=None):
+        if input_ids is not None:
+            input_ids = input_ids.int()
+        outputs = self.bert(input_ids, input_mask=input_mask)
+        print(outputs)
+        
+        # The first element of outputs is the last layer hidden-state
+        sequence_output = outputs[0]
+        # The third element of outputs is the hidden states from all layers
+        all_hidden_states = outputs[2]
+        pooled_output = self.bert.pooler(sequence_output, pooling_method=self.reduction)
+
+        logits = self.classifier(pooled_output)
+        # (loss), prediction_scores, (hidden_states), (attentions)
+        return SequenceClassifierOutputWithPast(
+            logits=logits,
+            hidden_states=all_hidden_states
+        )

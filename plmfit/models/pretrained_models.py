@@ -41,7 +41,7 @@ from numpy import array
 import psutil
 import traceback
 import torch.nn.functional as F
-from plmfit.language_models.antiberty.model.AntiBERTy import AntiBERTy
+from plmfit.language_models.antiberty.model.AntiBERTy import AntiBERTy, AntiBERTyForTokenClassification, AntiBERTyForSequenceClassification
 
 class IPretrainedProteinLanguageModel(nn.Module):
 
@@ -95,88 +95,6 @@ class IPretrainedProteinLanguageModel(nn.Module):
             self.layer_to_use = int(layer) if layer.isdigit() else self.no_layers - 1
 
         self.py_model.trim_model(self.layer_to_use)
-
-
-class Antiberty(IPretrainedProteinLanguageModel):
-    def __init__(self):
-        super().__init__()
-        self.name = "antiberty"
-        self.logger = l.Logger(f"{self.name}")
-        self.model = AntiBERTyRunner()
-
-    def extract_embeddings(self, data_type, layer, reduction, output_dir="default"):
-        logger = self.logger
-        device = "cpu"
-        fp16 = False
-        device_ids = []
-        if torch.cuda.is_available():
-            device = "cuda:0"
-            fp16 = True
-            self.logger.log(f"Available GPUs : {torch.cuda.device_count()}")
-            for i in range(torch.cuda.device_count()):
-                self.logger.log(
-                    f"Running on {torch.cuda.get_device_properties(i).name}"
-                )
-                device_ids.append(i)
-
-        else:
-            self.logger.log(f"No gpu found rolling device back to {device}")
-
-        batch_size = 1
-        if output_dir == "default":
-            output_path = f"./plmfit/data/{data_type}/embeddings/"
-        else:
-            output_path = f"{output_dir}/{data_type}/embeddings/"
-        if not os.path.exists(output_path):
-            os.makedirs(output_path, exist_ok=True)
-
-        start_emb_time = time.time()
-        data = utils.load_dataset(data_type)
-
-        self.logger = l.Logger(
-            f"extract_embeddings_{data_type}_{self.name}_{reduction}"
-        )
-
-        embs = torch.zeros((len(data), 1024)).to(device)
-
-        for vh, vl in zip(data["V_h"], data["V_l"]):
-            start = time.time()
-            out = self.model.embed([vh, vl])
-            if reduction == "mean":
-                embs[i, 0:512] = torch.mean(out[0], dim=0)
-                embs[i, 512:1024] = torch.mean(out[1], dim=0)
-            elif reduction == "sum":
-                embs[i, 0:512] = torch.sum(out[0], dim=0)
-                embs[i, 512:1024] = torch.sum(out[1], dim=0)
-            elif reduction == "bos":
-                # Select the embeddings for the first token of each sequence in the batch
-                embs[i, 0:512] = out[0][0, :]
-                embs[i, 512:1024] = out[1][0, :]
-            elif reduction == "eos":
-                # Select the embeddings for the last token of each sequence in the batch
-                embs[i, 0:512] = out[0][-1, :]
-                embs[i, 512:1024] = out[1][-1, :]
-            else:
-                raise ValueError("Unsupported reduction option")
-            del out
-            i = i + batch_size
-            logger.log(f" {i} / {len(data)} | {time.time() - start:.2f}s ")
-
-        torch.save(
-            embs,
-            os.path.join(
-                output_path, f"{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt"
-            ),
-        )
-        t = torch.load(
-            os.path.join(
-                output_path, f"{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt"
-            )
-        )
-        logger.log(
-            f'Saved embeddings ({t.shape[1]}-d) as "{data_type}_{self.name}_embs_layer{layer}_{reduction}.pt" ({time.time() - start_emb_time:.2f}s)'
-        )
-        return
 
 
 class ProGenFamily(IPretrainedProteinLanguageModel):
@@ -1055,8 +973,18 @@ class AntibertyFamily(IPretrainedProteinLanguageModel):
         super().__init__(logger, task)
         self.name = "antiberty"
         self.logger = l.Logger(f"{self.name}")
-        self.py_model = AntiBERTy.from_pretrained("/cluster/home/wglaenzer/Coding/plmfit/venv/lib/python3.11/site-packages/antiberty/trained_models/AntiBERTy_md_smooth")
-        self.tokenizer  = BertTokenizer(vocab_file="/cluster/home/wglaenzer/Coding/plmfit/venv/lib/python3.11/site-packages/antiberty/trained_models/vocab.txt", do_lower_case=False)
+
+        if self.task == "masked_lm" or self.task == "extract_embeddings":
+            self.py_model = AntiBERTy.from_pretrained(f"{utils.plmfit_path}/language_models/antiberty/trained_models/AntiBERTy_md_smooth")
+            #self.output_dim = self.py_model.mlm.vocab_size
+        elif self.task == "token_classification":
+            self.py_model = AntiBERTyForTokenClassification.from_pretrained(f"{utils.plmfit_path}/language_models/antiberty/trained_models/AntiBERTy_md_smooth")
+            #self.output_dim = self.py_model.cls.out_features
+        else:
+            self.py_model = AntiBERTyForSequenceClassification.from_pretrained(f"{utils.plmfit_path}/language_models/antiberty/trained_models/AntiBERTy_md_smooth")
+
+        #self.py_model = AntiBERTy.from_pretrained("/cluster/home/wglaenzer/Coding/plmfit/venv/lib/python3.11/site-packages/antiberty/trained_models/AntiBERTy_md_smooth")
+        self.tokenizer  = BertTokenizer(vocab_file=f"{utils.plmfit_path}/language_models/antiberty/trained_models/vocab.txt", do_lower_case=False)
         self.no_layers = len(self.py_model.bert.encoder.layer)
         self.config = self.py_model.config
         print(f"Model config:" + str(self.config))

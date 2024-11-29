@@ -20,7 +20,6 @@ import psutil
 from tokenizers.processors import TemplateProcessing
 from torch.utils.data import Dataset
 from plmfit.models.pretrained_models import (
-    Antiberty,
     ESMFamily,
     ProGenFamily,
     ProteinBERTFamily,
