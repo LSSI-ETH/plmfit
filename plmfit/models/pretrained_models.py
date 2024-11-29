@@ -1057,7 +1057,7 @@ class AntibertyFamily(IPretrainedProteinLanguageModel):
         self.logger = l.Logger(f"{self.name}")
         self.py_model = AntiBERTy.from_pretrained("/cluster/home/wglaenzer/Coding/plmfit/venv/lib/python3.11/site-packages/antiberty/trained_models/AntiBERTy_md_smooth")
         self.tokenizer  = BertTokenizer(vocab_file="/cluster/home/wglaenzer/Coding/plmfit/venv/lib/python3.11/site-packages/antiberty/trained_models/vocab.txt", do_lower_case=False)
-        self.no_layers = 8
+        self.no_layers = len(self.py_model.bert.encoder.layer)
         self.config = self.py_model.config
         print(f"Model config:" + str(self.config))
         self.no_parameters = utils.get_parameters(self.py_model)
@@ -1251,14 +1251,3 @@ class AntibertyFamily(IPretrainedProteinLanguageModel):
             model_name="antiberty",
         )
         return encs
-
-    #def forward(self, input):
-    #    print("New forward function!")
-    #    embeddings = self.py_model(input, output_hidden_states=True).hidden_states
-    #    embeddings = torch.stack(embeddings, dim=1)
-    #    outputs = embeddings[:, -1, :, :] #replace -1 with the layer_to_use
-    #    print("New forward function!")
-    #    return outputs
-
-    def trim_model(self):
-        return self.py_model

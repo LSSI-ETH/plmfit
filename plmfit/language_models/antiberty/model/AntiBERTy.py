@@ -194,4 +194,4 @@ class AntiBERTy(BertPreTrainedModel):
         return outputs
 
     def trim_model(self, layer_to_use):
-        return self
+        self.bert.encoder.layer = nn.ModuleList(list(self.bert.encoder.layer.children())[:layer_to_use + 1])
