@@ -5,6 +5,7 @@ from torch import nn
 from transformers.models.bert.modeling_bert import BertPreTrainedModel, BertModel, BertLMPredictionHead, ModelOutput
 from antiberty.utils.general import exists
 from transformers.modeling_outputs import SequenceClassifierOutputWithPast, MaskedLMOutput, SequenceClassifierOutput
+from plmfit.language_models.proteinbert.modeling_bert import ProteinBertPooler
 
 
 class AntiBERTyHeads(nn.Module):
@@ -17,6 +18,9 @@ class AntiBERTyHeads(nn.Module):
         self.species = nn.Linear(config.hidden_size, 6)
         self.chain = nn.Linear(config.hidden_size, 2)
         self.graft = nn.Linear(config.hidden_size, 2)
+        self.reduction = "mean"
+        self.pooler = ProteinBertPooler(config)
+
 
     def forward(self, sequence_output, pooled_output):
         prediction_scores = self.predictions(sequence_output)
@@ -57,6 +61,9 @@ class AntiBERTy(BertPreTrainedModel):
         self.num_species = 6
         self.num_chains = 2
         self.num_grafts = 2
+        self.reduction = "mean"
+        self.pooler = ProteinBertPooler(config)
+
 
     def get_output_embeddings(self):
         return self.cls.predictions.decoder
@@ -187,8 +194,8 @@ class AntiBERTy(BertPreTrainedModel):
         embeddings = outputs.hidden_states
         embeddings = torch.stack(embeddings, dim=1)
         outputs = embeddings[:, -1, :, :]#TODO: replace -1 with the layer_to_use, maybe with .to(torch.long) at the end?
-
-        return outputs
+        pooled_output = self.pooler(outputs, pooling_method=self.reduction)
+        return pooled_output
 
     def trim_model(self, layer_to_use):
         """
@@ -277,5 +284,5 @@ class AntiBERTyForSequenceClassification(AntiBERTy):
         # (loss), prediction_scores, (hidden_states), (attentions)
         return SequenceClassifierOutputWithPast(
             logits=logits,
-            hidden_states=all_hidden_states
+            hidden_states=pooled_output #this was all_hidden_states before
         )

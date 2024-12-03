@@ -1036,7 +1036,7 @@ def init_plm(model_name, logger, task="regression"):
         "esm2_t48_15B_UR50D",
     ]
     # supported_Ankh = ["ankh-base", "ankh-large", "ankh2-large"]
-    supported_Proteinbert = ["proteinbert"]
+    supported_Proteinbert = ["proteinbert", "bert-base"]
 
     if "progen" in model_name:
         assert model_name in supported_progen2, "Progen version is not supported"
@@ -1050,7 +1050,7 @@ def init_plm(model_name, logger, task="regression"):
     #     model = AnkhFamily(model_name)
     # elif "antiberty" in model_name:
     #     model = Antiberty()
-    elif "bert-base" in model_name:
+    elif "bert-base" in model_name or "proteinbert" in model_name:
         assert (
             model_name in supported_Proteinbert
         ), "ProteinBERT version is not supported"
@@ -1059,7 +1059,7 @@ def init_plm(model_name, logger, task="regression"):
         model = AntibertyFamily(logger, task)
     else:
         raise "PLM not supported"
-
+    print(model_name)
     return model
 
 
