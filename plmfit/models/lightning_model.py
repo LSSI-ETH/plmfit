@@ -68,6 +68,7 @@ class LightningModel(L.LightningModule):
         self.start_time = time.time()
         self.epoch_train_loss = []
         self.epoch_val_loss = []
+        self.plmfit_logger.log(self.model)
         utils.get_parameters(self.model, self.plmfit_logger)
         self.plmfit_logger.current_global_rank = self.trainer.global_rank
 

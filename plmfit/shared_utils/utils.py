@@ -1059,7 +1059,6 @@ def init_plm(model_name, logger, task="regression"):
         model = AntibertyFamily(logger, task)
     else:
         raise "PLM not supported"
-    print(model_name)
     return model
 
 
