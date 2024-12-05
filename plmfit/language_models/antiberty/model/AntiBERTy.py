@@ -193,8 +193,8 @@ class AntiBERTy(BertPreTrainedModel):
 
         embeddings = outputs.hidden_states
         embeddings = torch.stack(embeddings, dim=1)
-        outputs = embeddings[:, -1, :, :]#TODO: replace -1 with the layer_to_use, maybe with .to(torch.long) at the end?
-        pooled_output = self.pooler(outputs, pooling_method=self.reduction)
+        outputs = embeddings[:, -1, :, :]
+        pooled_output = self.pooler(outputs)
         return pooled_output
 
     def trim_model(self, layer_to_use):
@@ -242,9 +242,6 @@ class AntiBERTyForTokenClassification(AntiBERTy):
         )
 
         outputs = self.bert(input_ids)
-        #embeddings = torch.stack(embeddings, dim=1)
-        #outputs = embeddings[:, -1, :, :]#TODO: replace -1 with the layer_to_use, maybe with .to(torch.long) at the end?
-        print(outputs)
         # The first element of outputs is the last layer hidden-state
         sequence_output = outputs[0]
         # The third element of outputs is the hidden states from all layers
@@ -268,17 +265,38 @@ class AntiBERTyForSequenceClassification(AntiBERTy):
     def trim_model(self, layer_to_use):
         self.bert.encoder.layer = nn.ModuleList(list(self.bert.encoder.layer.children())[:layer_to_use + 1])
 
-    def forward(self, input_ids, input_mask=None, targets=None):
+    def forward(self,
+                input_ids,
+                attention_mask=None,
+                token_type_ids=None,
+                position_ids=None,
+                head_mask=None,
+                inputs_embeds=None,
+                output_attentions=None,
+                output_hidden_states=True,
+                return_dict=None,):
+
         if input_ids is not None:
             input_ids = input_ids.int()
-        outputs = self.bert(input_ids, input_mask=input_mask)
+
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
         print(outputs)
         
         # The first element of outputs is the last layer hidden-state
         sequence_output = outputs[0]
         # The third element of outputs is the hidden states from all layers
         all_hidden_states = outputs[2]
-        pooled_output = self.bert.pooler(sequence_output, pooling_method=self.reduction)
+        pooled_output = self.bert.pooler(sequence_output)
 
         logits = self.classifier(pooled_output)
         # (loss), prediction_scores, (hidden_states), (attentions)

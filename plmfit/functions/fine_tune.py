@@ -100,7 +100,6 @@ def fine_tune(args, logger):
 
     utils.trainable_parameters_summary(model, logger)
     model.py_model.task = task
-
     model = LightningModel(
         model.py_model,
         training_params,
@@ -111,7 +110,6 @@ def fine_tune(args, logger):
     lightning_logger = TensorBoardLogger(
         save_dir=logger.base_dir, version=0, name="lightning_logs"
     )
-
     # TODO make this through the configuration defined
     if args.data_type == "gb1" and args.split == "one_vs_rest":
         model.track_validation_after = 10
@@ -119,6 +117,8 @@ def fine_tune(args, logger):
         model.track_validation_after = -1
     if args.data_type == "herH3" and args.split == "one_vs_rest":
         model.track_validation_after = -1
+    if args.data_type == "paratope":
+        model.track_validation_after = 10
 
     strategy = DeepSpeedStrategy(
         stage=3,
@@ -151,7 +151,6 @@ def fine_tune(args, logger):
         estimate_zero3_model_states_mem_needs_all_live(
             model, num_gpus_per_node=int(args.gpus), num_nodes=1
         )
-
     if args.evaluate != "True":
         model.train()
         trainer.fit(model, data_loaders["train"], data_loaders["val"])
@@ -170,7 +169,6 @@ def fine_tune(args, logger):
             logger.save_plot(loss_plot, "training_validation_loss")
     else:
         ckpt_path = args.model_path
-
     # TODO: Testing for lm
     if task != "masked_lm":
         trainer.test(
@@ -232,7 +230,12 @@ def downstream_prep(
         else:
             raise KeyError("Neither 'binary_score' nor 'label' found in data")
     elif task == "token_classification":
-        scores = data["label"].values
+        if "label" in data:
+            scores = data["label"].values
+        elif "binary_score" in data:
+            scores = data["binary_score"].values
+        else:
+            raise KeyError("Neither 'binary_score' nor 'label' found in data")
         # Convert list of strings to list of list of integers
         scores = utils.convert_string_list_to_list_of_int_lists(scores)
         # Pad with -100 to match the sequence length
@@ -254,7 +257,7 @@ def downstream_prep(
         scaler=training_params["scaler"],
         batch_size=training_params["batch_size"],
         validation_size=training_params["val_split"],
-        dtype=torch.int, #TODO: this was originally int8, check if this is okay for all models now
+        dtype=torch.int, #this was originally int8
         split=split,
         num_workers=0,
         weights=weights,

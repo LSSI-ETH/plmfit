@@ -68,7 +68,6 @@ class LightningModel(L.LightningModule):
         self.start_time = time.time()
         self.epoch_train_loss = []
         self.epoch_val_loss = []
-        self.plmfit_logger.log(self.model)
         utils.get_parameters(self.model, self.plmfit_logger)
         self.plmfit_logger.current_global_rank = self.trainer.global_rank
 
@@ -81,6 +80,7 @@ class LightningModel(L.LightningModule):
         # print all available properties for strategy
         if torch.cuda.is_available() and isinstance(self.trainer.strategy, DeepSpeedStrategy): self.plmfit_logger.log(self.trainer.strategy.model.wall_clock_breakdown())
         if torch.cuda.is_available() and isinstance(self.trainer.strategy, DeepSpeedStrategy): self.profiler = FlopsProfiler(self, ds_engine=self.trainer.strategy.model)
+
 
     def on_fit_end(self) -> None:
         total_time = time.time() - self.start_time
