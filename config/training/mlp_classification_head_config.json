@@ -7,14 +7,14 @@
     "task": "classification",
     "hidden_activation": "relu",
     "hidden_dropout": 0.25,
-    "output_activation": "sigmoid"
+    "output_activation": "none"
   },
   "training_parameters":
   {
     "learning_rate": 0.00005,
     "epochs": 200,
     "batch_size": 64,
-    "loss_f": "bce",
+    "loss_f": "bce_logits",
     "optimizer": "adam",
     "val_split": 0.2,
     "weight_decay": 0.01,

@@ -86,6 +86,7 @@ Data needs to follow a specific structure to be readble by PLMFit. All data shou
 | `progen2-medium` | ProGen2 | 764M | 27 | 1536 | [progen](https://github.com/enijkamp/progen2) |
 | `progen2-xlarge` | ProGen2 | 6.4B | 32 | 4096 | [progen](https://github.com/enijkamp/progen2) |
 | `proteinbert` | ProteinBERT | 92M | 12 | 768 | [proteinbert](https://github.com/nadavbra/protein_bert) |
+| `antiberty` | AntiBERTy | 26M | 8 | 512 | [antiberty](https://github.com/jeffreyruffolo/AntiBERTy) |
 
 ## Usage
 

@@ -20,6 +20,7 @@ class LightningModel(L.LightningModule):
         torch.set_float32_matmul_precision('medium')
         super().__init__()
         self.model = model
+        print(model)
         self.save_hyperparameters(training_config)
         if train: self.loss_function = self.initialize_loss_function()
         self.plmfit_logger = plmfit_logger
@@ -80,6 +81,7 @@ class LightningModel(L.LightningModule):
         # print all available properties for strategy
         if torch.cuda.is_available() and isinstance(self.trainer.strategy, DeepSpeedStrategy): self.plmfit_logger.log(self.trainer.strategy.model.wall_clock_breakdown())
         if torch.cuda.is_available() and isinstance(self.trainer.strategy, DeepSpeedStrategy): self.profiler = FlopsProfiler(self, ds_engine=self.trainer.strategy.model)
+
 
     def on_fit_end(self) -> None:
         total_time = time.time() - self.start_time
