@@ -16,6 +16,7 @@ from plmfit.models.lightning_model import LightningModel
 from lightning.pytorch.strategies import DeepSpeedStrategy
 import ast
 import shutil
+from pathlib import Path
 
 
 def fine_tune(args, logger):
@@ -170,6 +171,13 @@ def fine_tune(args, logger):
             logger.save_plot(loss_plot, "training_validation_loss")
     else:
         ckpt_path = args.model_path
+        # If ckpt_path is a zero checkpoint (check if it is a folder), convert it to fp32
+        if Path(ckpt_path).is_dir() and torch.cuda.is_available():
+            convert_zero_checkpoint_to_fp32_state_dict(
+                ckpt_path,
+                f"{logger.base_dir}/best_model.ckpt",
+            )
+            ckpt_path = f"{logger.base_dir}/best_model.ckpt"
 
     # TODO: Testing for lm
     if task != "masked_lm":

@@ -142,6 +142,7 @@ env.py
 .csv
 *.csv
 !scripts/*/*.csv
+!scripts/*/*/*.csv
 src/data/*/*.json
 !src/data/*/wild_type.json
 .pt
@@ -199,11 +200,11 @@ progen_exp1/
 proteinbert_exp1/
 .gitignore
 plmfit/language_models/progen2/checkpoints/progen2-small/config.json
-data/paratope/sabdab_train.parquet
-data/paratope/sabdab_val.parquet
-data/paratope/sabdab_test.parquet
-data/paratope/paratope_data_full.csv
-plmfit-venv/
+data/*/*.parquet
+data/*/*.parquet
+data/*/*.parquet
+data/*/*.csv
+*venv/
 test.py
 config/training/*/
 *.ckpt

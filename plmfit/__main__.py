@@ -53,7 +53,7 @@ def main():
     parser.add_argument('--experiment_name', type=str, default='default',
                         help='Output directory for created files')
     parser.add_argument('--experiment_dir', type=str, default='./output',
-                        help='Output directory for created files')
+                        help='Output directory for created files (Keep the same as output_dir)')
     parser.add_argument('--embeddings_path', type=str, default=None,
                         help='Path where embeddings are stored')
     parser.add_argument('--logger', type=str, default='local')
@@ -68,7 +68,7 @@ def main():
     parser.add_argument('--weights', default=None)
     parser.add_argument('--sampler', default="False")
     parser.add_argument('--split_size', default=0, type=int)
-    parser.add_argument('--model_path', default=None)
+    parser.add_argument('--model_path', default=None, help="Path of the model in .ckpt format for evaluating it or continuing training from checkpoint")
     parser.add_argument('--evaluate', default="False")
     parser.add_argument('--seed', default=42, type=int)
 
