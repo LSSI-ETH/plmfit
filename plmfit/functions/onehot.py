@@ -22,7 +22,7 @@ def onehot(args, logger):
 
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    # data = data[:1000]
+    # data = data[:10000]
 
     # if args.experimenting == "True": data = data.sample(100)
 
@@ -137,7 +137,7 @@ def objective(
 
     epochs = config["training_parameters"]["epochs"]
     if trial is not None and on_ray_tuning:
-        epochs = config["training_parameters"]["epochs"] // 4
+        epochs = config["training_parameters"]["epochs"] // 5
         config["training_parameters"]["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-6, 1e-2
         )

@@ -98,7 +98,7 @@ def create_data_loaders(
     validation_size=0.1,
     batch_size=64,
     scaler=None,
-    dtype=torch.float16,
+    dtype=torch.float32,
     num_workers=0,
     weights=None,
     sampler=False,
@@ -204,14 +204,14 @@ def create_data_loaders(
     # Add to X_test an identifier
     test_ids = torch.arange(X_test.size(0))
 
-    y_train = convert_or_clone_to_tensor(y_train, dtype=torch.float16)
-    y_val = convert_or_clone_to_tensor(y_val, dtype=torch.float16)
-    y_test = convert_or_clone_to_tensor(y_test, dtype=torch.float16)
+    y_train = convert_or_clone_to_tensor(y_train, dtype=torch.float32)
+    y_val = convert_or_clone_to_tensor(y_val, dtype=torch.float32)
+    y_test = convert_or_clone_to_tensor(y_test, dtype=torch.float32)
 
     if weights is not None:
-        weights_train = convert_or_clone_to_tensor(weights_train, dtype=torch.float16)
-        weights_val = convert_or_clone_to_tensor(weights_val, dtype=torch.float16)
-        weights_test = convert_or_clone_to_tensor(weights_test, dtype=torch.float16)
+        weights_train = convert_or_clone_to_tensor(weights_train, dtype=torch.float32)
+        weights_val = convert_or_clone_to_tensor(weights_val, dtype=torch.float32)
+        weights_test = convert_or_clone_to_tensor(weights_test, dtype=torch.float32)
 
     if dataset_type == "tensor":
         Dataset = TensorDataset
