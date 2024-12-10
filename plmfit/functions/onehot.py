@@ -237,9 +237,12 @@ def objective(
     strategy = "auto"
 
     callbacks = []
+    epoch_sizing = model.epoch_sizing()
     if on_ray_tuning:
+        epoch_sizing = 0.1
         callbacks.append(PyTorchLightningPruningCallback(trial, monitor=f"val_loss"))
     callbacks.append(model.early_stopping() if not on_ray_tuning else model.early_stopping(patience))
+
 
     trainer = Trainer(
         default_root_dir=logger.base_dir,
@@ -249,8 +252,8 @@ def objective(
         enable_progress_bar=False,
         accumulate_grad_batches=model.gradient_accumulation_steps(),
         gradient_clip_val=model.gradient_clipping(),
-        limit_train_batches=(model.epoch_sizing()),
-        limit_val_batches=(model.epoch_sizing()),
+        limit_train_batches=epoch_sizing,
+        limit_val_batches=epoch_sizing,
         devices=devices,
         strategy=strategy,
         precision="16-mixed",
@@ -372,7 +375,7 @@ def hyperparameter_tuning(
             sampler=sampler,
             num_classes=num_classes,
         ),
-        n_trials=n_trials if network_type == "linear" else n_trials * 4,
+        n_trials=n_trials if network_type == "linear" else n_trials * 3,
         callbacks=[LogOptunaTrialCallback(logger)],
         n_jobs = int(args.gpus),
         gc_after_trial = True,

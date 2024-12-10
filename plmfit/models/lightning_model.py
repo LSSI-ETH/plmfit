@@ -628,6 +628,7 @@ class Metrics(torch.nn.Module):
                 self.roc = BinaryROC()
             else:
                 self.acc = MulticlassAccuracy(num_classes=self.no_classes)
+                self.micro_acc = MulticlassAccuracy(num_classes=self.no_classes, average="micro")
                 self.mcc = MulticlassMatthewsCorrCoef(num_classes=self.no_classes)
                 self.cm = MulticlassConfusionMatrix(num_classes=self.no_classes)
         elif task == "regression":
@@ -693,6 +694,8 @@ class Metrics(torch.nn.Module):
         self.acc.update(preds, actual)
         if self.no_classes < 2:
             self.roc_auc.update(preds, actual)
+        else:
+            self.micro_acc.update(preds, actual)
         self.mcc.update(preds, actual)
         self.cm.update(preds, actual)
         if self.no_classes < 2:
