@@ -31,7 +31,7 @@ import blosum as bl
 from collections import Counter
 import torch.nn.functional as F
 import ast
-from plmfit.shared_utils.random_state import get_random_state
+from plmfit.shared_utils.random_state import get_random_state, get_numpy_random_state
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
@@ -122,6 +122,7 @@ def create_data_loaders(
     """
     random_state = get_random_state()
     if split is None:
+        random_state = get_numpy_random_state()
         X_train, X_test, y_train, y_test = train_test_split(
             dataset, scores, test_size=test_size, random_state=random_state
         )
