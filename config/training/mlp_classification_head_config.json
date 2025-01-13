@@ -3,20 +3,20 @@
   {
     "network_type": "mlp",
     "output_dim": 1,
-    "hidden_dim": 128,
+    "hidden_dim": 1556,
     "task": "classification",
     "hidden_activation": "relu",
-    "hidden_dropout": 0.25
+    "hidden_dropout": 0.23693549117226387
   },
   "training_parameters":
   {
-    "learning_rate": 0.00005,
+    "learning_rate": 0.0004722248137843737,
     "epochs": 200,
-    "batch_size": 64,
+    "batch_size": 92,
     "loss_f": "bce_logits",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 0.01,
+    "weight_decay": 2.125324400687282e-05,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,

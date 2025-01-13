@@ -1,5 +1,3 @@
 function	ft_method	data_type	split	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir		gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-fine_tuning	feature_extraction	ss3	sampled	esm2_t48_15B_UR50D	linear	token_classification	linear_multiclass_token_classification_head_config.json	True	middle	none	/cluster/scratch/estamkopoulo	1	a100_80gb	220g	1	70	False
-fine_tuning	feature_extraction	ss3	sampled	esm2_t48_15B_UR50D	linear	token_classification	linear_multiclass_token_classification_head_config.json	True	last	none	/cluster/scratch/estamkopoulo	1	a100_80gb	220g	1	70	False
-fine_tuning	feature_extraction	ss3	sampled	esm2_t48_15B_UR50D	mlp	token_classification	mlp_multiclass_token_classification_head_config.json	True	middle	none	/cluster/scratch/estamkopoulo	1	a100_80gb	220g	1	90	False
-fine_tuning	feature_extraction	ss3	sampled	esm2_t48_15B_UR50D	mlp	token_classification	mlp_multiclass_token_classification_head_config.json	True	last	none	/cluster/scratch/estamkopoulo	1	a100_80gb	220g	1	90	False
+fine_tuning	feature_extraction	R1_240821	sampled	esm2_t33_650M_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	4	rtx_3090	30g	1	12	False
+fine_tuning	feature_extraction	R1_240821	sampled	esm2_t33_650M_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	4	rtx_4090	30g	1	12	False
