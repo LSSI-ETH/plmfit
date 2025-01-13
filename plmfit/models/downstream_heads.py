@@ -86,13 +86,16 @@ class RNN(nn.Module):
             config["hidden_dim"] * 2 if self.rnn.bidirectional else config["hidden_dim"]
         )
         self.fc = nn.Linear(fc_input_dim, config["output_dim"])
-        self.activation = get_activation_function(config['output_activation'])
+        self.activation = None
+        if "output_activation" in config:
+            self.activation = get_activation_function(config['output_activation'])
         self.init_weights()
 
     def forward(self, x):
         out, _ = self.rnn(x)
         out = self.fc(out)
-        out = self.activation(out)
+        if self.activation is not None:
+            out = self.activation(out)
         return out
 
     def init_weights(self):
