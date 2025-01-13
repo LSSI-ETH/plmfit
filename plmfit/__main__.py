@@ -71,6 +71,7 @@ def main():
     parser.add_argument('--model_path', default=None, help="Path of the model in .ckpt format for evaluating it or continuing training from checkpoint")
     parser.add_argument('--evaluate', default="False")
     parser.add_argument('--seed', default=42, type=int)
+    parser.add_argument('--hyperparam_config', default="hyperparam_config.json", type=str)
 
     args = parser.parse_args()
     experiment_dir = args.experiment_dir

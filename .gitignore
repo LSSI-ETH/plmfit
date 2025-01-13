@@ -206,5 +206,4 @@ data/*/*.parquet
 data/*/*.csv
 *venv/
 test.py
-config/training/*/
 *.ckpt
