@@ -19,6 +19,9 @@ from torchmetrics.classification import (
     BinaryConfusionMatrix,
     BinaryMatthewsCorrCoef,
     BinaryROC,
+    MultilabelAccuracy,
+    MultilabelMatthewsCorrCoef,
+    MultilabelConfusionMatrix,
 )
 from torchmetrics.regression import (
     MeanSquaredError,
@@ -28,6 +31,7 @@ from torchmetrics.regression import (
 )
 from torchmetrics.text import Perplexity
 from lightning.pytorch.callbacks import BasePredictionWriter
+from plmfit.shared_utils.custom_loss_functions import MaskedBCEWithLogitsLoss
 
 
 class LightningModel(L.LightningModule):
@@ -75,6 +79,11 @@ class LightningModel(L.LightningModule):
                     num_classes=self.hparams.no_classes, ignore_index=-100
                 )
                 self.metric_label = "accuracy"
+            elif self.model.task == "multilabel_classification":
+                self.train_metric = MultilabelAccuracy(
+                    num_labels=self.hparams.no_labels, ignore_index=-100
+                )
+                self.metric_label = "accuracy"
             else:
                 raise ValueError(f"Unsupported task: {self.model.task}")
 
@@ -85,6 +94,7 @@ class LightningModel(L.LightningModule):
                 no_classes=(
                     1 if "no_classes" not in self.hparams else self.hparams.no_classes
                 ),
+                no_labels=(1 if "no_labels" not in self.hparams else self.hparams.no_labels),
             )
 
             self.track_validation_after = 0
@@ -203,6 +213,10 @@ class LightningModel(L.LightningModule):
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
                 labels = labels.long()
+            elif self.model.task == "multilabel_classification":
+                if self.hparams.no_classes < 2:
+                    if hasattr(outputs, "logits"):
+                        outputs = outputs.logits
             else:
                 if hasattr(outputs, "logits"):
                     outputs = outputs.logits.squeeze(dim=1)
@@ -214,13 +228,9 @@ class LightningModel(L.LightningModule):
             labels = torch.argmax(labels, dim=1)
             outputs = torch.argmax(outputs, dim=1)
         if self.model.task == "token_classification" and self.hparams.no_classes > 1:
-            # Get the maxium value of the 3rd dimension
+            # Get the maximum value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
-        # if batch_idx % 100 == 0:
-        #         print(outputs)
-        #         print(labels)
-        if self.trainer.precision == 16 and loss < 6.10e-5:
-            loss = 6.10e-5  # Theoretical min loss value for float-16
+
         self.log(
             "train_loss",
             loss,
@@ -335,6 +345,10 @@ class LightningModel(L.LightningModule):
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
                 labels = labels.long()
+            elif self.model.task == "multilabel_classification":
+                if self.hparams.no_classes < 2:
+                    if hasattr(outputs, "logits"):
+                        outputs = outputs.logits
             else:
                 if hasattr(outputs, "logits"):
                     outputs = outputs.logits.squeeze(dim=1)
@@ -444,6 +458,10 @@ class LightningModel(L.LightningModule):
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
                 labels = labels.long()
+            elif self.model.task == "multilabel_classification":
+                if self.hparams.no_classes < 2:
+                    if hasattr(outputs, "logits"):
+                        outputs = outputs.logits
             else:
                 if hasattr(outputs, "logits"):
                     outputs = outputs.logits.squeeze(dim=1)
@@ -557,6 +575,8 @@ class LightningModel(L.LightningModule):
             self.hparams.loss_f == "cross_entropy"
         ):  # Add cross-entropy loss for multiclass
             return torch.nn.CrossEntropyLoss(ignore_index=-100)
+        elif self.hparams.loss_f == "masked_bce_logits":
+            return MaskedBCEWithLogitsLoss(ignore_index=-100)
         else:
             raise ValueError(f"Unsupported loss function: {self.hparams.loss_f}")
 
@@ -612,7 +632,7 @@ class LightningModel(L.LightningModule):
 
 
 class Metrics(torch.nn.Module):
-    def __init__(self, task: str, no_classes=1):
+    def __init__(self, task: str, no_classes=1, no_labels=1):
         super().__init__()
         self.task = task
         self.preds_list = []
@@ -653,9 +673,14 @@ class Metrics(torch.nn.Module):
             self.cm = MulticlassConfusionMatrix(
                 num_classes=self.no_classes, ignore_index=-100
             )
+        elif task == "multilabel_classification":
+            self.no_labels = no_labels
+            self.acc = MultilabelAccuracy(num_labels=self.no_labels, ignore_index=-100)
+            self.mcc = MultilabelMatthewsCorrCoef(num_labels=self.no_labels, ignore_index=-100)
+            self.cm = MultilabelConfusionMatrix(num_labels=self.no_labels, ignore_index=-100)
 
     def add(self, preds, actual, ids):
-        if self.task == "token_classification":
+        if self.task == "token_classification" or self.task == "multilabel_classification":
             self.preds_list.extend(preds.tolist())
             self.actual_list.extend(actual.tolist())
             (
@@ -689,6 +714,8 @@ class Metrics(torch.nn.Module):
             self.calc_masked_lm_metrics(preds, actual)
         elif self.task == "token_classification":
             self.calc_token_classification_metrics(preds, actual)
+        elif self.task == "multilabel_classification":
+            self.calc_multilabel_classification_metrics(preds, actual)
 
     def calc_classification_metrics(self, preds, actual):
         self.acc.update(preds, actual)
@@ -717,6 +744,11 @@ class Metrics(torch.nn.Module):
         self.mcc.update(preds, actual)
         self.cm.update(preds, actual)
 
+    def calc_multilabel_classification_metrics(self, preds, actual):
+        self.acc.update(preds, actual)
+        self.mcc.update(preds, actual)
+        self.cm.update(preds, actual)
+
     def get_metrics(self, device="cpu"):
         self.calculate(
             torch.tensor(self.preds_list, device=device),
@@ -730,6 +762,8 @@ class Metrics(torch.nn.Module):
             return self.get_masked_lm_metrics()
         elif self.task == "token_classification":
             return self.get_token_classification_metrics()
+        elif self.task == "multilabel_classification":
+            return self.get_multilabel_classification_metrics()
 
     def get_classification_metrics(self):
         if self.no_classes < 2:
@@ -803,6 +837,21 @@ class Metrics(torch.nn.Module):
             "main": {
                 "accuracy": self.acc.compute().item(),
                 "micro_accuracy": self.micro_acc.compute().item(),
+                "mcc": self.mcc.compute().item(),
+                "confusion_matrix": self.cm.compute().tolist(),
+            },
+            "pred_data": {
+                "preds": self.preds_list,
+                "actual": self.actual_list,
+                "ids": self.ids,
+            },
+        }
+        return self.report
+    
+    def get_multilabel_classification_metrics(self):
+        self.report = {
+            "main": {
+                "accuracy": self.acc.compute().item(),
                 "mcc": self.mcc.compute().item(),
                 "confusion_matrix": self.cm.compute().tolist(),
             },
