@@ -74,6 +74,12 @@ def onehot(args, logger):
             pad_value=-100,
             convert_to_np=True,
         )
+    elif task == "multilabel_classification":
+        # Labels are all columns starting with 'label_'
+        scores = data[[col for col in data.columns if "label_" in col]].values
+        
+        # Replace -1 with -100
+        scores[scores == -1] = -100
     else:
         raise ValueError("Task not supported")
 
@@ -180,28 +186,20 @@ def objective(
         data_loaders["train"].dataset.set_flatten(False)
         data_loaders["val"].dataset.set_flatten(False)
         data_loaders["test"].dataset.set_flatten(False)
+    if task == "token_classification":
+        input_dim = num_classes
+    else: 
+        input_dim = embeddings.shape[1] * num_classes
 
     network_type = config["architecture_parameters"]["network_type"]
     if network_type == "linear":
-        config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[1] * num_classes
-            if task != "token_classification"
-            else num_classes
-        )  # Account for one-hot encodings
+        config["architecture_parameters"]["input_dim"] = input_dim
         model = heads.LinearHead(config["architecture_parameters"])
     elif network_type == "mlp":
-        config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[1] * num_classes
-            if task != "token_classification"
-            else num_classes
-        )  # Account for one-hot encodings
+        config["architecture_parameters"]["input_dim"] = input_dim
         model = heads.MLP(config["architecture_parameters"])
     elif network_type == "rnn":
-        config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[1] * num_classes
-            if task != "token_classification"
-            else num_classes
-        )  # Account for one-hot encodings
+        config["architecture_parameters"]["input_dim"] = input_dim
         model = heads.RNN(config["architecture_parameters"])
     else:
         raise ValueError("Head type not supported")
@@ -238,7 +236,6 @@ def objective(
         epoch_sizing = hyperparam_config["epoch_sizing"]
         callbacks.append(PyTorchLightningPruningCallback(trial, monitor=f"val_loss"))
     callbacks.append(model.early_stopping() if not on_ray_tuning else model.early_stopping(patience))
-
 
     trainer = Trainer(
         default_root_dir=logger.base_dir,
@@ -303,6 +300,11 @@ def objective(
         )
         logger.save_plot(fig, "actual_vs_predicted")
     elif task == "token_classification":
+        fig = data_explore.plot_confusion_matrix_heatmap(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
+        )
+        logger.save_plot(fig, "confusion_matrix")
+    elif task == "multilabel_classification":
         fig = data_explore.plot_confusion_matrix_heatmap(
             json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
         )
