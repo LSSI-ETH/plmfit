@@ -2,8 +2,8 @@
 # import heatmap_creator_polished
 # heatmap_creator_polished.main()
 
-import heatmap_creator_polished_ss3
-heatmap_creator_polished_ss3.main()
+# import heatmap_creator_polished_ss3
+# heatmap_creator_polished_ss3.main()
 
 # Run results_csv_analysis.py to generate csv with all the results
 import results_csv_analysis
@@ -17,3 +17,6 @@ tl_performance_yeild_plot.main()
 
 import layer_analysis_plot
 layer_analysis_plot.main()
+
+import heatmap_collator
+heatmap_collator.main()

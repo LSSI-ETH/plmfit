@@ -1,29 +1,28 @@
-\begin{table}
-	\caption{\centering Statistical summaries (Q1, Q3, median, and max) of the box plots depicted in \autoref{fig:3}B.}
-	\label{tab:box}
+\documentclass{standalone}
+\usepackage{graphicx}
+\usepackage{multirow}
+\begin{document}
 	\centering
 	\renewcommand{\arraystretch}{1.5}
-	\begin{tabular}{cccc}
-	\toprule
-	\multicolumn{1}{c}{\multirow{2}{*}{Task}} & \multicolumn{1}{c}{\multirow{2}{*}{Stat}} & \multicolumn{1}{c}{FE} & FT \\
-	\multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \\
-	\midrule
+	\begin{tabular}{c|ccc}
+	\multicolumn{1}{c|}{Task} & \multicolumn{1}{c}{Stat} & \multicolumn{1}{c}{FE} & FT \\
+	\hline
 	\multirow{4}{*}{AAV - sampled} & Q1 & -5.51\% & 3.30\% \\
 	 & Q3 & -2.21\% & 5.85\% \\
 	 & Median & -3.20\% & 4.25\% \\
 	 & Max & 1.28\% & 7.87\% \\
 	\hline
-	\multirow{4}{*}{AAV - one\_vs\_rest} & Q1 & -37.98\% & 28.60\% \\
+	\multirow{4}{*}{AAV - one vs. rest} & Q1 & -37.98\% & 28.60\% \\
 	 & Q3 & -13.79\% & 43.79\% \\
 	 & Median & -32.34\% & 38.03\% \\
 	 & Max & 8.45\% & 47.17\% \\
 	\hline
-	\multirow{4}{*}{GB1 - three\_vs\_rest} & Q1 & -9.42\% & -1.47\% \\
+	\multirow{4}{*}{GB1 - three vs. rest} & Q1 & -9.42\% & -1.47\% \\
 	 & Q3 & -5.13\% & 4.24\% \\
 	 & Median & -5.65\% & 2.89\% \\
 	 & Max & -4.00\% & 4.90\% \\
 	\hline
-	\multirow{4}{*}{GB1 - one\_vs\_rest} & Q1 & -0.76\% & -8.52\% \\
+	\multirow{4}{*}{GB1 - one vs. rest} & Q1 & -0.76\% & -8.52\% \\
 	 & Q3 & 34.02\% & 15.08\% \\
 	 & Median & 26.43\% & 0.74\% \\
 	 & Max & 37.67\% & 30.98\% \\
@@ -33,10 +32,10 @@
 	 & Median & 48.99\% & 70.79\% \\
 	 & Max & 97.13\% & 117.83\% \\
 	\hline
-	\multirow{4}{*}{SS3 - sampled} & Q1 & -10.84\% & -33.62\% \\
-	 & Q3 & 0.86\% & 9.34\% \\
-	 & Median & -6.82\% & -2.12\% \\
+	\multirow{4}{*}{SS3 - sampled} & Q1 & -10.84\% & -5.20\% \\
+	 & Q3 & 0.86\% & 20.64\% \\
+	 & Median & -6.82\% & 2.36\% \\
 	 & Max & 19.48\% & 25.24\% \\
 	\hline
 	\end{tabular}
-\end{table}
+\end{document}

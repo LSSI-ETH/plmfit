@@ -66,10 +66,10 @@ def main():
     ]
 
     dict_names = [
-        'AAV-sampled',
-        'GB1-three vs rest',
-        'Meltome-mixed',
-        'SS3-sampled'
+        'AAV - sampled',
+        'GB1 - three vs. rest',
+        'Meltome - mixed',
+        'SS3 - sampled'
     ]
 
     from matplotlib.lines import Line2D

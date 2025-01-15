@@ -50,9 +50,9 @@ def main():
     # Names for each dataset
     dict_names = [
         'AAV - sampled',
-        'AAV - one_vs_rest',
-        'GB1 - three_vs_rest',
-        'GB1 - one_vs_rest',
+        'AAV - one vs. rest',
+        'GB1 - three vs. rest',
+        'GB1 - one vs. rest',
         'Meltome - mixed',
         'SS3 - sampled'
     ]
@@ -178,53 +178,17 @@ def main():
 
     # Save the figure
     plt.savefig('results/til_overview_with_joint_boxplots_and_legend_spaced.png', bbox_inches='tight', dpi=300)
-
-    """ Save the same type of information in a tex file that looks like that:
-        \begin{table}
-            \caption{\centering Statistical summaries (quarter1, quarter3, median and max) of the box plots depicted in \autoref{fig:3}B.}
-            \label{tab:box}
-            \centering
-            \renewcommand{\arraystretch}{1.5}
-            \begin{tabular}{cccc}
-            \toprule
-            \multicolumn{1}{c}{\multirow{2}{*}{Task}}                  & \multicolumn{1}{c}{\multirow{2}{*}{Box plot stats}} & \multicolumn{1}{c}{\multirow{2}{*}{FE}} & \multirow{2}{*}{FT} \\
-            \multicolumn{1}{c}{}                                       & \multicolumn{1}{c}{}                               & \multicolumn{1}{c}{}                    &                     \\ \midrule
-            \multicolumn{1}{c}{\multirow{4}{*}{AAV - sampled}}         & Q1                                                  & -5.62\%                                    & -0.39\%                \\
-            \multicolumn{1}{c}{}                                       & Q3                                                  & -1.48\%                                     & 7.45\%                 \\
-            \multicolumn{1}{c}{}                                       & Median                                              & -3.2\%                                      & 3.95\%                 \\
-            \multicolumn{1}{c}{}                                       & Max                                                 & 2.32\%                                      & 7.45\%                 \\ \hline
-            \multicolumn{1}{c}{\multirow{4}{*}{AAV - one\_vs\_rest}}   & Q1                                                  & -38.61\%                                    & 8.38\%                 \\
-            \multicolumn{1}{c}{}                                       & Q3                                                  & 8.45\%                                      & 47.17\%                \\
-            \multicolumn{1}{c}{}                                       & Median                                              & -30.54\%                                    & 38.03\%                \\
-            \multicolumn{1}{c}{}                                       & Max                                                 & 8.45\%                                      & 47.17\%                \\ \hline
-            \multicolumn{1}{c}{\multirow{4}{*}{GB1 - three\_vs\_rest}} & Q1                                                  & -14.05\%                                    & -8.56\%                \\
-            \multicolumn{1}{c}{}                                       & Q3                                                  & -4\%                                       & 4.9\%                  \\
-            \multicolumn{1}{c}{}                                       & Median                                              & -5.65\%                                     & 2.89\%                 \\
-            \multicolumn{1}{c}{}                                       & Max                                                 & -4\%                                        & 4.9\%                  \\ \hline
-            \multicolumn{1}{c}{\multirow{4}{*}{GB1 - one\_vs\_rest}}   & Q1                                                  & -6.41\%                                     & -34.65\%               \\
-            \multicolumn{1}{c}{}                                       & Q3                                                  & 37.67\%                                     & 30.98\%                \\
-            \multicolumn{1}{c}{}                                       & Median                                              & 31.46\%                                     & 0.74\%                 \\
-            \multicolumn{1}{c}{}                                       & Max                                                 & 37.67\%                                     & 30.98\%                \\ \hline
-            \multicolumn{1}{c}{\multirow{4}{*}{Meltome - mixed}}       & Q1                                                  & 58.12\%                                     & 31.47\%                \\
-            \multicolumn{1}{c}{}                                       & Q3                                                  & 71.27\%                                     & 117.83\%               \\
-            \multicolumn{1}{c}{}                                       & Median                                              & 68.71\%                                     & 70.79\%                \\
-            \multicolumn{1}{c}{}                                       & Max                                                 & 102.22\%                                    & 117.83\%               \\ \bottomrule
-            \end{tabular}
-        \end{table}
-    """
-
+    
     with open('results/overleaf/box_plot_stats.tex', 'w') as file:
-        file.write("\\begin{table}\n")
-        file.write("\t\\caption{\\centering Statistical summaries (Q1, Q3, median, and max) of the box plots depicted in \\autoref{fig:3}B.}\n")
-        file.write("\t\\label{tab:box}\n")
+        file.write("\\documentclass{standalone}\n")
+        file.write("\\usepackage{graphicx}\n")
+        file.write("\\usepackage{multirow}\n")
+        file.write("\\begin{document}\n")
         file.write("\t\\centering\n")
         file.write("\t\\renewcommand{\\arraystretch}{1.5}\n")
-        file.write("\t\\begin{tabular}{cccc}\n")
-        file.write("\t\\toprule\n")
-        file.write("\t\\multicolumn{1}{c}{\\multirow{2}{*}{Task}} & \\multicolumn{1}{c}{\\multirow{2}{*}{Stat}} & \\multicolumn{1}{c}{FE} & FT \\\\\n")
-        file.write("\t\\multicolumn{1}{c}{} & \\multicolumn{1}{c}{} & \\multicolumn{1}{c}{} & \\\\\n")
-        file.write("\t\\midrule\n")
-
+        file.write("\t\\begin{tabular}{c|ccc}\n")
+        file.write("\t\\multicolumn{1}{c|}{Task} & \\multicolumn{1}{c}{Stat} & \\multicolumn{1}{c}{FE} & FT \\\\\n")
+        file.write("\t\\hline\n")
         for task, fe_data, ft_data in zip(dict_names, data_fe, data_ft):
             # Clean task name by escaping underscores
             task_cleaned = task.replace('_', '\\_')
@@ -243,7 +207,7 @@ def main():
             file.write("\t\\hline\n")
 
         file.write("\t\\end{tabular}\n")
-        file.write("\\end{table}\n")
+        file.write("\\end{document}\n")
 
 
 # # Custom colors for legend and bars

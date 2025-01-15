@@ -157,7 +157,7 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
         "lora_all": "LoRA (All Layers)",
         "lora_last": "LoRA- (Last Layer)",
         "bottleneck_adapters_all": "Adapters (All Layers)",
-        "bottleneck_adapters_last": "Adapters- (Last Layer)",
+        "bottleneck_adapters_last": "adapters- (Last Layer)",
     }
 
     # Replace in columns
@@ -171,9 +171,13 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
     # Replace in title
     method_type = title_mapping[method_type]
 
-    # If HERH3 is in the data type, replace it with HER2
+    # If HERH3 is in the data type, replace it with Trastuzumab
     if 'herH3' in data_type:
-        data_type = data_type.replace('herH3', 'her2')
+        data_type = data_type.replace('herH3', 'Trastuzumab')
+
+    # data_type_string = data_type.replace('_', '-', 1)
+    data_type_string = data_type.replace("_", " ")
+    data_type_string = data_type_string.replace("many", "rest")
 
     # Plotting the heatmap with the color scale adjusted from -1 to 1
     # Slightly larger figure size for better readability
@@ -182,14 +186,14 @@ def collect_metrics(json_files=None, csv_file=None, data_type='aav', task_type='
     ax = sns.heatmap(heatmap_data, annot=True, cmap="RdBu_r", fmt=".3f", linewidths=.5,
                      cbar_kws={'label': column_name}, center=0, vmin=-1, vmax=1)
     # Main title and subtitle setup
-    main_title = f'{data_type.upper()} - {task_type.upper()} Task | {method_type}'
+    main_title = f"{data_type_string.upper()} - {task_type.replace('_', ' ').upper()} Task | {method_type.replace('Feature Extraction', 'Feature Extraction (MLP)' if use_mlp else  'Feature Extraction (Linear)')}"
     subtitle = f'{column_name} Across Models, Heads, Layers, and Reduction Methods'
 
     # Set the main title with more emphasis
-    plt.suptitle(main_title, fontsize=16)
+    plt.suptitle(main_title, fontsize=16, y=0.95)
 
     # Set the subtitle with less emphasis and adjust its position
-    plt.title(subtitle, fontsize=14, pad=15)
+    plt.title(subtitle, fontsize=14, pad=10)
 
     # Adjust font size for x-axis labels
     plt.xticks(rotation=45, ha="right", fontsize=11)
@@ -222,59 +226,66 @@ def main():
     ]
 
     parameter_sets = [
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "ezy1",
+        #     "split": "sampled",
+        #     "use_mlp": False,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "ezy1",
+        #     "split": "sampled",
+        #     "use_mlp": True,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "meltome",
+        #     "split": "mixed",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "meltome",
+        #     "split": "mixed",
+        #     "use_mlp": True,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "lora_all",
+        #     "data_type": "meltome",
+        #     "split": "mixed",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "lora_last",
+        #     "data_type": "meltome",
+        #     "split": "mixed",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "bottleneck_adapters_all",
+        #     "data_type": "meltome",
+        #     "split": "mixed",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "bottleneck_adapters_last",
+        #     "data_type": "meltome",
+        #     "split": "mixed",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
         {
             "method_type": "feature_extraction",
-            "data_type": "ezy1",
-            "split": "sampled",
-            "use_mlp": False,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "ezy1",
-            "split": "sampled",
-            "use_mlp": True,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "meltome",
-            "split": "mixed",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "meltome",
-            "split": "mixed",
-            "use_mlp": True,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "lora_all",
-            "data_type": "meltome",
-            "split": "mixed",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "lora_last",
-            "data_type": "meltome",
-            "split": "mixed",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "bottleneck_adapters_all",
-            "data_type": "meltome",
-            "split": "mixed",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "bottleneck_adapters_last",
-            "data_type": "meltome",
-            "split": "mixed",
+            "data_type": "aav",
+            "split": "one_vs_many",
             "use_mlp": False,
             "task_type": "regression",
         },
@@ -282,13 +293,6 @@ def main():
             "method_type": "feature_extraction",
             "data_type": "aav",
             "split": "one_vs_many",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "aav",
-            "split": "one_vs_many",
             "use_mlp": True,
             "task_type": "regression",
         },
@@ -320,216 +324,216 @@ def main():
             "use_mlp": False,
             "task_type": "regression",
         },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "aav",
-            "split": "sampled",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "aav",
-            "split": "sampled",
-            "use_mlp": True,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "lora_all",
-            "data_type": "aav",
-            "split": "sampled",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "lora_last",
-            "data_type": "aav",
-            "split": "sampled",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "bottleneck_adapters_all",
-            "data_type": "aav",
-            "split": "sampled",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "bottleneck_adapters_last",
-            "data_type": "aav",
-            "split": "sampled",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "gb1",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "gb1",
-            "split": "one_vs_rest",
-            "use_mlp": True,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "lora_all",
-            "data_type": "gb1",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "lora_last",
-            "data_type": "gb1",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "bottleneck_adapters_all",
-            "data_type": "gb1",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "bottleneck_adapters_last",
-            "data_type": "gb1",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "gb1",
-            "split": "three_vs_rest",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "gb1",
-            "split": "three_vs_rest",
-            "use_mlp": True,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "lora_all",
-            "data_type": "gb1",
-            "split": "three_vs_rest",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "lora_last",
-            "data_type": "gb1",
-            "split": "three_vs_rest",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "bottleneck_adapters_all",
-            "data_type": "gb1",
-            "split": "three_vs_rest",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "bottleneck_adapters_last",
-            "data_type": "gb1",
-            "split": "three_vs_rest",
-            "use_mlp": False,
-            "task_type": "regression",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "herH3",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "herH3",
-            "split": "one_vs_rest",
-            "use_mlp": True,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "lora_all",
-            "data_type": "herH3",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "lora_last",
-            "data_type": "herH3",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "bottleneck_adapters_all",
-            "data_type": "herH3",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "bottleneck_adapters_last",
-            "data_type": "herH3",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "rbd",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "feature_extraction",
-            "data_type": "rbd",
-            "split": "one_vs_rest",
-            "use_mlp": True,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "lora_all",
-            "data_type": "rbd",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "lora_last",
-            "data_type": "rbd",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "bottleneck_adapters_all",
-            "data_type": "rbd",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "classification",
-        },
-        {
-            "method_type": "bottleneck_adapters_last",
-            "data_type": "rbd",
-            "split": "one_vs_rest",
-            "use_mlp": False,
-            "task_type": "classification",
-        },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "aav",
+        #     "split": "sampled",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "aav",
+        #     "split": "sampled",
+        #     "use_mlp": True,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "lora_all",
+        #     "data_type": "aav",
+        #     "split": "sampled",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "lora_last",
+        #     "data_type": "aav",
+        #     "split": "sampled",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "bottleneck_adapters_all",
+        #     "data_type": "aav",
+        #     "split": "sampled",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "bottleneck_adapters_last",
+        #     "data_type": "aav",
+        #     "split": "sampled",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "gb1",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "gb1",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": True,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "lora_all",
+        #     "data_type": "gb1",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "lora_last",
+        #     "data_type": "gb1",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "bottleneck_adapters_all",
+        #     "data_type": "gb1",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "bottleneck_adapters_last",
+        #     "data_type": "gb1",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "gb1",
+        #     "split": "three_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "gb1",
+        #     "split": "three_vs_rest",
+        #     "use_mlp": True,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "lora_all",
+        #     "data_type": "gb1",
+        #     "split": "three_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "lora_last",
+        #     "data_type": "gb1",
+        #     "split": "three_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "bottleneck_adapters_all",
+        #     "data_type": "gb1",
+        #     "split": "three_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "bottleneck_adapters_last",
+        #     "data_type": "gb1",
+        #     "split": "three_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "regression",
+        # },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "herH3",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "herH3",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": True,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "lora_all",
+        #     "data_type": "herH3",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "lora_last",
+        #     "data_type": "herH3",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "bottleneck_adapters_all",
+        #     "data_type": "herH3",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "bottleneck_adapters_last",
+        #     "data_type": "herH3",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "rbd",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "feature_extraction",
+        #     "data_type": "rbd",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": True,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "lora_all",
+        #     "data_type": "rbd",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "lora_last",
+        #     "data_type": "rbd",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "bottleneck_adapters_all",
+        #     "data_type": "rbd",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "classification",
+        # },
+        # {
+        #     "method_type": "bottleneck_adapters_last",
+        #     "data_type": "rbd",
+        #     "split": "one_vs_rest",
+        #     "use_mlp": False,
+        #     "task_type": "classification",
+        # },
     ]
 
     for details in ssh_details:

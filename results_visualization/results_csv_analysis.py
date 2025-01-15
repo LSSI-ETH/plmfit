@@ -24,7 +24,7 @@ fine_tuning_techniques = {
     "LoRA (All Layers)": "LoRA",
     "LoRA- (Last Layer)": "LoRA-",
     "Adapters (All Layers)": "Adapters",
-    "Adapters- (Last Layer)": "Adapters-",
+    "Adapters- (Last Layer)": "adapters-",
 }
 
 plm_mapping = {
@@ -49,7 +49,7 @@ plm_order = [
     "ProGen2-xlarge",
     "ESM2-15B",
 ]
-tl_order = ["FE-linear", "FE-mlp", "LoRA", "LoRA-", "Adapters", "Adapters-"]
+tl_order = ["FE-linear", "FE-mlp", "LoRA", "LoRA-", "Adapters", "adapters-"]
 layer_order = ["first", "quarter1", "middle", "quarter3", "last"]
 
 
@@ -190,7 +190,7 @@ def make_scoreboard(parsed_results):
                 "Head Type"
             ].values[0]
             if task == "SS3 sampled":
-                metric_name = "Accuracy"
+                metric_name = "Macro Accuracy"
             else: 
                 metric_name = (
                     "Spearman's Corr."
@@ -274,7 +274,7 @@ def make_scoreboard(parsed_results):
                     & (task_results["Model Name"] == plm)
                     & (
                         (task_results["TL"] == "Adapters")
-                        | (task_results["TL"] == "Adapters-")
+                        | (task_results["TL"] == "adapters-")
                     )
                     & (task_results["Layer"] == layer)
                 ]["Metric"].max()
