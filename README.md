@@ -228,13 +228,16 @@ Your contributions are highly valued and will help us enhance PLMFit for everyon
 ## Citations
 If you found PLMFit useful for your research, we ask you to cite the paper:
 ```
-@article{bikias2024plmfit,
-  author={Bikias, Thomas and Stamkopoulos, Evangelos and Reddy, Sai},
-  title={PLMFit: Benchmarking Transfer Learning with Protein Language Models for Protein Engineering},
-  year={2024},
-  doi={tbd},
-  url={tbd},
-  journal={tbd}
+@article {Bikias2025.01.15.633186,
+	author = {Bikias, Thomas and Stamkopoulos, Evangelos and Reddy, Sai T},
+	title = {PLMFit : Benchmarking Transfer Learning with Protein Language Models for Protein Engineering},
+	elocation-id = {2025.01.15.633186},
+	year = {2025},
+	doi = {10.1101/2025.01.15.633186},
+	publisher = {Cold Spring Harbor Laboratory},
+	URL = {https://www.biorxiv.org/content/early/2025/01/19/2025.01.15.633186},
+	eprint = {https://www.biorxiv.org/content/early/2025/01/19/2025.01.15.633186.full.pdf},
+	journal = {bioRxiv}
 }
 ```
 
