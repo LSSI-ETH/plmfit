@@ -204,13 +204,14 @@ Here we present the current best performing setups for each task. These benchmar
 
 | Task | Score | Metric | PLM | TL method | Layers used | Pooling | Downstream head |
 |-----------|------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| AAV - sampled | 0.932 | Spearman's | ESM2-15B | Adapters | All | Mean | Linear |
-| AAV - one-vs-rest | 0.831 | Spearman's | ProGen2-XL  | LoRA | 75% | CLS | Linear |
-| GB1 - three-vs-rest | 0.879 | Spearman's | ProGen2-M | Adapters | 50% | CLS | Linear |
-| GB1 - one-vs-rest | 0.457 | Spearman's | ProGen2-S | FE | 75% | Mean | Linear |
-| Meltome - mixed | 0.723 | Spearman's | ProGen2-XL | LoRA | All | Mean | Linear |
-| HER2 - one-vs-rest | 0.390 | MCC | ProGen2-S | LoRA- | 50% | CLS | Linear |
-| RBD - one-vs-rest | 0.554 | MCC | ProGen2-S | LoRA | 50% | Mean | Linear |
+| AAV - sampled | 0.9320 | Spearman's | ESM2-15B | Adapters | All | Mean | Linear |
+| AAV - one-vs-rest | 0.8315 | Spearman's | ProGen2-XL  | LoRA | 75% | CLS | Linear |
+| GB1 - three-vs-rest | 0.8791 | Spearman's | ProGen2-M | Adapters | 50% | CLS | Linear |
+| GB1 - one-vs-rest | 0.4571 | Spearman's | ProGen2-S | FE | 75% | Mean | Linear |
+| Meltome - mixed | 0.7232 | Spearman's | ProGen2-XL | LoRA | All | Mean | Linear |
+| Trastuzumab - one-vs-rest | 0.3898 | MCC | ProGen2-XL | LoRA- | 25% | CLS | Linear |
+| RBD - one-vs-rest | 0.5545 | MCC | ProGen2-S | LoRA | 50% | Mean | Linear |
+| SS3 - sampled | 0.8644 | Macro Accuracy | ESM2-15B | Adapters | All | - | Linear |
 
 ## Contributions 🎉
 We welcome contributions from the community! If you're interested in contributing to PLMFit, feel free to:
