@@ -215,15 +215,7 @@ def fine_tune(args, logger):
 def downstream_prep(
     model, args, data, split, task, head_config, weights=None, sampler=False
 ):
-    network_type = head_config["architecture_parameters"]["network_type"]
-    if network_type == "linear":
-        head_config["architecture_parameters"]["input_dim"] = model.emb_layers_dim
-        pred_model = heads.LinearHead(head_config["architecture_parameters"])
-    elif network_type == "mlp":
-        head_config["architecture_parameters"]["input_dim"] = model.emb_layers_dim
-        pred_model = heads.MLP(head_config["architecture_parameters"])
-    else:
-        raise ValueError("Head type not supported")
+    pred_model = heads.init_head(config=head_config, input_dim=model.emb_layers_dim)
 
     model.py_model.set_head(pred_model)
     model.py_model.reduction = args.reduction

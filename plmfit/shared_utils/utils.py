@@ -47,7 +47,10 @@ def set_path(base_path):
 
 
 def load_dataset(data_type):
-    return pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
+    try:
+        return pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
+    except:
+        return pd.read_csv(data_type) # Assume it is a full path to dataset
 
 
 def load_embeddings(

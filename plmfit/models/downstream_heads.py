@@ -55,6 +55,9 @@ class MLP(nn.Module):
         self.init_weights()
 
     def forward(self, x):
+        # if device is MPS, convert input to int
+        if torch.backends.mps.is_available():
+            x = x.to(torch.float)
         for layer in self.layers:
             x = layer(x)
         return x
@@ -92,6 +95,9 @@ class RNN(nn.Module):
         self.init_weights()
 
     def forward(self, x):
+        # if device is MPS, convert input to int
+        if torch.backends.mps.is_available():
+            x = x.to(torch.float)
         out, _ = self.rnn(x)
         out = self.fc(out)
         if self.activation is not None:
@@ -134,3 +140,19 @@ class AdapterLayer(nn.Module):
         src = nn.relu(self.fc_down(src))
         src = self.fc_up(src)
         return self.dropout(src)
+
+
+def init_head(config, input_dim):
+    network_type = config["architecture_parameters"]["network_type"]
+    if network_type == "linear":
+        config["architecture_parameters"]["input_dim"] = input_dim
+        model = LinearHead(config["architecture_parameters"])
+    elif network_type == "mlp":
+        config["architecture_parameters"]["input_dim"] = input_dim
+        model = MLP(config["architecture_parameters"])
+    elif network_type == "rnn":
+        config["architecture_parameters"]["input_dim"] = input_dim
+        model = RNN(config["architecture_parameters"])
+    else:
+        raise ValueError("Head type not supported")
+    return model

@@ -7,7 +7,7 @@ pandas
 matplotlib
 numpy==1.26.4
 scipy
-transformers==4.28.0
+transformers
 tokenizers
 scikit-learn
 seaborn

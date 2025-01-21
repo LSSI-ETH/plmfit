@@ -31,7 +31,8 @@ def run_blosum(args, logger):
     blosum(args, logger)
 
 def run_predict(args, logger):
-    raise NotImplementedError("Function not supported (yet)")
+    from plmfit.functions import predict
+    predict(args, logger)
 
 def main():
     parser = argparse.ArgumentParser(description='plmfit_args')
@@ -69,9 +70,12 @@ def main():
     parser.add_argument('--sampler', default="False")
     parser.add_argument('--split_size', default=0, type=int)
     parser.add_argument('--model_path', default=None, help="Path of the model in .ckpt format for evaluating it or continuing training from checkpoint")
+    parser.add_argument('--model_metadata', default=None, help="Path of the model metadata to load the model")
     parser.add_argument('--evaluate', default="False")
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--hyperparam_config', default="hyperparam_config.json", type=str)
+    parser.add_argument('--prediction_data', default=None, type=str)
+    parser.add_argument('--batch_size', default=4, type=int, help="Batch size mainly used for prediction")
 
     args = parser.parse_args()
     experiment_dir = args.experiment_dir

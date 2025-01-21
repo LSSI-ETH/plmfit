@@ -32,6 +32,7 @@ from torchmetrics.regression import (
 from torchmetrics.text import Perplexity
 from lightning.pytorch.callbacks import BasePredictionWriter
 from plmfit.shared_utils.custom_loss_functions import MaskedBCEWithLogitsLoss
+import numpy as np
 
 
 class LightningModel(L.LightningModule):
@@ -897,12 +898,13 @@ class Metrics(torch.nn.Module):
 
 class PredictionWriter(BasePredictionWriter):
 
-    def __init__(self, logger, write_interval, split_size=0):
+    def __init__(self, logger, write_interval, split_size=0, format='pt'):
         super().__init__(write_interval)
         self.output_dir = logger.base_dir
         self.file_name = logger.experiment_name
         self.logger = logger
         self.split_size = split_size
+        self.format = format
 
     def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
         # Make list into a single tensor
@@ -919,7 +921,27 @@ class PredictionWriter(BasePredictionWriter):
         sorted_predictions[batch_indices] = predictions
 
         if self.split_size == 0:
-            torch.save(sorted_predictions, f"{self.output_dir}/{self.file_name}.pt")
+            if self.format == 'pt':
+                torch.save(sorted_predictions, f"{self.output_dir}/{self.file_name}.pt")
+            elif self.format == 'csv':
+                sorted_predictions = sorted_predictions.cpu().numpy()
+                # Save the predictions to a CSV file
+                # First row is index, second prediction with 4 decimal places
+
+                # Create an array with indices
+                indices = np.arange(sorted_predictions.shape[0]).reshape(-1, 1)
+                # Concatenate indices and predictions
+                predictions_with_indices = np.hstack((indices, sorted_predictions))
+
+                # Format the predictions to 4 decimal places
+                np.savetxt(
+                    f"{self.output_dir}/{self.file_name}.csv",
+                    predictions_with_indices,
+                    delimiter=",",
+                    fmt=["%d"] + ["%.4f"] * sorted_predictions.shape[1],
+                    header="index,prediction",
+                    comments=""
+                )
         else:
             # Split the predictions into splits of size 'split_size' and the output file indicates the sample number in the batch (i.e. ..._1000-1999.pt)
             for i in range(0, len(sorted_predictions), self.split_size):
@@ -936,7 +958,9 @@ class PredictionWriter(BasePredictionWriter):
                     f"{self.output_dir}/{self.file_name}_{i}-{i + split_size - 1}.pt",
                 )
 
-        self.logger.log(f"Predictions saved to {self.output_dir}/{self.file_name}.pt")
+        self.logger.log(
+            f"Predictions saved to {self.output_dir}/{self.file_name}.{self.format}"
+        )
         self.logger.log(f"Predictions shape: {sorted_predictions.shape}")
 
     def write_on_batch_end(

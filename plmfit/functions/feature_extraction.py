@@ -179,20 +179,9 @@ def objective(
         sampler=sampler,
     )
 
-    network_type = config["architecture_parameters"]["network_type"]
-    if network_type == "linear":
-        config["architecture_parameters"]["input_dim"] = embeddings.shape[-1]
-        model = heads.LinearHead(config["architecture_parameters"])
-    elif network_type == "mlp":
-        config["architecture_parameters"]["input_dim"] = embeddings.shape[-1]
-        model = heads.MLP(config["architecture_parameters"])
-    elif network_type == "rnn":
-        config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[-1]
-        )  # Account for one-hot encodings
-        model = heads.RNN(config["architecture_parameters"])
-    else:
-        raise ValueError("Head type not supported")
+    model = heads.init_head(
+        config=config, input_dim=embeddings.shape[-1]
+    )
 
     if not on_ray_tuning:
         logger.save_data(config, "head_config")

@@ -12,9 +12,9 @@ required_deps = read_requirements("requirements.txt")
 setup(
     name="plmfit",
     version="0.0.1",
-    description="PLMfit",
-    long_description="PLMfit",
-    author="Thomas Bikias",
+    description="PLMFit",
+    long_description="PLMFit",
+    author="Thomas Bikias, Evangelos Stamkopoulos",
     packages=find_packages(),
     license="Apache License 2.0",
     zip_safe=True,
