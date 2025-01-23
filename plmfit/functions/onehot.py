@@ -77,7 +77,7 @@ def onehot(args, logger):
     elif task == "multilabel_classification":
         # Labels are all columns starting with 'label_'
         scores = data[[col for col in data.columns if "label_" in col]].values
-        
+
         # Replace -1 with -100
         scores[scores == -1] = -100
     else:
@@ -163,7 +163,6 @@ def objective(
             config["training_parameters"][param_name] = suggest_number_of_type(trial, param_name, p_range[0],
                     p_range[1], p_type)
 
-
     training_params = config["training_parameters"]
 
     data_loaders = utils.create_data_loaders(
@@ -177,6 +176,7 @@ def objective(
         weights=weights,
         sampler=sampler,
         dataset_type="one_hot",
+        num_samples_per_epoch=training_params.get("no_samples_per_epoch", None),
     )
 
     data_loaders["train"].dataset.set_num_classes(num_classes)

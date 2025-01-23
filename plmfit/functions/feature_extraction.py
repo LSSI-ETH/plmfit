@@ -177,6 +177,7 @@ def objective(
         num_workers=num_workers,
         weights=weights,
         sampler=sampler,
+        num_samples_per_epoch=training_params.get("no_samples_per_epoch", None),
     )
 
     model = heads.init_head(

@@ -79,7 +79,7 @@ def fine_tune(args, logger):
             task=task,
             head_config=head_config,
             weights=weights,
-            sampler=sampler,
+            sampler=sampler
         )
 
     if args.ft_method == "lora":
@@ -259,6 +259,7 @@ def downstream_prep(
         num_workers=0,
         weights=weights,
         sampler=sampler,
+        num_samples_per_epoch=training_params.get("no_samples_per_epoch", None),
     )
 
     return data_loaders, training_params

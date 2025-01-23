@@ -106,6 +106,7 @@ def create_data_loaders(
     weights=None,
     sampler=False,
     dataset_type="tensor",
+    num_samples_per_epoch=None,
 ):
     """
     Create DataLoader objects for training, validation, and testing.
@@ -235,7 +236,12 @@ def create_data_loaders(
         test_dataset = Dataset(X_test, y_test, test_ids)
 
     if sampler:
-        train_sampler = init_weighted_sampler(train_dataset, weights_train)
+        train_sampler = init_weighted_sampler(
+            train_dataset,
+            weights_train,
+            num_samples_method="min" if num_samples_per_epoch is None else "fixed",
+            num_samples=num_samples_per_epoch,
+        )
         val_sampler = init_weighted_sampler(val_dataset, weights_val)
         test_sampler = None
     else:

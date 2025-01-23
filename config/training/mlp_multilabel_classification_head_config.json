@@ -24,6 +24,9 @@
     "gradient_accumulation": false,
     "epoch_sizing": false,
     "early_stopping": 10,
+    "weights": "sampled_weights",
+    "sampler": true,
+    "no_samples_per_epoch": "sampled_samples_per_epoch",
     "no_classes": 1,
     "no_labels": 7
   }
