@@ -39,6 +39,11 @@ def onehot(args, logger):
         if head_config["training_parameters"].get("weights") is None
         else data.get(head_config["training_parameters"]["weights"])
     )
+    num_samples_per_epoch = (
+        None
+        if head_config["training_parameters"].get("num_samples_per_epoch") is None
+        else data.get(head_config["training_parameters"]["num_samples_per_epoch"])
+    )
     sampler = head_config["training_parameters"].get("sampler", False) == True
     max_len = max(data["len"].values)
     if args.evaluate == "True" and split is None:
@@ -97,6 +102,7 @@ def onehot(args, logger):
             num_workers=0,
             weights=weights,
             sampler=sampler,
+            num_samples_per_epoch=num_samples_per_epoch,
             num_classes=num_classes,
         )
 
@@ -116,6 +122,7 @@ def onehot(args, logger):
         num_workers=0,
         weights=weights,
         sampler=sampler,
+        num_samples_per_epoch=num_samples_per_epoch,
         num_classes=num_classes,
     )
 
@@ -126,6 +133,7 @@ def suggest_number_of_type(trial, name, min, max, type):
         return trial.suggest_float(name, min, max)
     else:
         raise ValueError("Type of hyperparameter not supported")
+
 
 def objective(
     trial,
@@ -140,9 +148,10 @@ def objective(
     num_workers=0,
     weights=None,
     sampler=False,
+    num_samples_per_epoch=None,
     patience=5,
     num_classes=21,
-    hyperparam_config=None
+    hyperparam_config=None,
 ):
     config = copy.deepcopy(head_config)
 
@@ -176,7 +185,7 @@ def objective(
         weights=weights,
         sampler=sampler,
         dataset_type="one_hot",
-        num_samples_per_epoch=training_params.get("no_samples_per_epoch", None),
+        num_samples_per_epoch=num_samples_per_epoch,
     )
 
     data_loaders["train"].dataset.set_num_classes(num_classes)
@@ -322,6 +331,7 @@ def hyperparameter_tuning(
     num_workers=0,
     weights=None,
     sampler=False,
+    num_samples_per_epoch=None,
     num_classes=21,
 ):
     if version.parse(pl.__version__) < version.parse("2.2.1"):
@@ -363,13 +373,14 @@ def hyperparameter_tuning(
             num_workers=num_workers,
             weights=weights,
             sampler=sampler,
+            num_samples_per_epoch=num_samples_per_epoch,
             num_classes=num_classes,
-            hyperparam_config=network_config
+            hyperparam_config=network_config,
         ),
         n_trials=n_trials,
         callbacks=[LogOptunaTrialCallback(logger)],
-        n_jobs = int(args.gpus),
-        gc_after_trial = True,
+        n_jobs=int(args.gpus),
+        gc_after_trial=True,
         catch=(FileNotFoundError,),
     )
     logger.mute = False

@@ -38,6 +38,11 @@ def feature_extraction(args, logger):
         if head_config["training_parameters"].get("weights") is None
         else data.get(head_config["training_parameters"]["weights"])
     )
+    num_samples_per_epoch = (
+        None
+        if head_config["training_parameters"].get("num_samples_per_epoch") is None
+        else data.get(head_config["training_parameters"]["num_samples_per_epoch"])
+    )
     sampler = head_config["training_parameters"].get("sampler", False) == True
 
     if args.evaluate == "True" and split is None:
@@ -98,6 +103,7 @@ def feature_extraction(args, logger):
             num_workers=0,
             weights=weights,
             sampler=sampler,
+            num_samples_per_epoch=num_samples_per_epoch,
             n_trials=100,
         )
 
@@ -117,6 +123,7 @@ def feature_extraction(args, logger):
         num_workers=0,
         weights=weights,
         sampler=sampler,
+        num_samples_per_epoch=num_samples_per_epoch,
     )
 
 
@@ -133,6 +140,7 @@ def objective(
     num_workers=0,
     weights=None,
     sampler=False,
+    num_samples_per_epoch=None,
     patience=5,
 ):
     config = copy.deepcopy(head_config)
@@ -177,7 +185,7 @@ def objective(
         num_workers=num_workers,
         weights=weights,
         sampler=sampler,
-        num_samples_per_epoch=training_params.get("no_samples_per_epoch", None),
+        num_samples_per_epoch=num_samples_per_epoch,
     )
 
     model = heads.init_head(
@@ -313,6 +321,7 @@ def hyperparameter_tuning(
     num_workers=0,
     weights=None,
     sampler=False,
+    num_samples_per_epoch=None,
     n_trials=100,
 ):
     if version.parse(pl.__version__) < version.parse("2.2.1"):
@@ -349,6 +358,7 @@ def hyperparameter_tuning(
             num_workers=num_workers,
             weights=weights,
             sampler=sampler,
+            num_samples_per_epoch=num_samples_per_epoch,
         ),
         n_trials=n_trials if network_type == "linear" else n_trials * 4,
         callbacks=[LogOptunaTrialCallback(logger)],
