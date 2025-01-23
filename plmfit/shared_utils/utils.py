@@ -350,12 +350,11 @@ def one_hot_encode(seqs, num_classes, flatten=True):
     return encs.flatten() if flatten else encs
 
 
-def init_weighted_sampler(dataset, weights, num_samples_method="min"):
-    # Count the occurrences of each class in the dataset
-    labels = dataset.tensors[1].numpy()  # Assuming that labels are in the second tensor
-    class_counts = Counter(labels)
-
+def init_weighted_sampler(dataset, weights, num_samples_method="min", num_samples=None):
     if num_samples_method == "min":
+        # Count the occurrences of each class in the dataset
+        labels = dataset.tensors[1].numpy()  # Assuming that labels are in the second tensor
+        class_counts = Counter(labels)
         # Find the class with the least count
         min_class_count = min(class_counts.values())
         # Calculate the number of unique classes
@@ -363,6 +362,9 @@ def init_weighted_sampler(dataset, weights, num_samples_method="min"):
 
         # Set num_samples to the product of the least count and the number of unique classes
         num_samples = min_class_count * num_unique_classes
+    elif num_samples_method == "fixed":
+        if num_samples is None:
+            raise ValueError("num_samples must be provided when num_samples_method is 'fixed'")
     else:
         raise ValueError("num_samples_method must be 'min'")
 
