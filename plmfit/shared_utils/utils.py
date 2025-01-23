@@ -106,7 +106,6 @@ def create_data_loaders(
     weights=None,
     sampler=False,
     dataset_type="tensor",
-    num_samples_per_epoch=None,
 ):
     """
     Create DataLoader objects for training, validation, and testing.
@@ -239,10 +238,13 @@ def create_data_loaders(
         train_sampler = init_weighted_sampler(
             train_dataset,
             weights_train,
-            num_samples_method="min" if num_samples_per_epoch is None else "fixed",
-            num_samples=num_samples_per_epoch,
+            num_samples_method="min_weighted",
         )
-        val_sampler = init_weighted_sampler(val_dataset, weights_val)
+        val_sampler = init_weighted_sampler(
+            val_dataset,
+            weights_val,
+            num_samples_method="min_weighted",
+        )
         test_sampler = None
     else:
         train_sampler = None
@@ -356,7 +358,7 @@ def one_hot_encode(seqs, num_classes, flatten=True):
     return encs.flatten() if flatten else encs
 
 
-def init_weighted_sampler(dataset, weights, num_samples_method="min", num_samples=None):
+def init_weighted_sampler(dataset, weights, num_samples_method="min"):
     if num_samples_method == "min":
         # Count the occurrences of each class in the dataset
         labels = dataset.tensors[1].numpy()  # Assuming that labels are in the second tensor
@@ -368,9 +370,14 @@ def init_weighted_sampler(dataset, weights, num_samples_method="min", num_sample
 
         # Set num_samples to the product of the least count and the number of unique classes
         num_samples = min_class_count * num_unique_classes
-    elif num_samples_method == "fixed":
-        if num_samples is None:
-            raise ValueError("num_samples must be provided when num_samples_method is 'fixed'")
+    elif num_samples_method == "min_weighted":
+        # Find the class with the least count
+        min_class_count = pd.Series(weights.numpy()).value_counts().min()
+        # Calculate the number of unique classes
+        num_unique_classes = len(pd.Series(weights.numpy()).value_counts())
+
+        # Set num_samples to the product of the least count and the number of unique classes
+        num_samples = int(min_class_count * num_unique_classes)
     else:
         raise ValueError("num_samples_method must be 'min'")
 

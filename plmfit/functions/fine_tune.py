@@ -44,11 +44,6 @@ def fine_tune(args, logger):
         if head_config["training_parameters"].get("weights") is None
         else data.get(head_config["training_parameters"]["weights"])
     )
-    num_samples_per_epoch = (
-        None
-        if head_config["training_parameters"].get("num_samples_per_epoch") is None
-        else data.get(head_config["training_parameters"]["num_samples_per_epoch"])
-    )
     sampler = head_config["training_parameters"].get("sampler", False) == True
     model = utils.init_plm(args.plm, logger, task=task)
     assert model != None, "Model is not initialized"
@@ -85,7 +80,6 @@ def fine_tune(args, logger):
             head_config=head_config,
             weights=weights,
             sampler=sampler,
-            num_samples_per_epoch=num_samples_per_epoch,
         )
 
     if args.ft_method == "lora":
@@ -227,7 +221,6 @@ def downstream_prep(
     head_config,
     weights=None,
     sampler=False,
-    num_samples_per_epoch=None,
 ):
     pred_model = heads.init_head(config=head_config, input_dim=model.emb_layers_dim)
 
@@ -273,7 +266,6 @@ def downstream_prep(
         num_workers=0,
         weights=weights,
         sampler=sampler,
-        num_samples_per_epoch=num_samples_per_epoch,
     )
 
     return data_loaders, training_params
