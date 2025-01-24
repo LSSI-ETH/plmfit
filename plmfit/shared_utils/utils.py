@@ -32,6 +32,8 @@ from collections import Counter
 import torch.nn.functional as F
 import ast
 from plmfit.shared_utils.random_state import get_random_state, get_numpy_random_state
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from plmfit.shared_utils.samplers import LabelWeightedSampler
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
@@ -239,11 +241,13 @@ def create_data_loaders(
             train_dataset,
             weights_train,
             num_samples_method="min_weighted",
+            sampler="weighted_random" if sampler is True else sampler
         )
         val_sampler = init_weighted_sampler(
             val_dataset,
             weights_val,
             num_samples_method="min_weighted",
+            sampler="weighted_random" if sampler is True else sampler
         )
         test_sampler = None
     else:
@@ -358,7 +362,7 @@ def one_hot_encode(seqs, num_classes, flatten=True):
     return encs.flatten() if flatten else encs
 
 
-def init_weighted_sampler(dataset, weights, num_samples_method="min"):
+def init_weighted_sampler(dataset, weights, num_samples_method="min", sampler="weighted_random"):
     if num_samples_method == "min":
         # Count the occurrences of each class in the dataset
         labels = dataset.tensors[1].numpy()  # Assuming that labels are in the second tensor
@@ -371,23 +375,48 @@ def init_weighted_sampler(dataset, weights, num_samples_method="min"):
         # Set num_samples to the product of the least count and the number of unique classes
         num_samples = min_class_count * num_unique_classes
     elif num_samples_method == "min_weighted":
+        value_counts = pd.Series(weights.numpy()).value_counts()
         # Find the class with the least count
-        min_class_count = pd.Series(weights.numpy()).value_counts().min()
+        min_class_count = value_counts.min()
         # Calculate the number of unique classes
-        num_unique_classes = len(pd.Series(weights.numpy()).value_counts())
+        num_unique_classes = len(value_counts)
 
         # Set num_samples to the product of the least count and the number of unique classes
         num_samples = int(min_class_count * num_unique_classes)
+
+        ## -----------------------------------------------------------
+        # Map each unique weight value to an integer label: 0 .. N-1
+        # -----------------------------------------------------------
+        # 1) Collect the unique weight values from the Series index
+        unique_weight_values = value_counts.index.tolist()  # e.g., [0.1, 0.3, 1.0, ...]
+
+        # 2) Create a dictionary mapping each weight value -> new label index
+        weight_to_label = {w: i for i, w in enumerate(unique_weight_values)}
+
+        # 3) Convert the original `weights` (one weight per sample) into integer "labels"
+        labels = torch.tensor(
+            [weight_to_label[w.item()] for w in weights],
+            dtype=torch.int8
+        )
     else:
         raise ValueError("num_samples_method must be 'min'")
 
-    # Create the WeightedRandomSampler using these weights
-    return WeightedRandomSampler(
-        weights=weights,
-        num_samples=num_samples,
-        replacement=True,  # To allow resampling
-        generator=get_random_state()
-    )
+    if sampler == "weighted_random":
+        # Create the WeightedRandomSampler using these weights
+        return WeightedRandomSampler(
+            weights=weights,
+            num_samples=num_samples,
+            replacement=True,  # To allow resampling
+            generator=get_random_state()
+        )
+    elif sampler == "label_weighted":
+        return LabelWeightedSampler(
+            label_weights=unique_weight_values,
+            labels=labels,
+            num_samples=num_samples,
+            replacement=True,  # To allow resampling
+            generator=get_random_state()
+        )
 
 
 def convert_or_clone_to_tensor(data, dtype):
@@ -671,7 +700,6 @@ def blosum62_encode(sequences, pad_to_length, logger=None):
     # Stack all sequence tensors to create a 3D tensor for the batch
     return torch.stack(encoded_sequences)
 
-
 def categorical_encode(
     seqs,
     tokenizer,
@@ -680,88 +708,124 @@ def categorical_encode(
     add_eos=False,
     logger=None,
     model_name="progen2",
+    progress_interval=100000,
 ):
-    if logger != None:
-        logger.log(f"Initiating categorical encoding")
-        logger.log(f"Memory needed for encoding: {len(seqs) * max_len * 4}B")
+    """
+    Encodes a list of sequences in chunks to avoid high memory usage.
+    
+    Args:
+        seqs (List[str]): The sequences to encode.
+        tokenizer: The tokenizer object with `encode` and `get_vocab` methods.
+        max_len (int): Maximum length of the core sequence (excluding optional BOS/EOS).
+        add_bos (bool): If True, add a BOS token (depends on model_name).
+        add_eos (bool): If True, add an EOS token (depends on model_name).
+        logger (Optional): If provided, used for logging messages.
+        model_name (str): Name of the model ("progen2", "bert", "esm", ...).
+        progress_interval (int): How often to log the progress in each chunk.
+        chunk_size (int): Number of sequences to process in one parallel chunk.
 
-    if "progen2" in model_name:
-        # Adjust max_len if BOS or EOS tokens are to be added
-        internal_max_len = max_len + int(add_bos) + int(add_eos)
+    Returns:
+        torch.Tensor: A tensor of shape (len(seqs), internal_max_len).
+    """
 
-        seq_tokens = tokenizer.get_vocab()["<|pad|>"] * torch.ones(
-            (len(seqs), internal_max_len), dtype=torch.int8
-        )
-        for itr, seq in enumerate(seqs):
-            # Encode the sequence without adding special tokens by the tokenizer itself
-            encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
+    # --- Initial Logging ---
+    total_seqs = len(seqs)
+    if logger is not None:
+        logger.log(f"Initiating categorical encoding for {total_seqs} sequences.")
+        logger.log(f"Memory needed for encoding (approx): {total_seqs * max_len * 4}B")
 
-            # Prepare sequence with space for BOS and/or EOS if needed
-            sequence = []
-            if add_bos:
-                sequence.append(tokenizer.get_vocab()["<|bos|>"])
-            sequence.extend(
-                encoded_seq_ids[:max_len]
-            )  # Ensure the core sequence does not exceed user-specified max_len
-            if add_eos:
-                sequence.append(tokenizer.get_vocab()["<|eos|>"])
-
-            # Truncate the sequence if it exceeds internal_max_len
-            truncated_sequence = sequence[:internal_max_len]
-
-            # Update the seq_tokens tensor
-            seq_len = len(truncated_sequence)
-            seq_tokens[itr, :seq_len] = torch.tensor(
-                truncated_sequence, dtype=torch.long
-            )
-
-            if itr == 0 and logger is not None:
-                logger.log(f"First sequence tokens: {seq_tokens[0].tolist()}")
-    elif "bert" in model_name:
-        # Adjust max_len if BOS or EOS tokens are to be added
-        internal_max_len = max_len + int(add_bos) + int(add_eos)
-
-        seq_tokens = tokenizer.get_vocab()["<pad>"] * torch.ones(
-            (len(seqs), internal_max_len), dtype=torch.int8
-        )
-        for itr, seq in enumerate(seqs):
-            # Encode the sequence without adding special tokens by the tokenizer itself
-            encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
-
-            # Prepare sequence with space for BOS and/or EOS if needed
-            sequence = []
-            if add_bos:
-                sequence.append(tokenizer.get_vocab()["<cls>"])
-            sequence.extend(
-                encoded_seq_ids[:max_len]
-            )  # Ensure the core sequence does not exceed user-specified max_len
-            if add_eos:
-                sequence.append(tokenizer.get_vocab()["<sep>"])
-
-            # Truncate the sequence if it exceeds internal_max_len
-            truncated_sequence = sequence[:internal_max_len]
-
-            # Update the seq_tokens tensor
-            seq_len = len(truncated_sequence)
-            seq_tokens[itr, :seq_len] = torch.tensor(
-                truncated_sequence, dtype=torch.int8
-            )
-
-            if itr == 0 and logger is not None:
-                logger.log(f"First sequence tokens: {seq_tokens[0].tolist()}")
-    elif "esm" in model_name:
-        seq_tokens = tokenizer.get_vocab()["<pad>"] * torch.ones(
-            (len(seqs), int(max_len) + 2), dtype=torch.int8
-        )  ### Adding  to max_len because ESMTokenizer adds cls and eos tokens in the begging and the neding of aa_seq
-        for itr, seq in enumerate(seqs):
-            tok_seq = torch.tensor(tokenizer.encode(seq))
-            seq_tokens[itr][: tok_seq.shape[0]] = tok_seq
+    # Determine the internal max length depending on the model
+    if "esm" in model_name:
+        internal_max_len = max_len + 2  # ESM adds <cls> and <eos> automatically
     else:
-        raise "Model tokenizer not defined"
-    if logger != None:
-        logger.log(f"Categorical encoding finished")
+        internal_max_len = max_len + int(add_bos) + int(add_eos)
+
+    # Identify the correct padding token
+    if "progen2" in model_name:
+        pad_token = tokenizer.get_vocab()["<|pad|>"]
+    elif "bert" in model_name:
+        pad_token = tokenizer.get_vocab()["<pad>"]
+    elif "esm" in model_name:
+        pad_token = tokenizer.get_vocab()["<pad>"]
+    else:
+        raise ValueError("Model tokenizer not defined")
+
+    # Pre-allocate the final tensor
+    seq_tokens = pad_token * torch.ones((total_seqs, internal_max_len), dtype=torch.int8)
+
+    # Decide whether to run in parallel
+    n_cpus = os.cpu_count() or 1
+    use_parallel = False # TODO enable parallel encoding
+    if logger is not None:
+        if use_parallel:
+            logger.log(f"Running parallel encoding with up to {n_cpus} workers.")
+        else:
+            logger.log("Only 1 CPU core detected. Will run in serial mode.")
+
+    # Track how many sequences have been processed so far
+    processed_so_far = 0
+
+    # --- Serial Mode ---
+    for local_i, seq in enumerate(seqs):
+        idx = local_i
+        encoded_seq = encode_sequence(seq, tokenizer, max_len, add_bos, add_eos, model_name)
+        seq_len = len(encoded_seq)
+        seq_tokens[idx, :seq_len] = encoded_seq
+
+        processed_so_far += 1
+        if logger is not None and processed_so_far % progress_interval == 0:
+            logger.log(f"Encoded {processed_so_far}/{total_seqs} sequences...")
+
+    # --- Final Logging ---
+    if logger is not None and total_seqs > 0:
+        logger.log(f"First sequence tokens: {seq_tokens[0].tolist()}")
+        logger.log("Categorical encoding finished")
+
     return seq_tokens
 
+def chunkify(data, chunk_size):
+    """Generator that yields (start_index, sublist) for each chunk."""
+    for i in range(0, len(data), chunk_size):
+        yield i, data[i : i + chunk_size]
+
+def encode_sequence(seq, tokenizer, max_len, add_bos, add_eos, model_name):
+    """Helper function to process encoding of a single sequence."""
+    if "progen2" in model_name:
+        internal_max_len = max_len + int(add_bos) + int(add_eos)
+        encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
+
+        sequence = []
+        if add_bos:
+            sequence.append(tokenizer.get_vocab()["<|bos|>"])
+        sequence.extend(encoded_seq_ids[:max_len])
+        if add_eos:
+            sequence.append(tokenizer.get_vocab()["<|eos|>"])
+
+        truncated_sequence = sequence[:internal_max_len]
+        return torch.tensor(truncated_sequence, dtype=torch.long)
+
+    elif "bert" in model_name:
+        internal_max_len = max_len + int(add_bos) + int(add_eos)
+        encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
+
+        sequence = []
+        if add_bos:
+            sequence.append(tokenizer.get_vocab()["<cls>"])
+        sequence.extend(encoded_seq_ids[:max_len])
+        if add_eos:
+            sequence.append(tokenizer.get_vocab()["<sep>"])
+
+        truncated_sequence = sequence[:internal_max_len]
+        return torch.tensor(truncated_sequence, dtype=torch.int8)
+
+    elif "esm" in model_name:
+        # ESMTokenizer automatically adds <cls> and <eos> tokens
+        # We'll ensure the final tensor doesn't exceed max_len+2
+        tok_seq = torch.tensor(tokenizer.encode(seq))
+        return tok_seq[: max_len + 2]
+
+    else:
+        raise ValueError("Model tokenizer not defined")
 
 def get_parameters(model, print_w_mat=False, logger=None):
     s = 0

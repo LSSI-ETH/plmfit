@@ -38,7 +38,7 @@ def feature_extraction(args, logger):
         if head_config["training_parameters"].get("weights") is None
         else data.get(head_config["training_parameters"]["weights"])
     )
-    sampler = head_config["training_parameters"].get("sampler", False) == True
+    sampler = head_config["training_parameters"].get("sampler", False)
 
     if args.evaluate == "True" and split is None:
         raise ValueError("Cannot evaluate without a standard testing split")

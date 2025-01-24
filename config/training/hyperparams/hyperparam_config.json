@@ -31,7 +31,7 @@
     "mlp": {
         "n_trials": 200,
         "epochs_fragment": 0.1,
-        "epoch_sizing": 0.1,
+        "epoch_sizing": 0.01,
         "architecture_parameters": {
             "hidden_dim": {
                 "type": "int",
@@ -60,7 +60,7 @@
                 "type": "int",
                 "range": [
                     8,
-                    128
+                    512
                 ]
             },
             "weight_decay": {

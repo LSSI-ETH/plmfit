@@ -22,7 +22,7 @@ def onehot(args, logger):
 
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    # data = data[:10000]
+    # data = data[:100000]
 
     # if args.experimenting == "True": data = data.sample(100)
 
@@ -39,7 +39,7 @@ def onehot(args, logger):
         if head_config["training_parameters"].get("weights") is None
         else data.get(head_config["training_parameters"]["weights"])
     )
-    sampler = head_config["training_parameters"].get("sampler", False) == True
+    sampler = head_config["training_parameters"].get("sampler", False)
     max_len = max(data["len"].values)
     if args.evaluate == "True" and split is None:
         raise ValueError("Cannot evaluate without a standard testing split")

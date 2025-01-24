@@ -44,7 +44,7 @@ def fine_tune(args, logger):
         if head_config["training_parameters"].get("weights") is None
         else data.get(head_config["training_parameters"]["weights"])
     )
-    sampler = head_config["training_parameters"].get("sampler", False) == True
+    sampler = head_config["training_parameters"].get("sampler", False)
     model = utils.init_plm(args.plm, logger, task=task)
     assert model != None, "Model is not initialized"
 
