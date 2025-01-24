@@ -22,7 +22,7 @@ def onehot(args, logger):
 
     # Load dataset
     data = utils.load_dataset(args.data_type)
-    data = data[:10000]
+    # data = data[:10000]
 
     # if args.experimenting == "True": data = data.sample(100)
 
