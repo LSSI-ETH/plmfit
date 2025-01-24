@@ -231,6 +231,10 @@ class LightningModel(L.LightningModule):
         if self.model.task == "token_classification" and self.hparams.no_classes > 1:
             # Get the maximum value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
+        if self.model.task == "multilabel_classification" and self.hparams.no_classes == 1:
+            # Logits loss function must be being used so we have to convert to probabilities
+            outputs = torch.sigmoid(outputs)
+            labels = labels.int()
 
         self.log(
             "train_loss",
@@ -373,6 +377,10 @@ class LightningModel(L.LightningModule):
         if self.model.task == "token_classification" and self.hparams.no_classes > 1:
             # Get the maxium value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
+        if self.model.task == "multilabel_classification" and self.hparams.no_classes == 1:
+            # Logits loss function must be being used so we have to convert to probabilities
+            outputs = torch.sigmoid(outputs)
+            labels = labels.int()
         self.val_metric.update(outputs, labels)
         self.log(
             f"val_{self.metric_label}_step",
@@ -479,6 +487,10 @@ class LightningModel(L.LightningModule):
         if self.model.task == "token_classification" and self.hparams.no_classes > 1:
             # Get the maximum value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
+        if self.model.task == "multilabel_classification" and self.hparams.no_classes == 1:
+            # Logits loss function must be being used so we have to convert to probabilities
+            outputs = torch.sigmoid(outputs)
+            labels = labels.int()
         self.metrics.add(outputs, labels, ids)
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:

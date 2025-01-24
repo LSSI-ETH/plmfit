@@ -690,7 +690,7 @@ def categorical_encode(
         internal_max_len = max_len + int(add_bos) + int(add_eos)
 
         seq_tokens = tokenizer.get_vocab()["<|pad|>"] * torch.ones(
-            (len(seqs), internal_max_len), dtype=int
+            (len(seqs), internal_max_len), dtype=torch.int8
         )
         for itr, seq in enumerate(seqs):
             # Encode the sequence without adding special tokens by the tokenizer itself
@@ -722,7 +722,7 @@ def categorical_encode(
         internal_max_len = max_len + int(add_bos) + int(add_eos)
 
         seq_tokens = tokenizer.get_vocab()["<pad>"] * torch.ones(
-            (len(seqs), internal_max_len), dtype=int
+            (len(seqs), internal_max_len), dtype=torch.int8
         )
         for itr, seq in enumerate(seqs):
             # Encode the sequence without adding special tokens by the tokenizer itself
@@ -744,14 +744,14 @@ def categorical_encode(
             # Update the seq_tokens tensor
             seq_len = len(truncated_sequence)
             seq_tokens[itr, :seq_len] = torch.tensor(
-                truncated_sequence, dtype=torch.long
+                truncated_sequence, dtype=torch.int8
             )
 
             if itr == 0 and logger is not None:
                 logger.log(f"First sequence tokens: {seq_tokens[0].tolist()}")
     elif "esm" in model_name:
         seq_tokens = tokenizer.get_vocab()["<pad>"] * torch.ones(
-            (len(seqs), int(max_len) + 2), dtype=int
+            (len(seqs), int(max_len) + 2), dtype=torch.int8
         )  ### Adding  to max_len because ESMTokenizer adds cls and eos tokens in the begging and the neding of aa_seq
         for itr, seq in enumerate(seqs):
             tok_seq = torch.tensor(tokenizer.encode(seq))

@@ -2,7 +2,7 @@
   "architecture_parameters":
   {
     "network_type": "mlp",
-    "output_dim": 7,
+    "output_dim": 8,
     "hidden_dim": 128,
     "task": "multilabel_classification",
     "hidden_activation": "relu",
@@ -12,7 +12,7 @@
   {
     "learning_rate": 0.00005,
     "epochs": 200,
-    "batch_size": 64,
+    "batch_size": 1024,
     "loss_f": "masked_bce_logits",
     "optimizer": "adam",
     "val_split": 0.2,
@@ -24,9 +24,7 @@
     "gradient_accumulation": false,
     "epoch_sizing": false,
     "early_stopping": 10,
-    "weights": "sampled_weights",
-    "sampler": true,
     "no_classes": 1,
-    "no_labels": 7
+    "no_labels": 8
   }
 }
