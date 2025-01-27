@@ -1,2 +1,2 @@
 function	data_type	split	head	task	head_config	ray_tuning	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-one_hot	FcRprofile_binary	sampled	mlp	multilabel_classification	mlp_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	5	rtx_4090	40g	1	24	False
+one_hot	FcRprofile_binary	sampled	mlp	multilabel_classification	mlp_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	6	rtx_4090	30g	1	24	False

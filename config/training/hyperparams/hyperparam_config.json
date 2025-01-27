@@ -30,8 +30,8 @@
     },
     "mlp": {
         "n_trials": 200,
-        "epochs_fragment": 0.1,
-        "epoch_sizing": 0.01,
+        "epochs_fragment": 0.05,
+        "epoch_sizing": 0.05,
         "architecture_parameters": {
             "hidden_dim": {
                 "type": "int",

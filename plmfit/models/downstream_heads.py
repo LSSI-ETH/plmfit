@@ -38,12 +38,19 @@ class MLP(nn.Module):
 
         self.layers = nn.ModuleList()
 
-        # Hidden Layer
+        # Input Layer
         self.layers.append(nn.Linear(config['input_dim'], config['hidden_dim']))
         self.layers.append(nn.Dropout(config['hidden_dropout']))
         # Check if there's an activation function specified for the layer
         if 'hidden_activation' in config:
             self.layers.append(get_activation_function(config['hidden_activation']))
+
+        # Hidden Layers
+        for _ in range(config.get('hidden_layers', 1) - 1):
+            self.layers.append(nn.Linear(config['hidden_dim'], config['hidden_dim']))
+            self.layers.append(nn.Dropout(config['hidden_dropout']))
+            if 'hidden_activation' in config:
+                self.layers.append(get_activation_function(config['hidden_activation']))
 
         # Output Layer
         self.layers.append(nn.Linear(config['hidden_dim'], config['output_dim']))
