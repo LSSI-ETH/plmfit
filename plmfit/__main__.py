@@ -20,12 +20,10 @@ def run_fine_tuning(args, logger):
     from plmfit.functions import fine_tune
     fine_tune(args=args, logger=logger)
 
-# TODO: Lightning implementation
 def run_onehot(args, logger):
     from plmfit.functions import onehot
     onehot(args, logger)
 
-# TODO: Lightning implementation
 def run_blosum(args, logger):
     from plmfit.functions import blosum
     blosum(args, logger)
@@ -53,9 +51,8 @@ def main():
     )
     try:
         if args.function == 'extract_embeddings': run_extract_embeddings(args, logger)
-        elif args.function == 'fine_tuning':
-            if args.ft_method == 'feature_extraction': run_feature_extraction(args, logger) # TODO: Add this to fine tuning function as well
-            else: run_fine_tuning(args, logger)
+        elif args.function == 'fine_tuning': run_fine_tuning(args, logger)
+        elif args.function == 'feature_extraction': run_feature_extraction(args, logger)
         elif args.function == 'one_hot': run_onehot(args, logger)
         elif args.function == 'blosum': run_blosum(args, logger)
         elif args.function == 'predict' or args.function == 'generate': run_predict(args, logger)
