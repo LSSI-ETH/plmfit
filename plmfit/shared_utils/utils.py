@@ -25,6 +25,7 @@ from plmfit.models.pretrained_models import (
     ProGenFamily,
     ProteinBERTFamily,
     AnkhFamily,
+    ESMCFamily
 )
 from dotenv import load_dotenv
 import blosum as bl
@@ -34,6 +35,7 @@ import ast
 from plmfit.shared_utils.random_state import get_random_state, get_numpy_random_state
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from plmfit.shared_utils.samplers import LabelWeightedSampler
+from esm.utils import encoding
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
@@ -745,8 +747,10 @@ def categorical_encode(
         pad_token = tokenizer.get_vocab()["<|pad|>"]
     elif "bert" in model_name:
         pad_token = tokenizer.get_vocab()["<pad>"]
-    elif "esm" in model_name:
+    elif "esm2" in model_name:
         pad_token = tokenizer.get_vocab()["<pad>"]
+    elif "esmc" in model_name:
+        pad_token = tokenizer.pad_token_id
     else:
         raise ValueError("Model tokenizer not defined")
 
@@ -818,12 +822,16 @@ def encode_sequence(seq, tokenizer, max_len, add_bos, add_eos, model_name):
         truncated_sequence = sequence[:internal_max_len]
         return torch.tensor(truncated_sequence, dtype=torch.int8)
 
-    elif "esm" in model_name:
+    elif "esm2" in model_name:
         # ESMTokenizer automatically adds <cls> and <eos> tokens
         # We'll ensure the final tensor doesn't exceed max_len+2
         tok_seq = torch.tensor(tokenizer.encode(seq))
         return tok_seq[: max_len + 2]
-
+    elif "esmc" in model_name:
+        # ESMTokenizer automatically adds <cls> and <eos> tokens
+        # We'll ensure the final tensor doesn't exceed max_len+2
+        tok_seq = encoding.tokenize_sequence(seq, tokenizer, add_special_tokens=True)
+        return tok_seq[: max_len + 2]
     else:
         raise ValueError("Model tokenizer not defined")
 
@@ -1100,12 +1108,16 @@ def init_plm(model_name, logger, task="regression"):
     ]
     # supported_Ankh = ["ankh-base", "ankh-large", "ankh2-large"]
     supported_Proteinbert = ["proteinbert"]
+    supported_ESMC = [
+        "esmc_300m",
+        "esmc_600m",
+    ]
 
     if "progen" in model_name:
         assert model_name in supported_progen2, "Progen version is not supported"
         model = ProGenFamily(model_name, logger, task)
 
-    elif "esm" in model_name:
+    elif "esm2" in model_name:
         assert model_name in supported_ESM, "ESM version is not supported"
         model = ESMFamily(model_name, logger, task)
     # elif "ankh" in model_name:
@@ -1118,6 +1130,9 @@ def init_plm(model_name, logger, task="regression"):
             model_name in supported_Proteinbert
         ), "ProteinBERT version is not supported"
         model = ProteinBERTFamily(logger, task)
+    elif "esmc" in model_name:
+        assert model_name in supported_ESMC, "ESMC version is not supported"
+        model = ESMCFamily(model_name, logger, task)
     else:
         raise "PLM not supported"
 

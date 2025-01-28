@@ -16,6 +16,10 @@ from plmfit.language_models.esm.modeling_esm import (
     PlmfitEsmForTokenClassification,
     PlmfitEsmForEmbdeddingsExtraction,
 )
+from plmfit.language_models.esmC.modeling_esmc import (
+    PlmfitEsmCForSequenceClassification,
+    PlmfitEsmCForEmbdeddingsExtraction,
+)
 
 # from plmfit.shared_utils.data_explore import visualize_embeddings
 
@@ -679,7 +683,42 @@ class ESMFamily(IPretrainedProteinLanguageModel):
             self.tokenizer,
             max(data["len"].values) if max_length == "default" else max_length,
             logger=self.logger,
-            model_name="esm",
+            model_name="esm2",
+        )
+        return encs
+
+
+class ESMCFamily(IPretrainedProteinLanguageModel):
+
+    def __init__(self, esm_version: str, logger: l.Logger, task: str = "regression"):
+        super().__init__(logger, task)
+        self.version = esm_version
+        if self.task == "masked_lm":
+            raise ValueError("Masked LM not supported for ESM Cambrian")
+        elif self.task == "token_classification":
+            self.py_model = PlmfitEsmCForSequenceClassification.from_pretrained(
+                f"{esm_version}"
+            )
+        elif self.task == "extract_embeddings":
+            self.py_model = PlmfitEsmCForEmbdeddingsExtraction.from_pretrained(
+                f"{esm_version}"
+            )
+        else:
+            self.py_model = PlmfitEsmCForSequenceClassification.from_pretrained(
+                f"{esm_version}"
+            )
+        self.no_parameters = utils.get_parameters(self.py_model)
+        self.no_layers = len(self.py_model.transformer.blocks)
+        self.emb_layers_dim = self.py_model.embed.embedding_dim
+        self.tokenizer = self.py_model.tokenizer
+        
+    def categorical_encode(self, data, max_length="default"):
+        encs = utils.categorical_encode(
+            data["aa_seq"].values,
+            self.tokenizer,
+            max(data["len"].values) if max_length == "default" else max_length,
+            logger=self.logger,
+            model_name="esmc",
         )
         return encs
 

@@ -17,22 +17,25 @@ def get_peft_model(model, peft_config):
     elif peft_config.peft_type == "BOTTLENECK":
         peft_config = _prepare_bottleneck_config(peft_config, model_config)
         return PeftModel(model, peft_config)
-    
+
 TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING = {
     "progen": ["qkv_proj"],
     "esm": ["query", "key", "value"],
     "bert": ["query", "key", "value"],
     "linear": ["query", "key", "value"],
+    "esmc": ["layernorm_qkv.1"],
 }
 
 # TODO adapt this to our plms
 TRANSFORMERS_MODELS_TO_BOTTLENECK_TARGET_MODULES_MAPPING = {
     "progen": ["mlp"],
-    "esm": r'.*encoder\.layer\.[^.]*\.output$',
+    "esm2": r".*encoder\.layer\.[^.]*\.output$",
     "bert": ["output"],
+    "esmc": ["layernorm_qkv.1"],
 }
 
 def _prepare_lora_config(peft_config, model_config):
+    print(model_config)
     if peft_config.target_modules is None:
         if model_config["model_type"] not in TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING:
             raise ValueError("Please specify `target_modules` in `peft_config`")
