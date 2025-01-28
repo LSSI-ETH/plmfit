@@ -216,7 +216,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.config = self.py_model.config
 
     def zeroed_model(self):
-        # Neutralize the LayerNorm by setting weights to ones and bias to zeros
+        # Neutralize the model by setting weights to ones and bias to zeros
         with torch.no_grad():
             self.py_model.transformer.h = nn.ModuleList(
                 [ProGenLinearBlock(self.config) for _ in range(self.config.n_layer)]

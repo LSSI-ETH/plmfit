@@ -20,26 +20,14 @@ def onehot(args, logger):
     head_config = utils.load_config(f"training/{args.head_config}")
     task = head_config["architecture_parameters"]["task"]
 
-    # Load dataset
-    data = utils.load_dataset(args.data_type)
-    # data = data[:100000]
-
-    # if args.experimenting == "True": data = data.sample(100)
-
-    # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
-    split = (
-        None
-        if args.split == "sampled" and "sampled" not in data
-        else data.get(args.split)
+    data, split, weights, sampler = utils.data_pipeline(
+        args.data_type,
+        args.split,
+        head_config["training_parameters"].get("weights", None),
+        head_config["training_parameters"].get("sampler", False),
+        dev=args.experimenting == "True",
     )
 
-    # Load class weights if they exist
-    weights = (
-        None
-        if head_config["training_parameters"].get("weights") is None
-        else data.get(head_config["training_parameters"]["weights"])
-    )
-    sampler = head_config["training_parameters"].get("sampler", False)
     max_len = max(data["len"].values)
     if args.evaluate == "True" and split is None:
         raise ValueError("Cannot evaluate without a standard testing split")

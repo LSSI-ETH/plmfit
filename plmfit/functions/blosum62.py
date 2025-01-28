@@ -12,6 +12,9 @@ from optuna.visualization import plot_optimization_history, plot_slice
 from plmfit.shared_utils import utils, data_explore
 from plmfit.logger import LogOptunaTrialCallback
 
+
+###--- TODO: Code is outdated and needs to be updated to the latest version of plmfit ---###
+
 def blosum(args, logger):
     head_config = utils.load_config(f"training/{args.head_config}")
     task = head_config["architecture_parameters"]["task"]

@@ -1121,6 +1121,7 @@ def init_plm(model_name, logger, task="regression"):
     else:
         raise "PLM not supported"
 
+    assert model != None, "Model is not initialized"
     return model
 
 
@@ -1247,3 +1248,25 @@ def create_mlm_data_loaders(
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, generator=random_state)
 
     return {"train": train_loader, "val": val_loader, "test": test_loader}
+
+
+def data_pipeline(dataset, split=None, weights=None, sampler=None, dev=False):
+    # Load dataset
+    dataset = load_dataset(dataset)
+
+    # For development purposes, we can sample the dataset to speed up the process
+    if dev:
+        dataset = dataset.sample(10000)
+
+    # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
+    split = (
+        None if split == "sampled" and "sampled" not in dataset else dataset.get(split)
+    )
+
+    # If weights are provided, load them
+    weights = None if weights is None else dataset.get(weights)
+
+    # If a sampler is provided, load it
+    sampler = False if sampler is None else sampler
+
+    return dataset, split, weights, sampler
