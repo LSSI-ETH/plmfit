@@ -115,5 +115,75 @@
                 ]
             }
         }
+    },
+    "transformer": {
+        "n_trials": 200,
+        "epochs_fragment": 0.2,
+        "epoch_sizing": 0.5,
+        "architecture_parameters": {
+            "embd_dim": {
+                "type": "categorical",
+                "range": [
+                    32,
+                    64,
+                    128
+                ]
+            },
+            "nheads": {
+                "type": "categorical",
+                "range": [
+                    8,
+                    16,
+                    32
+                ]
+            },
+            "dropout": {
+                "type": "float",
+                "range": [
+                    0.1,
+                    0.9
+                ]
+            },
+            "d_hid": {
+                "type": "categorical",
+                "range": [
+                    64,
+                    128,
+                    256,
+                    512
+                ]
+            },
+            "pwff_dim": {
+                "type": "categorical",
+                "range": [
+                    64,
+                    128,
+                    256
+                ]
+            }
+        },
+        "training_parameters": {
+            "learning_rate": {
+                "type": "float",
+                "range": [
+                    1e-6,
+                    1e-2
+                ]
+            },
+            "batch_size": {
+                "type": "int",
+                "range": [
+                    8,
+                    256
+                ]
+            },
+            "weight_decay": {
+                "type": "float",
+                "range": [
+                    1e-6,
+                    1e-2
+                ]
+            }
+        }
     }
 }

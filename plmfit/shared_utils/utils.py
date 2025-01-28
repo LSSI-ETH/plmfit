@@ -1271,7 +1271,7 @@ def data_pipeline(dataset, split=None, weights=None, sampler=None, dev=False):
 
     # For development purposes, we can sample the dataset to speed up the process
     if dev:
-        dataset = dataset.sample(10000)
+        dataset = dataset[:100000]
 
     # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
     split = (

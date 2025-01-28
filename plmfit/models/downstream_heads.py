@@ -4,6 +4,7 @@ from torch.nn import init
 import torch.nn.functional as F
 from plmfit.shared_utils.utils import get_activation_function
 from plmfit.shared_utils.random_state import get_random_state
+from plmfit.models.custom_transformer import TransformerPWFF
 
 class LinearHead(nn.Module):
     def __init__(self, config):
@@ -160,6 +161,9 @@ def init_head(config, input_dim):
     elif network_type == "rnn":
         config["architecture_parameters"]["input_dim"] = input_dim
         model = RNN(config["architecture_parameters"])
+    elif network_type == "transformer":
+        config["architecture_parameters"]["vocab_size"] = input_dim
+        model = TransformerPWFF.from_config(config["architecture_parameters"])
     else:
         raise ValueError("Head type not supported")
     return model

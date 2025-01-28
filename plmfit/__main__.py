@@ -20,6 +20,10 @@ def run_fine_tuning(args, logger):
     from plmfit.functions import fine_tune
     fine_tune(args=args, logger=logger)
 
+def run_categorical_train(args, logger):
+    from plmfit.functions import categorical_train
+    categorical_train(args=args, logger=logger)
+
 def run_onehot(args, logger):
     from plmfit.functions import onehot
     onehot(args, logger)
@@ -52,6 +56,7 @@ def main():
     try:
         if args.function == 'extract_embeddings': run_extract_embeddings(args, logger)
         elif args.function == 'fine_tuning': run_fine_tuning(args, logger)
+        elif args.function == 'categorical_train': run_categorical_train(args, logger)
         elif args.function == 'feature_extraction': run_feature_extraction(args, logger)
         elif args.function == 'one_hot': run_onehot(args, logger)
         elif args.function == 'blosum': run_blosum(args, logger)
