@@ -125,16 +125,14 @@
                 "type": "categorical",
                 "range": [
                     32,
-                    64,
-                    128
+                    64
                 ]
             },
             "nheads": {
                 "type": "categorical",
                 "range": [
                     8,
-                    16,
-                    32
+                    16
                 ]
             },
             "dropout": {
@@ -149,8 +147,7 @@
                 "range": [
                     64,
                     128,
-                    256,
-                    512
+                    256
                 ]
             },
             "pwff_dim": {
