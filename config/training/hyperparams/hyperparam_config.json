@@ -29,7 +29,7 @@
         }
     },
     "mlp": {
-        "n_trials": 200,
+        "n_trials": 100,
         "epochs_fragment": 0.05,
         "epoch_sizing": 0.05,
         "architecture_parameters": {
@@ -66,8 +66,8 @@
             "weight_decay": {
                 "type": "float",
                 "range": [
-                    1e-6,
-                    1e-2
+                    1e-7,
+                    1e-5
                 ]
             }
         }

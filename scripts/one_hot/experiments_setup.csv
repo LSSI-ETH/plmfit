@@ -1,2 +1,11 @@
 function	data_type	split	head	task	head_config	ray_tuning	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
 one_hot	FcRprofile_binary	sampled	mlp	multilabel_classification	mlp_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	6	rtx_4090	30g	1	24	False
+one_hot	FcRprofile_binary	sampled	linear	multilabel_classification	linear_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	6	rtx_4090	30g	1	24	False
+one_hot	R1	sampled	linear	classification	linear_classification_head_config.json	True	/cluster/scratch/eirvine	3	rtx_4090	30g	1	24	False
+one_hot	R2AR	sampled	linear	classification	linear_classification_head_config.json	True	/cluster/scratch/eirvine	3	titan_rtx	30g	1	24	False
+one_hot	R2AH	sampled	linear	classification	linear_classification_head_config.json	True	/cluster/scratch/eirvine	3	titan_rtx	30g	1	24	False
+one_hot	R3B	sampled	linear	classification	linear_classification_head_config.json	True	/cluster/scratch/eirvine	3	rtx_3090	30g	1	24	False
+one_hot	R2B	sampled	linear	classification	linear_classification_head_config.json	True	/cluster/scratch/eirvine	3	rtx_3090	30g	1	24	False
+one_hot	R3AF	sampled	linear	classification	linear_classification_head_config.json	True	/cluster/scratch/eirvine	3	rtx_3090	30g	1	24	False
+one_hot	R3AV	sampled	linear	classification	linear_classification_head_config.json	True	/cluster/scratch/eirvine	3	quadro_rtx_6000	30g	1	24	False
+one_hot	FcRn6	sampled	linear	classification	linear_classification_head_config.json	True	/cluster/scratch/eirvine	3	quadro_rtx_6000	30g	1	24	False

@@ -4,7 +4,7 @@
     "network_type": "mlp",
     "output_dim": 8,
     "hidden_dim": 128,
-    "hidden_layers": 3,
+    "hidden_layers": 2,
     "task": "multilabel_classification",
     "hidden_activation": "relu",
     "hidden_dropout": 0.25
