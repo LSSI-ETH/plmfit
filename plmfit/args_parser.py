@@ -44,6 +44,6 @@ def parse_args():
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--hyperparam_config', default="hyperparam_config.json", type=str)
     parser.add_argument('--prediction_data', default=None, type=str)
-    parser.add_argument('--batch_size', default=4, type=int, help="Batch size mainly used for prediction")
+    parser.add_argument('--batch_size', default=100, type=int, help="Batch size mainly used for prediction")
 
     return parser.parse_args()

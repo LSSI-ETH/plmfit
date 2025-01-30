@@ -25,7 +25,7 @@ def categorical_train(args, logger):
         args.split,
         head_config["training_parameters"].get("weights", None),
         head_config["training_parameters"].get("sampler", False),
-        dev=True,
+        dev=args.experimenting == "True",
     )
 
     max_len = max(data["len"].values)
