@@ -11,12 +11,12 @@ required_deps = read_requirements("requirements.txt")
 
 setup(
     name="plmfit",
-    version="0.0.1",
+    version="1.0.0",
     description="PLMFit",
     long_description="PLMFit",
     author="Thomas Bikias, Evangelos Stamkopoulos",
     packages=find_packages(),
-    license="Apache License 2.0",
+    license="MIT",
     zip_safe=True,
     install_requires=required_deps,
     entry_points={
