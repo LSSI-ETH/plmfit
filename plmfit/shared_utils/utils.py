@@ -36,6 +36,7 @@ from plmfit.shared_utils.random_state import get_random_state, get_numpy_random_
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from plmfit.shared_utils.samplers import LabelWeightedSampler
 from esm.utils import encoding
+from optuna.trial import Trial
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
@@ -398,7 +399,7 @@ def init_weighted_sampler(dataset, weights, num_samples_method="min", sampler="w
         # 3) Convert the original `weights` (one weight per sample) into integer "labels"
         labels = torch.tensor(
             [weight_to_label[w.item()] for w in weights],
-            dtype=torch.int8
+            dtype=torch.int16
         )
     else:
         raise ValueError("num_samples_method must be 'min'")
@@ -1285,3 +1286,11 @@ def data_pipeline(dataset, split=None, weights=None, sampler=None, dev=False):
     sampler = False if sampler is None else sampler
 
     return dataset, split, weights, sampler
+
+def suggest_number_of_type(trial: Trial, name, min, max, type):
+    if type == "int":
+        return trial.suggest_int(name, min, max)
+    elif type == "float":
+        return trial.suggest_float(name, min, max)
+    else:
+        raise ValueError("Type of hyperparameter not supported")

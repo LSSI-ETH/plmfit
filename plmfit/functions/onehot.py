@@ -107,13 +107,6 @@ def onehot(args, logger):
         num_classes=num_classes,
     )
 
-def suggest_number_of_type(trial, name, min, max, type):
-    if type == "int":
-        return trial.suggest_int(name, min, max)
-    elif type == "float":
-        return trial.suggest_float(name, min, max)
-    else:
-        raise ValueError("Type of hyperparameter not supported")
 
 
 def objective(
@@ -144,12 +137,12 @@ def objective(
         for param_name, param_info in hyperparam_config["architecture_parameters"].items():
             p_type = param_info["type"]                # "float" or "int"
             p_range = param_info["range"] 
-            config["architecture_parameters"][param_name] = suggest_number_of_type(trial, param_name, p_range[0],
+            config["architecture_parameters"][param_name] = utils.suggest_number_of_type(trial, param_name, p_range[0],
                     p_range[1], p_type)
         for param_name, param_info in hyperparam_config["training_parameters"].items():
             p_type = param_info["type"]                # "float" or "int"
             p_range = param_info["range"] 
-            config["training_parameters"][param_name] = suggest_number_of_type(trial, param_name, p_range[0],
+            config["training_parameters"][param_name] = utils.suggest_number_of_type(trial, param_name, p_range[0],
                     p_range[1], p_type)
 
     training_params = config["training_parameters"]
@@ -179,18 +172,9 @@ def objective(
     else: 
         input_dim = embeddings.shape[1] * num_classes
 
-    network_type = config["architecture_parameters"]["network_type"]
-    if network_type == "linear":
-        config["architecture_parameters"]["input_dim"] = input_dim
-        model = heads.LinearHead(config["architecture_parameters"])
-    elif network_type == "mlp":
-        config["architecture_parameters"]["input_dim"] = input_dim
-        model = heads.MLP(config["architecture_parameters"])
-    elif network_type == "rnn":
-        config["architecture_parameters"]["input_dim"] = input_dim
-        model = heads.RNN(config["architecture_parameters"])
-    else:
-        raise ValueError("Head type not supported")
+    model = heads.init_head(
+        config=config, input_dim=input_dim
+    )
 
     if not on_ray_tuning:
         logger.save_data(config, "head_config")
