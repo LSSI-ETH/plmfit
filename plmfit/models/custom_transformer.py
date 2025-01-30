@@ -61,9 +61,7 @@ class TransformerModel(nn.Module):
             Tensor of shape [batch_size, seq_len, embd_dim] representing
             encoded (transformed) embeddings.
         """
-        # if device is MPS, convert input to long
-        if torch.backends.mps.is_available():
-            src = src.to(torch.long)
+        src = src.to(torch.long)
 
         # src -> [batch_size, seq_len]
         # Embed and scale by sqrt(embd_dim) for better variance
