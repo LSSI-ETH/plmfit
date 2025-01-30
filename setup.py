@@ -19,6 +19,7 @@ setup(
     license="MIT",
     zip_safe=True,
     install_requires=required_deps,
+    include_package_data=True,
     entry_points={
         'console_scripts': [
             'plmfit=plmfit.__main__:main'
