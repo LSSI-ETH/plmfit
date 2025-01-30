@@ -19,9 +19,9 @@
     "scheduler": false,
     "scaler": false,
     "gradient_accumulation": false,
-    "epoch_sizing": false,
+    "epoch_sizing": 1000000,
     "early_stopping": 10,
-    "weights": "sampled_weights",
+    "weights": "random_weights",
     "sampler": "label_weighted",
     "no_classes": 1,
     "no_labels": 8

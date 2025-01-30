@@ -1,3 +1,9 @@
-function	ft_method	data_type	split	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir		gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-fine_tuning	feature_extraction	R1_240821	sampled	esm2_t33_650M_UR50D	linear	classification	linear_multiclass_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	4	rtx_3090	30g	1	12	False
-fine_tuning	feature_extraction	R1_240821	sampled	esm2_t33_650M_UR50D	mlp	classification	mlp_multiclass_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	4	rtx_4090	30g	1	12	False
+function	data_type	split	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir		gpus	gres	mem-per-cpu	nodes	run_time	experimenting
+feature_extraction	R1	sampled	esmc_300m	mlp	classification	mlp_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	4	rtx_4090	20g	1	24	False
+feature_extraction	FcRn6	sampled	esmc_300m	mlp	classification	mlp_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	4	titan_rtx	30g	1	24	False
+feature_extraction	R2AH	sampled	esmc_300m	mlp	classification	mlp_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	4	titan_rtx	20g	1	24	False
+feature_extraction	R2AR	sampled	esmc_300m	mlp	classification	mlp_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	4	rtx_3090	20g	1	24	False
+feature_extraction	R3AV	sampled	esmc_300m	mlp	classification	mlp_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	4	rtx_3090	20g	1	24	False
+feature_extraction	R3AF	sampled	esmc_300m	mlp	classification	mlp_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	4	rtx_3090	20g	1	24	False
+feature_extraction	R2B	sampled	esmc_300m	mlp	classification	mlp_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	4	quadro_rtx_6000	20g	1	24	False
+feature_extraction	R3B	sampled	esmc_300m	mlp	classification	mlp_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	4	quadro_rtx_6000	20g	1	24	False

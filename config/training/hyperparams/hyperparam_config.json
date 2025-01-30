@@ -2,21 +2,21 @@
     "linear": {
         "n_trials": 100,
         "epochs_fragment": 0.2,
-        "epoch_sizing": 0.2,
+        "epoch_sizing": 0.03,
         "architecture_parameters": {},
         "training_parameters": {
             "learning_rate": {
                 "type": "float",
                 "range": [
-                    1e-6,
-                    1e-2
+                    1e-7,
+                    1e-4
                 ]
             },
             "batch_size": {
                 "type": "int",
                 "range": [
-                    8,
-                    128
+                    16,
+                    512
                 ]
             },
             "weight_decay": {
@@ -29,9 +29,9 @@
         }
     },
     "mlp": {
-        "n_trials": 100,
-        "epochs_fragment": 0.05,
-        "epoch_sizing": 0.05,
+        "n_trials": 200,
+        "epochs_fragment": 0.2,
+        "epoch_sizing": 0.03,
         "architecture_parameters": {
             "hidden_dim": {
                 "type": "int",
@@ -52,14 +52,14 @@
             "learning_rate": {
                 "type": "float",
                 "range": [
-                    1e-6,
-                    1e-2
+                    1e-7,
+                    1e-4
                 ]
             },
             "batch_size": {
                 "type": "int",
                 "range": [
-                    8,
+                    16,
                     512
                 ]
             },
@@ -96,8 +96,8 @@
             "learning_rate": {
                 "type": "float",
                 "range": [
-                    1e-6,
-                    1e-2
+                    1e-7,
+                    1e-4
                 ]
             },
             "batch_size": {
@@ -119,7 +119,7 @@
     "transformer": {
         "n_trials": 200,
         "epochs_fragment": 0.2,
-        "epoch_sizing": 0.5,
+        "epoch_sizing": 0.03,
         "architecture_parameters": {
             "embd_dim": {
                 "type": "categorical",
@@ -131,15 +131,15 @@
             "nheads": {
                 "type": "categorical",
                 "range": [
-                    8,
-                    16
+                    4,
+                    8
                 ]
             },
             "dropout": {
                 "type": "float",
                 "range": [
                     0.1,
-                    0.9
+                    0.5
                 ]
             },
             "d_hid": {
@@ -163,15 +163,15 @@
             "learning_rate": {
                 "type": "float",
                 "range": [
-                    1e-6,
-                    1e-2
+                    1e-7,
+                    1e-4
                 ]
             },
             "batch_size": {
                 "type": "int",
                 "range": [
-                    8,
-                    256
+                    16,
+                    512
                 ]
             },
             "weight_decay": {

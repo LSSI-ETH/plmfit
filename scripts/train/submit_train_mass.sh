@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Path to the CSV file
-csv_file="./scripts/one_hot/experiments_setup.csv"
+csv_file="./scripts/train/experiments_setup.csv"
 
 uid=$(date +%Y%m%d_%H%M%S)
 
@@ -13,7 +13,7 @@ do
   experiment_dir="$output_dir/$function/$experiment_name/$uid"
   total_gpus="$((${gpus}*${nodes}))"
   
-  sbatch --job-name="one_hot" \
+  sbatch --job-name="train" \
          --output="$experiment_dir/euler_output.out" \
          --error="$experiment_dir/euler_error.err" \
          --mem-per-cpu="$mem_per_cpu" \
@@ -22,7 +22,7 @@ do
          --ntasks-per-node=$gpus \
          --gpus-per-node=$gres:$gpus \
          --time=$run_time:00:00 \
-         scripts/one_hot/one_hot_mass.sh \
+         scripts/train/train_mass.sh \
          "$function" "$head_config" "$ray_tuning" "$data_type" "$split" "$output_dir" "$experiment_dir" "$experiment_name" "$gpus" "$nodes" "$experimenting"
   sleep 2
 done
