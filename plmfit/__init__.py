@@ -5,4 +5,5 @@ __credits__ = "Argonne National Laboratory"
 import os
 
 # Find current file absolute path
-os.environ.get("PLMFIT_PATH", os.path.dirname(os.path.abspath(__file__)))
+plmfit_path = os.getenv("PLMFIT_PATH", os.path.dirname(os.path.abspath(__file__)))
+os.environ["PLMFIT_PATH"] = plmfit_path
