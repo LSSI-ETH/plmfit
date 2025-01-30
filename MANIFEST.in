@@ -1,1 +1,1 @@
-include *.json
+recursive-include plmfit *.json
