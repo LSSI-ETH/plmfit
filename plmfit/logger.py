@@ -60,10 +60,6 @@ class Logger(object):
         # Silence logging from other libraries
         logging.disable(logging.WARNING)
 
-        # Redirect all printing to logger
-        sys.stdout = self
-        sys.stderr = self
-
     def write(self, text):
         self.log(text)
 
