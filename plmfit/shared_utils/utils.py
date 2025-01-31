@@ -42,7 +42,21 @@ load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
 data_dir = os.getenv("DATA_DIR", "./data")
 config_dir = os.getenv("CONFIG_DIR", "./config")
-print(f"plmfit_path: {plmfit_path}")
+
+def set_plmfit_path(base_path):
+    global plmfit_path
+    plmfit_path = base_path
+    os.environ["PLMFIT_PATH"] = plmfit_path
+
+def set_data_dir(base_path):
+    global data_dir
+    data_dir = base_path
+    os.environ["DATA_DIR"] = data_dir
+
+def set_config_dir(base_path):
+    global config_dir
+    config_dir = base_path
+    os.environ["CONFIG_DIR"] = config_dir
 
 def set_path(base_path):
     global path, data_dir, config_dir
