@@ -26,8 +26,8 @@ class FineTuner(ABC):
 
 
 class FullRetrainFineTuner(FineTuner):
-    def __init__(self, training_config, logger = None):
-        super().__init__(training_config, logger)
+    def __init__(self, logger = None):
+        super().__init__(logger)
 
     def set_trainable_parameters(self, model):
         utils.set_trainable_parameters(model.py_model)
@@ -57,8 +57,8 @@ class FullRetrainFineTuner(FineTuner):
         return model
 
 class LowRankAdaptationFineTuner(FineTuner):
-    def __init__(self, training_config, logger = None):
-        super().__init__(training_config, logger)
+    def __init__(self, logger = None):
+        super().__init__(logger)
         peft_config = utils.load_config('peft/lora_config.json')
         self.logger.save_data(peft_config, 'lora_config')
             
@@ -84,8 +84,8 @@ class LowRankAdaptationFineTuner(FineTuner):
         return model
 
 class BottleneckAdaptersFineTuner(FineTuner):
-    def __init__(self, training_config, logger = None):
-        super().__init__(training_config, logger)
+    def __init__(self, logger = None):
+        super().__init__(logger)
         peft_config = utils.load_config('peft/bottleneck_adapters_config.json')
         self.logger.save_data(peft_config, "bottleneck_adapters_config")
 
