@@ -83,7 +83,7 @@ def fine_tune(args, logger):
             training_config=training_params, logger=logger
         )
     else:
-        raise ValueError("Fine Tuning method not supported")
+        raise ValueError("Fine-tuning method not supported")
 
     model = fine_tuner.prepare_model(model, target_layers=args.target_layers)
 

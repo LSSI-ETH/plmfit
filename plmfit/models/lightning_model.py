@@ -568,6 +568,12 @@ class LightningModel(L.LightningModule):
                     lr=self.hparams.learning_rate,
                     weight_decay=self.hparams.weight_decay,
                 )
+        elif self.hparams.optimizer == "rmsprop":
+            return torch.optim.RMSprop(
+                parameters,
+                lr=self.hparams.learning_rate,
+                weight_decay=self.hparams.weight_decay,
+            )
         else:
             raise ValueError(f"Unsupported optimizer: {self.hparams.optimizer}")
 
