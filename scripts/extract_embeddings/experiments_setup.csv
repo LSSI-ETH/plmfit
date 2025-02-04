@@ -1,10 +1,2 @@
 function	data_type	plm	reduction	layer	output_dir	gpus	gres	mem-per-cpu	batch_size
-extract_embeddings	R1	esmc_300m	bos	last	/cluster/scratch/eirvine	1	20g	50g	512
-extract_embeddings	FcRn6	esmc_300m	bos	last	/cluster/scratch/eirvine	1	20g	50g	512
-extract_embeddings	R2AH	esmc_300m	bos	last	/cluster/scratch/eirvine	1	20g	50g	512
-extract_embeddings	R2AR	esmc_300m	bos	last	/cluster/scratch/eirvine	1	20g	50g	512
-extract_embeddings	R2B	esmc_300m	bos	last	/cluster/scratch/eirvine	1	20g	50g	512
-extract_embeddings	R3AF	esmc_300m	bos	last	/cluster/scratch/eirvine	1	20g	50g	512
-extract_embeddings	R3AV	esmc_300m	bos	last	/cluster/scratch/eirvine	1	20g	50g	512
-extract_embeddings	R3B	esmc_300m	bos	last	/cluster/scratch/eirvine	1	20g	50g	512
-extract_embeddings	FcRprofile_binary	esmc_300m	bos	last	/cluster/scratch/eirvine	1	40g	120g	1024
+extract_embeddings	FcRprofile_binary	esmc_300m	bos	last	/cluster/scratch/eirvine	1	80g	200g	2048

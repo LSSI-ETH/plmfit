@@ -1,4 +1,6 @@
 function	data_type	split	head	task	head_config	ray_tuning	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-one_hot	FcRprofile_binary	random	linear	multilabel_classification	linear_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	5	rtx_4090	35g	1	24	False
-one_hot	FcRprofile_binary	random	mlp	multilabel_classification	mlp_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	5	quadro_rtx_6000	35g	1	24	False
-categorical_train	FcRprofile_binary	random	transformer	multilabel_classification	transformer_classification_config.json	True	/cluster/scratch/eirvine	5	quadro_rtx_6000	38g	1	24	False
+one_hot	FcRprofile_binary	random	mlp	multilabel_classification	mlp_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	5	quadro_rtx_6000	20g	1	24	False
+categorical_train	FcRprofile_binary	random	transformer	multilabel_classification	transformer_multilabel_classification_config.json	True	/cluster/scratch/eirvine	5	titan_rtx	20g	1	24	False
+one_hot	FcRprofile_binary	random	linear	multilabel_classification	linear_multilabel_classification_head_config_weighted.json	True	/cluster/scratch/eirvine	5	rtx_4090	20g	1	24	False
+one_hot	FcRprofile_binary	random	mlp	multilabel_classification	mlp_multilabel_classification_head_config_weighted.json	True	/cluster/scratch/eirvine	5	quadro_rtx_6000	20g	1	24	False
+categorical_train	FcRprofile_binary	random	transformer	multilabel_classification	transformer_multilabel_classification_config_weighted.json	True	/cluster/scratch/eirvine	5	rtx_4090	20g	1	24	False

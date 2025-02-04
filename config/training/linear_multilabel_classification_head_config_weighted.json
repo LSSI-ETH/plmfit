@@ -1,13 +1,9 @@
 {
   "architecture_parameters":
   {
-    "network_type": "mlp",
+    "network_type": "linear",
     "output_dim": 8,
-    "hidden_dim": 128,
-    "hidden_layers": 2,
-    "task": "multilabel_classification",
-    "hidden_activation": "relu",
-    "hidden_dropout": 0.25
+    "task": "multilabel_classification"
   },
   "training_parameters":
   {
@@ -25,6 +21,8 @@
     "gradient_accumulation": false,
     "epoch_sizing": 1000000,
     "early_stopping": 10,
+    "weights": "random_weights_per_label",
+    "sampler": "label_weighted",
     "no_classes": 1,
     "no_labels": 8
   }

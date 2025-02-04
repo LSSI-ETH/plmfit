@@ -2,7 +2,7 @@
     "linear": {
         "n_trials": 100,
         "epochs_fragment": 0.2,
-        "epoch_sizing": 0.03,
+        "epoch_sizing": 0.01,
         "architecture_parameters": {},
         "training_parameters": {
             "learning_rate": {
@@ -31,7 +31,7 @@
     "mlp": {
         "n_trials": 200,
         "epochs_fragment": 0.2,
-        "epoch_sizing": 0.03,
+        "epoch_sizing": 0.01,
         "architecture_parameters": {
             "hidden_dim": {
                 "type": "int",
@@ -119,7 +119,7 @@
     "transformer": {
         "n_trials": 200,
         "epochs_fragment": 0.2,
-        "epoch_sizing": 0.03,
+        "epoch_sizing": 0.01,
         "architecture_parameters": {
             "embd_dim": {
                 "type": "categorical",
