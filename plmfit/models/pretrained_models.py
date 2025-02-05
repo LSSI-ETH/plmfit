@@ -216,7 +216,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.no_layers = len(self.py_model.transformer.h)
         self.emb_layers_dim = self.py_model.transformer.h[0].attn.out_proj.out_features
         self.tokenizer = utils.load_tokenizer(progen_model_name)
-        self.layer_to_use = -1
+        self.layer_to_use = self.no_layers - 1
         self.config = self.py_model.config
         self.experimenting = False
 
@@ -499,7 +499,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
             0
         ].attention.self.query.in_features
         self.tokenizer = AutoTokenizer.from_pretrained(f"facebook/{esm_version}")
-        self.layer_to_use = -1
+        self.layer_to_use = self.no_layers - 1
         self.experimenting = False
 
     def extract_embeddings(
@@ -714,7 +714,7 @@ class ESMCFamily(IPretrainedProteinLanguageModel):
         self.no_layers = len(self.py_model.transformer.blocks)
         self.emb_layers_dim = self.py_model.embed.embedding_dim
         self.tokenizer = self.py_model.tokenizer
-        self.layer_to_use = -1
+        self.layer_to_use = self.no_layers - 1
         self.experimenting = False
 
     def categorical_encode(self, data, max_length="default"):
@@ -759,7 +759,7 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
             0
         ].attention.output.dense.out_features
         self.tokenizer = utils.load_tokenizer(self.name)
-        self.layer_to_use = -1
+        self.layer_to_use = self.no_layers - 1
         self.experimenting = False
         self.config = self.py_model.config
 
