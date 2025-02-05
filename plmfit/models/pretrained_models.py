@@ -218,6 +218,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.tokenizer = utils.load_tokenizer(progen_model_name)
         self.layer_to_use = -1
         self.config = self.py_model.config
+        self.experimenting = False
 
     def zeroed_model(self):
         # Neutralize the model by setting weights to ones and bias to zeros
@@ -499,6 +500,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         ].attention.self.query.in_features
         self.tokenizer = AutoTokenizer.from_pretrained(f"facebook/{esm_version}")
         self.layer_to_use = -1
+        self.experimenting = False
 
     def extract_embeddings(
         self, data_type, batch_size=1, layer=11, reduction="mean", log_interval=1000
@@ -712,7 +714,9 @@ class ESMCFamily(IPretrainedProteinLanguageModel):
         self.no_layers = len(self.py_model.transformer.blocks)
         self.emb_layers_dim = self.py_model.embed.embedding_dim
         self.tokenizer = self.py_model.tokenizer
-        
+        self.layer_to_use = -1
+        self.experimenting = False
+
     def categorical_encode(self, data, max_length="default"):
         encs = utils.categorical_encode(
             data["aa_seq"].values,
@@ -756,6 +760,7 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
         ].attention.output.dense.out_features
         self.tokenizer = utils.load_tokenizer(self.name)
         self.layer_to_use = -1
+        self.experimenting = False
         self.config = self.py_model.config
 
     def categorical_encode(self, data, max_length="default"):
