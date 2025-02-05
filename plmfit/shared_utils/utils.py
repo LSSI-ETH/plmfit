@@ -930,6 +930,31 @@ def set_modules_to_train_mode(model, module_name="all"):
     # but specifically sets 'module_name' modules to training mode.
 
 
+def set_head_to_train_mode(model):
+    """
+    This function sets the head in the model to training mode.
+    """
+    for name, module in model.named_modules():
+        # Identify modules by checking if 'module_name' is in their name.
+        if 'lm_head' in name or 'classifier' in name:
+            module.train()  # Set the identified 'module_name' module to training mode
+
+    # Note: This does not change the global training/evaluation mode of the model,
+    # but specifically sets the head to training mode.
+
+def set_trainable_head(model):
+    """
+    This function sets the head in the model to trainable.
+    """
+    for name, module in model.named_modules():
+        # Identify modules by checking if 'module_name' is in their name.
+        if 'lm_head' in name or 'classifier' in name:
+            for param in module.parameters():
+                param.requires_grad = True
+
+    # Note: This does not change the global training/evaluation mode of the model,
+    # but specifically sets the head to training mode.
+
 def set_trainable_layers(model: nn.Module, layers_to_train: list):
     """
     Sets the specified layers to trainable and freezes all other layers.

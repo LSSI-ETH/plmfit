@@ -50,8 +50,8 @@ class FullRetrainFineTuner(FineTuner):
         if layers_to_train is not None: 
             utils.freeze_parameters(model.py_model)
             utils.set_trainable_layers(model.py_model, [layers_to_train])
-            utils.set_trainable_parameters(model.py_model.classifier)
-            utils.set_modules_to_train_mode(model.py_model.classifier)
+            utils.set_trainable_head(model.py_model)
+            utils.set_head_to_train_mode(model.py_model)
         utils.get_parameters(model.py_model, True)
         # TODO: set head to trainable
         return model
