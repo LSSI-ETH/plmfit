@@ -498,6 +498,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
             0
         ].attention.self.query.in_features
         self.tokenizer = AutoTokenizer.from_pretrained(f"facebook/{esm_version}")
+        self.layer_to_use = -1
 
     def extract_embeddings(
         self, data_type, batch_size=1, layer=11, reduction="mean", log_interval=1000
