@@ -19,10 +19,11 @@ class MaskedBCEWithLogitsLoss(nn.Module):
     Use this if your model outputs raw logits (no sigmoid applied).
     """
 
-    def __init__(self, reduction="mean", ignore_index=-100):
+    def __init__(self, reduction="mean", ignore_index=-100, pos_weight=None):
         super(MaskedBCEWithLogitsLoss, self).__init__()
         self.reduction = reduction
         self.ignore_index = ignore_index
+        self.pos_weight = pos_weight
 
     def forward(self, logits, targets):
         mask = targets != self.ignore_index
@@ -32,6 +33,6 @@ class MaskedBCEWithLogitsLoss(nn.Module):
 
         # binary_cross_entropy_with_logits combines sigmoid and BCE in a numerically stable way
         loss = F.binary_cross_entropy_with_logits(
-            filtered_logits, filtered_targets, reduction=self.reduction
+            filtered_logits, filtered_targets, reduction=self.reduction, pos_weight=self.pos_weight
         )
         return loss
