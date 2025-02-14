@@ -133,7 +133,6 @@ def objective(
     epochs = config["training_parameters"]["epochs"]
     if trial is not None and on_ray_tuning:
         epochs = int(config["training_parameters"]["epochs"] // (1 / hyperparam_config["epochs_fragment"]))
-        print(epochs)
         for param_name, param_info in hyperparam_config["architecture_parameters"].items():
             p_type = param_info["type"]                # "float" or "int"
             p_range = param_info["range"] 
