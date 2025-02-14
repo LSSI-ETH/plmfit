@@ -94,7 +94,9 @@ class LightningModel(L.LightningModule):
                 no_classes=(
                     1 if "no_classes" not in self.hparams else self.hparams.no_classes
                 ),
-                no_labels=(1 if "no_labels" not in self.hparams else self.hparams.no_labels),
+                no_labels=(
+                    1 if "no_labels" not in self.hparams else self.hparams.no_labels
+                ),
             )
 
             self.track_validation_after = 0
@@ -230,7 +232,10 @@ class LightningModel(L.LightningModule):
         if self.model.task == "token_classification" and self.hparams.no_classes > 1:
             # Get the maximum value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
-        if self.model.task == "multilabel_classification" and self.hparams.no_classes == 1:
+        if (
+            self.model.task == "multilabel_classification"
+            and self.hparams.no_classes == 1
+        ):
             # Logits loss function must be being used so we have to convert to probabilities
             outputs = torch.sigmoid(outputs)
             labels = labels.int()
@@ -376,7 +381,10 @@ class LightningModel(L.LightningModule):
         if self.model.task == "token_classification" and self.hparams.no_classes > 1:
             # Get the maxium value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
-        if self.model.task == "multilabel_classification" and self.hparams.no_classes == 1:
+        if (
+            self.model.task == "multilabel_classification"
+            and self.hparams.no_classes == 1
+        ):
             # Logits loss function must be being used so we have to convert to probabilities
             outputs = torch.sigmoid(outputs)
             labels = labels.int()
@@ -486,7 +494,10 @@ class LightningModel(L.LightningModule):
         if self.model.task == "token_classification" and self.hparams.no_classes > 1:
             # Get the maximum value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
-        if self.model.task == "multilabel_classification" and self.hparams.no_classes == 1:
+        if (
+            self.model.task == "multilabel_classification"
+            and self.hparams.no_classes == 1
+        ):
             # Logits loss function must be being used so we have to convert to probabilities
             outputs = torch.sigmoid(outputs)
             labels = labels.int()
@@ -594,7 +605,14 @@ class LightningModel(L.LightningModule):
         ):  # Add cross-entropy loss for multiclass
             return torch.nn.CrossEntropyLoss(ignore_index=-100)
         elif self.hparams.loss_f == "masked_bce_logits":
-            return MaskedBCEWithLogitsLoss(ignore_index=-100)
+            return MaskedBCEWithLogitsLoss(
+                ignore_index=-100,
+                pos_weight=(
+                    self.hparams.pos_weight
+                    if self.handle_hparam_exists("pos_weight")
+                    else None
+                ),
+            )
         else:
             raise ValueError(f"Unsupported loss function: {self.hparams.loss_f}")
 
@@ -610,6 +628,9 @@ class LightningModel(L.LightningModule):
             raise ValueError(
                 "Invalid configuration. Expected boolean or numeric value."
             )
+
+    def handle_hparam_exists(self, hparam_name):
+        return hparam_name in self.hparams and self.hparams[hparam_name] is not None
 
     def early_stopping(self, patience=None):
         if patience is None:
@@ -666,7 +687,9 @@ class Metrics(torch.nn.Module):
                 self.roc = BinaryROC()
             else:
                 self.acc = MulticlassAccuracy(num_classes=self.no_classes)
-                self.micro_acc = MulticlassAccuracy(num_classes=self.no_classes, average="micro")
+                self.micro_acc = MulticlassAccuracy(
+                    num_classes=self.no_classes, average="micro"
+                )
                 self.mcc = MulticlassMatthewsCorrCoef(num_classes=self.no_classes)
                 self.cm = MulticlassConfusionMatrix(num_classes=self.no_classes)
         elif task == "regression":
@@ -694,11 +717,18 @@ class Metrics(torch.nn.Module):
         elif task == "multilabel_classification":
             self.no_labels = no_labels
             self.acc = MultilabelAccuracy(num_labels=self.no_labels, ignore_index=-100)
-            self.mcc = MultilabelMatthewsCorrCoef(num_labels=self.no_labels, ignore_index=-100)
-            self.cm = MultilabelConfusionMatrix(num_labels=self.no_labels, ignore_index=-100)
+            self.mcc = MultilabelMatthewsCorrCoef(
+                num_labels=self.no_labels, ignore_index=-100
+            )
+            self.cm = MultilabelConfusionMatrix(
+                num_labels=self.no_labels, ignore_index=-100
+            )
 
     def add(self, preds, actual, ids):
-        if self.task == "token_classification" or self.task == "multilabel_classification":
+        if (
+            self.task == "token_classification"
+            or self.task == "multilabel_classification"
+        ):
             self.preds_list.extend(preds.tolist())
             self.actual_list.extend(actual.tolist())
             (
@@ -865,7 +895,7 @@ class Metrics(torch.nn.Module):
             },
         }
         return self.report
-    
+
     def get_multilabel_classification_metrics(self):
         self.report = {
             "main": {
@@ -915,7 +945,7 @@ class Metrics(torch.nn.Module):
 
 class PredictionWriter(BasePredictionWriter):
 
-    def __init__(self, logger, write_interval, split_size=0, format='pt'):
+    def __init__(self, logger, write_interval, split_size=0, format="pt"):
         super().__init__(write_interval)
         self.output_dir = logger.base_dir
         self.file_name = logger.experiment_name
@@ -938,9 +968,9 @@ class PredictionWriter(BasePredictionWriter):
         sorted_predictions[batch_indices] = predictions
 
         if self.split_size == 0:
-            if self.format == 'pt':
+            if self.format == "pt":
                 torch.save(sorted_predictions, f"{self.output_dir}/{self.file_name}.pt")
-            elif self.format == 'csv':
+            elif self.format == "csv":
                 sorted_predictions = sorted_predictions.cpu().numpy()
                 # Save the predictions to a CSV file
                 # First row is index, second prediction with 4 decimal places
@@ -957,7 +987,7 @@ class PredictionWriter(BasePredictionWriter):
                     delimiter=",",
                     fmt=["%d"] + ["%.4f"] * sorted_predictions.shape[1],
                     header="index,prediction",
-                    comments=""
+                    comments="",
                 )
         else:
             # Split the predictions into splits of size 'split_size' and the output file indicates the sample number in the batch (i.e. ..._1000-1999.pt)
