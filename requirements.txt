@@ -1,13 +1,13 @@
 torch==2.2.1
 accelerate==0.27.2
 libaio
-torchmetrics
+torchmetrics==1.6.1
 torchvision
 pandas
 matplotlib
 numpy==1.26.4
 scipy
-transformers==4.28.0
+transformers
 tokenizers
 scikit-learn
 seaborn
@@ -32,7 +32,7 @@ deepspeed==0.14.0
 Bio
 python-dotenv
 tensorboard
-# esm
+esm
 blosum
 optuna
 optuna-integration[pytorch_lightning]

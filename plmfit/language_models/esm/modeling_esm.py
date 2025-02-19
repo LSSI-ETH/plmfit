@@ -4,7 +4,7 @@ import torch
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from transformers.modeling_outputs import SequenceClassifierOutput, MaskedLMOutput, TokenClassifierOutput
-from plmfit.language_models.proteinbert.modeling_bert import ProteinBertPooler
+from plmfit.shared_utils.poolers import GeneralPooler
 
 class PlmfitEsmForMaskedLM(EsmForMaskedLM):
     _keys_to_ignore_on_load_missing = [r"position_ids", "lm_head.decoder.weight"]
@@ -82,7 +82,7 @@ class PlmfitEsmForSequenceClassification(EsmForSequenceClassification):
         super().__init__(config)
         self.classifier = nn.Linear(config.hidden_size, self.num_labels, bias=False)
         self.reduction = 'mean'
-        self.esm.pooler = ProteinBertPooler(config=config)
+        self.esm.pooler = GeneralPooler(config=config)
         del(self.esm.contact_head)
 
     def set_head(self, new_head):
@@ -268,7 +268,7 @@ class PlmfitEsmForEmbdeddingsExtraction(EsmForSequenceClassification):
     def __init__(self, config):
         super().__init__(config)
         self.reduction = "mean"
-        self.esm.pooler = ProteinBertPooler(config=config)
+        self.esm.pooler = GeneralPooler(config=config)
         del self.esm.contact_head
         del self.classifier
 
@@ -289,7 +289,7 @@ class PlmfitEsmForEmbdeddingsExtraction(EsmForSequenceClassification):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, SequenceClassifierOutput]:
-        
+
         if input_ids is not None:
             input_ids = input_ids.int()
 

@@ -23,30 +23,18 @@ def fine_tune(args, logger):
     head_config = utils.load_config(f"training/{args.head_config}")
     task = head_config["architecture_parameters"]["task"]
 
-    # Load dataset
-    data = utils.load_dataset(args.data_type)
-    # data = data.sample(30000)
-    # if args.experimenting == "True": data = data.sample(100)
-
-    # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
-
-    # TODO Fix for domain adaptation
-    split = (
-        None
-        if args.split == "sampled" and "sampled" not in data
-        else data.get(args.split)
+    data, split, weights, sampler = utils.data_pipeline(
+        args.data_type,
+        args.split,
+        head_config["training_parameters"].get("weights", None),
+        head_config["training_parameters"].get("sampler", False),
+        dev=args.experimenting == "True",
     )
+
     if args.evaluate == "True" and split is None:
         raise ValueError("Cannot evaluate without a standard testing split")
 
-    weights = (
-        None
-        if head_config["training_parameters"].get("weights") is None
-        else data.get(head_config["training_parameters"]["weights"])
-    )
-    sampler = head_config["training_parameters"].get("sampler", False) == True
     model = utils.init_plm(args.plm, logger, task=task)
-    assert model != None, "Model is not initialized"
 
     if args.zeroed == "True":
         model.zeroed_model()
@@ -84,18 +72,18 @@ def fine_tune(args, logger):
 
     if args.ft_method == "lora":
         fine_tuner = LowRankAdaptationFineTuner(
-            training_config=training_params, logger=logger
+            logger=logger
         )
     elif args.ft_method == "bottleneck_adapters":
         fine_tuner = BottleneckAdaptersFineTuner(
-            training_config=training_params, logger=logger
+            logger=logger
         )
     elif args.ft_method == "full":
         fine_tuner = FullRetrainFineTuner(
-            training_config=training_params, logger=logger
+            logger=logger
         )
     else:
-        raise ValueError("Fine Tuning method not supported")
+        raise ValueError("Fine-tuning method not supported")
 
     model = fine_tuner.prepare_model(model, target_layers=args.target_layers)
 
@@ -145,7 +133,7 @@ def fine_tune(args, logger):
         limit_val_batches=(model.epoch_sizing()),
         devices=devices,
         strategy=strategy,
-        precision="16-mixed",
+        precision="16-mixed" if torch.cuda.is_available() else 32,
         callbacks=[model.early_stopping()],
     )
     if torch.cuda.is_available():
@@ -213,17 +201,16 @@ def fine_tune(args, logger):
 
 
 def downstream_prep(
-    model, args, data, split, task, head_config, weights=None, sampler=False
+    model,
+    args,
+    data,
+    split,
+    task,
+    head_config,
+    weights=None,
+    sampler=False,
 ):
-    network_type = head_config["architecture_parameters"]["network_type"]
-    if network_type == "linear":
-        head_config["architecture_parameters"]["input_dim"] = model.emb_layers_dim
-        pred_model = heads.LinearHead(head_config["architecture_parameters"])
-    elif network_type == "mlp":
-        head_config["architecture_parameters"]["input_dim"] = model.emb_layers_dim
-        pred_model = heads.MLP(head_config["architecture_parameters"])
-    else:
-        raise ValueError("Head type not supported")
+    pred_model = heads.init_head(config=head_config, input_dim=model.emb_layers_dim)
 
     model.py_model.set_head(pred_model)
     model.py_model.reduction = args.reduction

@@ -1,0 +1,39 @@
+{
+  "architecture_parameters": {
+    "network_type": "mlp",
+    "output_dim": 8,
+    "hidden_dim": 1920,
+    "hidden_layers": 2,
+    "task": "multilabel_classification",
+    "hidden_activation": "relu",
+    "hidden_dropout": 0.059925049927049015
+  },
+  "training_parameters": {
+    "learning_rate": 6.945946876809846e-05,
+    "epochs": 200,
+    "batch_size": 302,
+    "loss_f": "masked_bce_logits",
+    "optimizer": "adam",
+    "val_split": 0.2,
+    "weight_decay": 6.523661693987702e-06,
+    "warmup_steps": 0,
+    "gradient_clipping": false,
+    "scheduler": false,
+    "scaler": false,
+    "gradient_accumulation": false,
+    "epoch_sizing": 1.0,
+    "early_stopping": 10,
+    "no_classes": 1,
+    "no_labels": 8,
+    "pos_weight": [
+      1.4505739108151492,
+      1.9746958000348587,
+      11.600767313746065,
+      10.062221750711371,
+      7.053454045211184,
+      8.544258085225906,
+      7.752262678716395,
+      11.18754810151923
+    ]
+  }
+}

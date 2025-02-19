@@ -20,26 +20,14 @@ def onehot(args, logger):
     head_config = utils.load_config(f"training/{args.head_config}")
     task = head_config["architecture_parameters"]["task"]
 
-    # Load dataset
-    data = utils.load_dataset(args.data_type)
-    # data = data[:10000]
-
-    # if args.experimenting == "True": data = data.sample(100)
-
-    # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
-    split = (
-        None
-        if args.split == "sampled" and "sampled" not in data
-        else data.get(args.split)
+    data, split, weights, sampler = utils.data_pipeline(
+        args.data_type,
+        args.split,
+        head_config["training_parameters"].get("weights", None),
+        head_config["training_parameters"].get("sampler", False),
+        dev=args.experimenting == "True",
     )
 
-    # Load class weights if they exist
-    weights = (
-        None
-        if head_config["training_parameters"].get("weights") is None
-        else data.get(head_config["training_parameters"]["weights"])
-    )
-    sampler = head_config["training_parameters"].get("sampler", False) == True
     max_len = max(data["len"].values)
     if args.evaluate == "True" and split is None:
         raise ValueError("Cannot evaluate without a standard testing split")
@@ -74,6 +62,12 @@ def onehot(args, logger):
             pad_value=-100,
             convert_to_np=True,
         )
+    elif task == "multilabel_classification":
+        # Labels are all columns starting with 'label_'
+        scores = data[[col for col in data.columns if "label_" in col]].values
+
+        # Replace -1 with -100
+        scores[scores == -1] = -100
     else:
         raise ValueError("Task not supported")
 
@@ -91,7 +85,6 @@ def onehot(args, logger):
             num_workers=0,
             weights=weights,
             sampler=sampler,
-            n_trials=100,
             num_classes=num_classes,
         )
 
@@ -115,6 +108,7 @@ def onehot(args, logger):
     )
 
 
+
 def objective(
     trial,
     task,
@@ -130,6 +124,7 @@ def objective(
     sampler=False,
     patience=5,
     num_classes=21,
+    hyperparam_config=None,
 ):
     config = copy.deepcopy(head_config)
 
@@ -137,30 +132,17 @@ def objective(
 
     epochs = config["training_parameters"]["epochs"]
     if trial is not None and on_ray_tuning:
-        epochs = config["training_parameters"]["epochs"] // 5
-        config["training_parameters"]["learning_rate"] = trial.suggest_float(
-            "learning_rate", 1e-6, 1e-2
-        )
-        config["training_parameters"]["batch_size"] = trial.suggest_int(
-            "batch_size", 8, 128
-        )
-        config["training_parameters"]["weight_decay"] = trial.suggest_float(
-            "weight_decay", 1e-6, 1e-2
-        )
-        if network_type == "mlp":
-            config["architecture_parameters"]["hidden_dim"] = trial.suggest_int(
-                "hidden_dim", 64, 2048
-            )
-            config["architecture_parameters"]["hidden_dropout"] = (
-                trial.suggest_float("hidden_dropout", 0.0, 1.0)
-            )
-        if network_type == "rnn":
-            config["architecture_parameters"]["hidden_dim"] = trial.suggest_int(
-                "hidden_dim", 16, 512
-            )
-            config["architecture_parameters"]["dropout"] = trial.suggest_float(
-                "dropout", 0.0, 1.0
-            )
+        epochs = int(config["training_parameters"]["epochs"] // (1 / hyperparam_config["epochs_fragment"]))
+        for param_name, param_info in hyperparam_config["architecture_parameters"].items():
+            p_type = param_info["type"]                # "float" or "int"
+            p_range = param_info["range"] 
+            config["architecture_parameters"][param_name] = utils.suggest_number_of_type(trial, param_name, p_range[0],
+                    p_range[1], p_type)
+        for param_name, param_info in hyperparam_config["training_parameters"].items():
+            p_type = param_info["type"]                # "float" or "int"
+            p_range = param_info["range"] 
+            config["training_parameters"][param_name] = utils.suggest_number_of_type(trial, param_name, p_range[0],
+                    p_range[1], p_type)
 
     training_params = config["training_parameters"]
 
@@ -184,31 +166,14 @@ def objective(
         data_loaders["train"].dataset.set_flatten(False)
         data_loaders["val"].dataset.set_flatten(False)
         data_loaders["test"].dataset.set_flatten(False)
+    if task == "token_classification":
+        input_dim = num_classes
+    else: 
+        input_dim = embeddings.shape[1] * num_classes
 
-    network_type = config["architecture_parameters"]["network_type"]
-    if network_type == "linear":
-        config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[1] * num_classes
-            if task != "token_classification"
-            else num_classes
-        )  # Account for one-hot encodings
-        model = heads.LinearHead(config["architecture_parameters"])
-    elif network_type == "mlp":
-        config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[1] * num_classes
-            if task != "token_classification"
-            else num_classes
-        )  # Account for one-hot encodings
-        model = heads.MLP(config["architecture_parameters"])
-    elif network_type == "rnn":
-        config["architecture_parameters"]["input_dim"] = (
-            embeddings.shape[1] * num_classes
-            if task != "token_classification"
-            else num_classes
-        )  # Account for one-hot encodings
-        model = heads.RNN(config["architecture_parameters"])
-    else:
-        raise ValueError("Head type not supported")
+    model = heads.init_head(
+        config=config, input_dim=input_dim
+    )
 
     if not on_ray_tuning:
         logger.save_data(config, "head_config")
@@ -233,11 +198,13 @@ def objective(
     if args.data_type == "herH3" and args.split == "one_vs_rest":
         model.track_validation_after = -1
 
-    devices = 1
+    devices = int(args.gpus)
     strategy = "auto"
 
     callbacks = []
+    epoch_sizing = model.epoch_sizing()
     if on_ray_tuning:
+        epoch_sizing = hyperparam_config["epoch_sizing"]
         callbacks.append(PyTorchLightningPruningCallback(trial, monitor=f"val_loss"))
     callbacks.append(model.early_stopping() if not on_ray_tuning else model.early_stopping(patience))
 
@@ -249,8 +216,8 @@ def objective(
         enable_progress_bar=False,
         accumulate_grad_batches=model.gradient_accumulation_steps(),
         gradient_clip_val=model.gradient_clipping(),
-        limit_train_batches=(model.epoch_sizing()),
-        limit_val_batches=(model.epoch_sizing()),
+        limit_train_batches=epoch_sizing,
+        limit_val_batches=epoch_sizing,
         devices=devices,
         strategy=strategy,
         precision="16-mixed",
@@ -258,23 +225,11 @@ def objective(
     )
 
     if on_ray_tuning:
-        hyperparameters = dict(
-            learning_rate=config["training_parameters"]["learning_rate"],
-            batch_size=config["training_parameters"]["batch_size"],
-            weight_decay=config["training_parameters"]["weight_decay"],
-        )
-        if network_type == "mlp":
-            hyperparameters["hidden_dim"] = config["architecture_parameters"][
-                "hidden_dim"
-            ]
-            hyperparameters["hidden_dropout"] = config["architecture_parameters"][
-                "hidden_dropout"
-            ]
-        if network_type == "rnn":
-            hyperparameters["hidden_dim"] = config["architecture_parameters"][
-                "hidden_dim"
-            ]
-            hyperparameters["dropout"] = config["architecture_parameters"]["dropout"]
+        hyperparameters = dict()
+        for param_name, _ in hyperparam_config["architecture_parameters"].items():
+            hyperparameters[param_name] = config["architecture_parameters"][param_name]
+        for param_name, _ in hyperparam_config["training_parameters"].items():
+            hyperparameters[param_name] = config["training_parameters"][param_name]
 
         trainer.logger.log_hyperparams(hyperparameters)
 
@@ -320,6 +275,11 @@ def objective(
             json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
         )
         logger.save_plot(fig, "confusion_matrix")
+    elif task == "multilabel_classification":
+        fig = data_explore.plot_confusion_matrix_heatmap(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
+        )
+        logger.save_plot(fig, "confusion_matrix")
 
 
 def hyperparameter_tuning(
@@ -333,7 +293,6 @@ def hyperparameter_tuning(
     num_workers=0,
     weights=None,
     sampler=False,
-    n_trials=100,
     num_classes=21,
 ):
     if version.parse(pl.__version__) < version.parse("2.2.1"):
@@ -341,6 +300,11 @@ def hyperparameter_tuning(
             "PyTorch Lightning>=2.2.1 is required for hyper-parameter tuning."
         )
     network_type = head_config["architecture_parameters"]["network_type"]
+    hyperparam_config = utils.load_config(f"training/hyperparams/{args.hyperparam_config}")
+    network_config = hyperparam_config[network_type]
+
+    # 1. Number of trials
+    n_trials = network_config["n_trials"]
 
     storage = JournalStorage(
         JournalFileBackend(f"{logger.base_dir}/optuna_journal_storage.log")
@@ -371,11 +335,12 @@ def hyperparameter_tuning(
             weights=weights,
             sampler=sampler,
             num_classes=num_classes,
+            hyperparam_config=network_config,
         ),
-        n_trials=n_trials if network_type == "linear" else n_trials * 4,
+        n_trials=n_trials,
         callbacks=[LogOptunaTrialCallback(logger)],
-        n_jobs = int(args.gpus),
-        gc_after_trial = True,
+        n_jobs=int(args.gpus),
+        gc_after_trial=True,
         catch=(FileNotFoundError,),
     )
     logger.mute = False
@@ -384,18 +349,9 @@ def hyperparameter_tuning(
     history.write_image(f"{logger.base_dir}/optuna_optimization_history.png")
     slice.write_image(f"{logger.base_dir}/optuna_slice.png")
 
-    head_config["training_parameters"]["learning_rate"] = study.best_params[
-        "learning_rate"
-    ]
-    head_config["training_parameters"]["batch_size"] = study.best_params["batch_size"]
-    head_config["training_parameters"]["weight_decay"] = study.best_params[
-        "weight_decay"
-    ]
-    if network_type == "mlp":
-        head_config["architecture_parameters"]["hidden_dim"] = study.best_params["hidden_dim"]
-        head_config["architecture_parameters"]["hidden_dropout"] = study.best_params["hidden_dropout"]
-    if network_type == "rnn":
-        head_config["architecture_parameters"]["hidden_dim"] = study.best_params["hidden_dim"]
-        head_config["architecture_parameters"]["dropout"] = study.best_params["dropout"]
+    for param_name, _ in network_config["architecture_parameters"].items():
+        head_config["architecture_parameters"][param_name] = study.best_params[param_name]
+    for param_name, _ in network_config["training_parameters"].items():
+        head_config["training_parameters"][param_name] = study.best_params[param_name]
 
     return head_config

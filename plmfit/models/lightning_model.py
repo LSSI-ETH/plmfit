@@ -1,7 +1,6 @@
 import lightning as L
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 import torch
-from torchmetrics import classification, regression, text
 import time
 import json
 from deepspeed.ops.adam import DeepSpeedCPUAdam
@@ -19,6 +18,9 @@ from torchmetrics.classification import (
     BinaryConfusionMatrix,
     BinaryMatthewsCorrCoef,
     BinaryROC,
+    MultilabelAccuracy,
+    MultilabelMatthewsCorrCoef,
+    MultilabelConfusionMatrix,
 )
 from torchmetrics.regression import (
     MeanSquaredError,
@@ -28,6 +30,8 @@ from torchmetrics.regression import (
 )
 from torchmetrics.text import Perplexity
 from lightning.pytorch.callbacks import BasePredictionWriter
+from plmfit.shared_utils.custom_loss_functions import MaskedBCEWithLogitsLoss, MaskedFocalWithLogitsLoss
+import numpy as np
 
 
 class LightningModel(L.LightningModule):
@@ -75,6 +79,11 @@ class LightningModel(L.LightningModule):
                     num_classes=self.hparams.no_classes, ignore_index=-100
                 )
                 self.metric_label = "accuracy"
+            elif self.model.task == "multilabel_classification":
+                self.train_metric = MultilabelAccuracy(
+                    num_labels=self.hparams.no_labels, ignore_index=-100
+                )
+                self.metric_label = "accuracy"
             else:
                 raise ValueError(f"Unsupported task: {self.model.task}")
 
@@ -84,6 +93,9 @@ class LightningModel(L.LightningModule):
                 self.model.task,
                 no_classes=(
                     1 if "no_classes" not in self.hparams else self.hparams.no_classes
+                ),
+                no_labels=(
+                    1 if "no_labels" not in self.hparams else self.hparams.no_labels
                 ),
             )
 
@@ -95,6 +107,8 @@ class LightningModel(L.LightningModule):
         self.experimenting = experimenting
 
     def forward(self, input, **args):
+        if torch.backends.mps.is_available():
+            input = input.to(torch.float)
         output = self.model(input, **args)
         return output
 
@@ -203,24 +217,33 @@ class LightningModel(L.LightningModule):
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
                 labels = labels.long()
+            elif self.model.task == "multilabel_classification":
+                if self.hparams.no_classes < 2:
+                    if hasattr(outputs, "logits"):
+                        outputs = outputs.logits
             else:
                 if hasattr(outputs, "logits"):
                     outputs = outputs.logits.squeeze(dim=1)
                 else:
                     outputs = outputs.squeeze(dim=1)
+            if torch.backends.mps.is_available():
+                labels = labels.to(torch.float32)
             loss = self.loss_function(outputs, labels)
 
         if self.model.task == "classification" and self.hparams.no_classes > 1:
             labels = torch.argmax(labels, dim=1)
             outputs = torch.argmax(outputs, dim=1)
         if self.model.task == "token_classification" and self.hparams.no_classes > 1:
-            # Get the maxium value of the 3rd dimension
+            # Get the maximum value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
-        # if batch_idx % 100 == 0:
-        #         print(outputs)
-        #         print(labels)
-        if self.trainer.precision == 16 and loss < 6.10e-5:
-            loss = 6.10e-5  # Theoretical min loss value for float-16
+        if (
+            self.model.task == "multilabel_classification"
+            and self.hparams.no_classes == 1
+        ):
+            # Logits loss function must be being used so we have to convert to probabilities
+            outputs = torch.sigmoid(outputs)
+            labels = labels.int()
+
         self.log(
             "train_loss",
             loss,
@@ -335,11 +358,17 @@ class LightningModel(L.LightningModule):
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
                 labels = labels.long()
+            elif self.model.task == "multilabel_classification":
+                if self.hparams.no_classes < 2:
+                    if hasattr(outputs, "logits"):
+                        outputs = outputs.logits
             else:
                 if hasattr(outputs, "logits"):
                     outputs = outputs.logits.squeeze(dim=1)
                 else:
                     outputs = outputs.squeeze(dim=1)
+            if torch.backends.mps.is_available():
+                labels = labels.to(torch.float32)
             loss = self.loss_function(outputs, labels)
 
         self.log(
@@ -358,6 +387,13 @@ class LightningModel(L.LightningModule):
         if self.model.task == "token_classification" and self.hparams.no_classes > 1:
             # Get the maxium value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
+        if (
+            self.model.task == "multilabel_classification"
+            and self.hparams.no_classes == 1
+        ):
+            # Logits loss function must be being used so we have to convert to probabilities
+            outputs = torch.sigmoid(outputs)
+            labels = labels.int()
         self.val_metric.update(outputs, labels)
         self.log(
             f"val_{self.metric_label}_step",
@@ -444,11 +480,17 @@ class LightningModel(L.LightningModule):
                 outputs = outputs.permute(0, 2, 1)
                 # Convert labels to long
                 labels = labels.long()
+            elif self.model.task == "multilabel_classification":
+                if self.hparams.no_classes < 2:
+                    if hasattr(outputs, "logits"):
+                        outputs = outputs.logits
             else:
                 if hasattr(outputs, "logits"):
                     outputs = outputs.logits.squeeze(dim=1)
                 else:
                     outputs = outputs.squeeze(dim=1)
+            if torch.backends.mps.is_available():
+                labels = labels.to(torch.float32)
             loss = self.loss_function(outputs, labels)
         self.log(
             "test_loss", loss, on_step=True, on_epoch=True, logger=True, prog_bar=False
@@ -460,6 +502,13 @@ class LightningModel(L.LightningModule):
         if self.model.task == "token_classification" and self.hparams.no_classes > 1:
             # Get the maximum value of the 3rd dimension
             outputs = torch.argmax(outputs, dim=1)
+        if (
+            self.model.task == "multilabel_classification"
+            and self.hparams.no_classes == 1
+        ):
+            # Logits loss function must be being used so we have to convert to probabilities
+            outputs = torch.sigmoid(outputs)
+            labels = labels.int()
         self.metrics.add(outputs, labels, ids)
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
@@ -538,6 +587,12 @@ class LightningModel(L.LightningModule):
                     lr=self.hparams.learning_rate,
                     weight_decay=self.hparams.weight_decay,
                 )
+        elif self.hparams.optimizer == "rmsprop":
+            return torch.optim.RMSprop(
+                parameters,
+                lr=self.hparams.learning_rate,
+                weight_decay=self.hparams.weight_decay,
+            )
         else:
             raise ValueError(f"Unsupported optimizer: {self.hparams.optimizer}")
 
@@ -557,6 +612,17 @@ class LightningModel(L.LightningModule):
             self.hparams.loss_f == "cross_entropy"
         ):  # Add cross-entropy loss for multiclass
             return torch.nn.CrossEntropyLoss(ignore_index=-100)
+        elif self.hparams.loss_f == "masked_bce_logits":
+            return MaskedBCEWithLogitsLoss(
+                ignore_index=-100,
+                pos_weight=(
+                    self.hparams.pos_weight
+                    if self.handle_hparam_exists("pos_weight")
+                    else None
+                )
+            )
+        elif self.hparams.loss_f == "masked_focal_logits":
+            return MaskedFocalWithLogitsLoss()
         else:
             raise ValueError(f"Unsupported loss function: {self.hparams.loss_f}")
 
@@ -572,6 +638,9 @@ class LightningModel(L.LightningModule):
             raise ValueError(
                 "Invalid configuration. Expected boolean or numeric value."
             )
+
+    def handle_hparam_exists(self, hparam_name):
+        return hparam_name in self.hparams and self.hparams[hparam_name] is not None
 
     def early_stopping(self, patience=None):
         if patience is None:
@@ -612,7 +681,7 @@ class LightningModel(L.LightningModule):
 
 
 class Metrics(torch.nn.Module):
-    def __init__(self, task: str, no_classes=1):
+    def __init__(self, task: str, no_classes=1, no_labels=1):
         super().__init__()
         self.task = task
         self.preds_list = []
@@ -628,6 +697,9 @@ class Metrics(torch.nn.Module):
                 self.roc = BinaryROC()
             else:
                 self.acc = MulticlassAccuracy(num_classes=self.no_classes)
+                self.micro_acc = MulticlassAccuracy(
+                    num_classes=self.no_classes, average="micro"
+                )
                 self.mcc = MulticlassMatthewsCorrCoef(num_classes=self.no_classes)
                 self.cm = MulticlassConfusionMatrix(num_classes=self.no_classes)
         elif task == "regression":
@@ -652,9 +724,21 @@ class Metrics(torch.nn.Module):
             self.cm = MulticlassConfusionMatrix(
                 num_classes=self.no_classes, ignore_index=-100
             )
+        elif task == "multilabel_classification":
+            self.no_labels = no_labels
+            self.acc = MultilabelAccuracy(num_labels=self.no_labels, ignore_index=-100)
+            self.mcc = MultilabelMatthewsCorrCoef(
+                num_labels=self.no_labels, ignore_index=-100
+            )
+            self.cm = MultilabelConfusionMatrix(
+                num_labels=self.no_labels, ignore_index=-100
+            )
 
     def add(self, preds, actual, ids):
-        if self.task == "token_classification":
+        if (
+            self.task == "token_classification"
+            or self.task == "multilabel_classification"
+        ):
             self.preds_list.extend(preds.tolist())
             self.actual_list.extend(actual.tolist())
             (
@@ -688,11 +772,15 @@ class Metrics(torch.nn.Module):
             self.calc_masked_lm_metrics(preds, actual)
         elif self.task == "token_classification":
             self.calc_token_classification_metrics(preds, actual)
+        elif self.task == "multilabel_classification":
+            self.calc_multilabel_classification_metrics(preds, actual)
 
     def calc_classification_metrics(self, preds, actual):
         self.acc.update(preds, actual)
         if self.no_classes < 2:
             self.roc_auc.update(preds, actual)
+        else:
+            self.micro_acc.update(preds, actual)
         self.mcc.update(preds, actual)
         self.cm.update(preds, actual)
         if self.no_classes < 2:
@@ -714,6 +802,11 @@ class Metrics(torch.nn.Module):
         self.mcc.update(preds, actual)
         self.cm.update(preds, actual)
 
+    def calc_multilabel_classification_metrics(self, preds, actual):
+        self.acc.update(preds, actual)
+        self.mcc.update(preds, actual)
+        self.cm.update(preds, actual)
+
     def get_metrics(self, device="cpu"):
         self.calculate(
             torch.tensor(self.preds_list, device=device),
@@ -727,6 +820,8 @@ class Metrics(torch.nn.Module):
             return self.get_masked_lm_metrics()
         elif self.task == "token_classification":
             return self.get_token_classification_metrics()
+        elif self.task == "multilabel_classification":
+            return self.get_multilabel_classification_metrics()
 
     def get_classification_metrics(self):
         if self.no_classes < 2:
@@ -811,6 +906,21 @@ class Metrics(torch.nn.Module):
         }
         return self.report
 
+    def get_multilabel_classification_metrics(self):
+        self.report = {
+            "main": {
+                "accuracy": self.acc.compute().item(),
+                "mcc": self.mcc.compute().item(),
+                "confusion_matrix": self.cm.compute().tolist(),
+            },
+            "pred_data": {
+                "preds": self.preds_list,
+                "actual": self.actual_list,
+                "ids": self.ids,
+            },
+        }
+        return self.report
+
     def save_metrics(self, path):
         metrics_path = f"{path}_metrics.json"
         if self.report is None:
@@ -845,12 +955,13 @@ class Metrics(torch.nn.Module):
 
 class PredictionWriter(BasePredictionWriter):
 
-    def __init__(self, logger, write_interval, split_size=0):
+    def __init__(self, logger, write_interval, split_size=0, format="pt"):
         super().__init__(write_interval)
         self.output_dir = logger.base_dir
         self.file_name = logger.experiment_name
         self.logger = logger
         self.split_size = split_size
+        self.format = format
 
     def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
         # Make list into a single tensor
@@ -867,7 +978,27 @@ class PredictionWriter(BasePredictionWriter):
         sorted_predictions[batch_indices] = predictions
 
         if self.split_size == 0:
-            torch.save(sorted_predictions, f"{self.output_dir}/{self.file_name}.pt")
+            if self.format == "pt":
+                torch.save(sorted_predictions, f"{self.output_dir}/{self.file_name}.pt")
+            elif self.format == "csv":
+                sorted_predictions = sorted_predictions.cpu().numpy()
+                # Save the predictions to a CSV file
+                # First row is index, second prediction with 4 decimal places
+
+                # Create an array with indices
+                indices = np.arange(sorted_predictions.shape[0]).reshape(-1, 1)
+                # Concatenate indices and predictions
+                predictions_with_indices = np.hstack((indices, sorted_predictions))
+
+                # Format the predictions to 4 decimal places
+                np.savetxt(
+                    f"{self.output_dir}/{self.file_name}.csv",
+                    predictions_with_indices,
+                    delimiter=",",
+                    fmt=["%d"] + ["%.4f"] * sorted_predictions.shape[1],
+                    header="index,prediction",
+                    comments="",
+                )
         else:
             # Split the predictions into splits of size 'split_size' and the output file indicates the sample number in the batch (i.e. ..._1000-1999.pt)
             for i in range(0, len(sorted_predictions), self.split_size):
@@ -884,7 +1015,9 @@ class PredictionWriter(BasePredictionWriter):
                     f"{self.output_dir}/{self.file_name}_{i}-{i + split_size - 1}.pt",
                 )
 
-        self.logger.log(f"Predictions saved to {self.output_dir}/{self.file_name}.pt")
+        self.logger.log(
+            f"Predictions saved to {self.output_dir}/{self.file_name}.{self.format}"
+        )
         self.logger.log(f"Predictions shape: {sorted_predictions.shape}")
 
     def write_on_batch_end(

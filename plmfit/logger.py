@@ -1,12 +1,14 @@
 import datetime
 import os
-import threading
 import json
 import matplotlib.pyplot as plt
 import torch
 import requests
 import traceback
 import optuna
+import sys
+import logging
+
 try:
     from dotenv import load_dotenv 
     load_dotenv()
@@ -18,7 +20,8 @@ except:
     env_exists = False
     print(f"No environment file '.env' detected or USER/TOKEN/POST_URL not set up correctly, reverting back to local logger")
 
-class Logger():
+
+class Logger(object):
     _instance = None  # Private class variable to hold the instance
 
     def __new__(cls, *args, **kwargs):
@@ -53,6 +56,15 @@ class Logger():
         with open(os.path.join(self.base_dir, self.file_name), 'w') as f:
             f.truncate(0)
         self.log(f'#---------Logger initiated with name "{self.experiment_name}" at {self.created_at}---------#')
+
+        # Silence logging from other libraries
+        logging.disable(logging.WARNING)
+
+    def write(self, text):
+        self.log(text)
+
+    def flush(self):
+        pass
 
     def log(self, text: str, force_send=False, force_dont_send=False, force_unmute=False):
         if self.mute and (not force_unmute): return
@@ -149,6 +161,7 @@ class Logger():
     def save_log_to_server(self):
         if self.log_to_server:
             self.post_to_server(os.path.join(self.base_dir, self.file_name), self.file_name)
+
 
 class LogOptunaTrialCallback:
     def __init__(self, logger: Logger):

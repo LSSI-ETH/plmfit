@@ -3,6 +3,7 @@ import plmfit.models.downstream_heads as heads
 from lightning import Trainer
 from lightning.pytorch.loggers import TensorBoardLogger
 from plmfit.models.lightning_model import LightningModel
+from lightning.pytorch.strategies import DeepSpeedStrategy
 import optuna
 from optuna.storages import JournalStorage
 from optuna.storages.journal import JournalFileBackend
@@ -12,11 +13,10 @@ from packaging import version
 from optuna.visualization import plot_optimization_history, plot_slice
 from plmfit.shared_utils import utils, data_explore
 from plmfit.logger import LogOptunaTrialCallback
-import gc
 import copy
 
 
-def feature_extraction(args, logger):
+def categorical_train(args, logger):
     head_config = utils.load_config(f"training/{args.head_config}")
     task = head_config["architecture_parameters"]["task"]
 
@@ -28,25 +28,18 @@ def feature_extraction(args, logger):
         dev=args.experimenting == "True",
     )
 
+    max_len = max(data["len"].values)
     if args.evaluate == "True" and split is None:
         raise ValueError("Cannot evaluate without a standard testing split")
 
-    ### TODO: Extract embeddings if do not exist & get path optionally from args
-    embeddings = utils.load_embeddings(
-        emb_path=(
-            f"{args.output_dir}/extract_embeddings"
-            if args.embeddings_path is None
-            else args.embeddings_path
-        ),
-        data_type=args.data_type,
-        model=args.plm,
-        layer=args.layer,
-        reduction=args.reduction,
+    tokenizer = utils.load_tokenizer("proteinbert")  # Use same tokenizer as proteinbert
+    encs = utils.categorical_encode(
+        data["aa_seq"].values,
+        tokenizer,
+        max_len,
+        logger=logger,
+        model_name="proteinbert",
     )
-    assert (
-        embeddings != None
-    ), "Couldn't find embeddings, use the full path of the embeddings file (.pt) or you can use extract_embeddings function to create and save the embeddings."
-
     if task == "regression":
         scores = data["score"].values
     elif task == "classification":
@@ -66,8 +59,6 @@ def feature_extraction(args, logger):
             max(data["len"].values),
             pad_value=-100,
             convert_to_np=True,
-            prepend_single_pad=True,
-            append_single_pad=True,
         )
     elif task == "multilabel_classification":
         # Labels are all columns starting with 'label_'
@@ -85,7 +76,7 @@ def feature_extraction(args, logger):
             task,
             args,
             head_config,
-            embeddings,
+            encs,
             scores,
             logger,
             split=split,
@@ -102,7 +93,7 @@ def feature_extraction(args, logger):
         task,
         args,
         head_config,
-        embeddings,
+        encs,
         scores,
         logger,
         split=split,
@@ -111,6 +102,17 @@ def feature_extraction(args, logger):
         weights=weights,
         sampler=sampler,
     )
+
+
+def suggest_number_of_type(trial: optuna.trial.Trial, name, range, type):
+    if type == "int":
+        return trial.suggest_int(name, range[0], range[1])
+    elif type == "float":
+        return trial.suggest_float(name, range[0], range[1])
+    elif type == "categorical":
+        return trial.suggest_categorical(name, range)
+    else:
+        raise ValueError("Type of hyperparameter not supported")
 
 
 def objective(
@@ -131,24 +133,29 @@ def objective(
 ):
     config = copy.deepcopy(head_config)
 
-    network_type = config["architecture_parameters"]["network_type"]
-
     epochs = config["training_parameters"]["epochs"]
     if trial is not None and on_ray_tuning:
-        epochs = int(config["training_parameters"]["epochs"] // (1 / hyperparam_config["epochs_fragment"]))
-        print(epochs)
-        for param_name, param_info in hyperparam_config["architecture_parameters"].items():
-            p_type = param_info["type"]                # "float" or "int"
-            p_range = param_info["range"] 
-            config["architecture_parameters"][param_name] = utils.suggest_number_of_type(trial, param_name, p_range[0],
-                    p_range[1], p_type)
+        epochs = int(
+            config["training_parameters"]["epochs"]
+            // (1 / hyperparam_config["epochs_fragment"])
+        )
+        for param_name, param_info in hyperparam_config[
+            "architecture_parameters"
+        ].items():
+            p_type = param_info["type"]  # "float" or "int"
+            p_range = param_info["range"]
+            config["architecture_parameters"][param_name] = suggest_number_of_type(
+                trial, param_name, p_range, p_type
+            )
         for param_name, param_info in hyperparam_config["training_parameters"].items():
-            p_type = param_info["type"]                # "float" or "int"
-            p_range = param_info["range"] 
-            config["training_parameters"][param_name] = utils.suggest_number_of_type(trial, param_name, p_range[0],
-                    p_range[1], p_type)
+            p_type = param_info["type"]  # "float" or "int"
+            p_range = param_info["range"]
+            config["training_parameters"][param_name] = suggest_number_of_type(
+                trial, param_name, p_range, p_type
+            )
 
     training_params = config["training_parameters"]
+
     data_loaders = utils.create_data_loaders(
         embeddings,
         scores,
@@ -158,12 +165,12 @@ def objective(
         split=split,
         num_workers=num_workers,
         weights=weights,
-        sampler=sampler,  
+        sampler=sampler,
     )
 
-    model = heads.init_head(
-        config=config, input_dim=embeddings.shape[-1]
-    )
+    input_dim = embeddings.shape[1]
+
+    model = heads.init_head(config=config, input_dim=input_dim)
 
     if not on_ray_tuning:
         logger.save_data(config, "head_config")
@@ -180,14 +187,6 @@ def objective(
         save_dir=logger.base_dir, version=0, name="lightning_logs"
     )
 
-    # TODO make this through the configuration defined
-    if args.data_type == "gb1" and args.split == "one_vs_rest":
-        model.track_validation_after = 10
-    if args.data_type == "rbd" and args.split == "one_vs_rest":
-        model.track_validation_after = -1
-    if args.data_type == "herH3" and args.split == "one_vs_rest":
-        model.track_validation_after = -1
-
     devices = 1
     strategy = "auto"
 
@@ -196,7 +195,9 @@ def objective(
     if on_ray_tuning:
         epoch_sizing = hyperparam_config["epoch_sizing"]
         callbacks.append(PyTorchLightningPruningCallback(trial, monitor=f"val_loss"))
-    callbacks.append(model.early_stopping() if not on_ray_tuning else model.early_stopping(patience))
+    callbacks.append(
+        model.early_stopping() if not on_ray_tuning else model.early_stopping(patience)
+    )
 
     trainer = Trainer(
         default_root_dir=logger.base_dir,
@@ -230,7 +231,7 @@ def objective(
         if on_ray_tuning:
             callbacks[0].check_pruned()
             return trainer.callback_metrics[f"val_loss"].item()
-        
+
         loss_plot = data_explore.create_loss_plot(
             json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
         )
@@ -238,6 +239,7 @@ def objective(
         ckpt_path = f"{logger.base_dir}/lightning_logs/best_model.ckpt"
     else:
         ckpt_path = args.model_path
+
     trainer.test(
         model=model,
         ckpt_path=ckpt_path,
@@ -264,6 +266,11 @@ def objective(
             json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
         )
         logger.save_plot(fig, "confusion_matrix")
+    elif task == "multilabel_classification":
+        fig = data_explore.plot_confusion_matrix_heatmap(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
+        )
+        logger.save_plot(fig, "confusion_matrix")
 
 
 def hyperparameter_tuning(
@@ -277,13 +284,16 @@ def hyperparameter_tuning(
     num_workers=0,
     weights=None,
     sampler=False,
+    num_classes=21,
 ):
     if version.parse(pl.__version__) < version.parse("2.2.1"):
         raise RuntimeError(
-                "PyTorch Lightning>=2.2.1 is required for hyper-parameter tuning."
-            )
+            "PyTorch Lightning>=2.2.1 is required for hyper-parameter tuning."
+        )
     network_type = head_config["architecture_parameters"]["network_type"]
-    hyperparam_config = utils.load_config(f"training/hyperparams/{args.hyperparam_config}")
+    hyperparam_config = utils.load_config(
+        f"training/hyperparams/{args.hyperparam_config}"
+    )
     network_config = hyperparam_config[network_type]
 
     # 1. Number of trials
@@ -321,7 +331,7 @@ def hyperparameter_tuning(
         ),
         n_trials=n_trials,
         callbacks=[LogOptunaTrialCallback(logger)],
-        n_jobs=int(args.gpus),
+        n_jobs=int(args.gpus) if int(args.gpus) > 0 else 1,
         gc_after_trial=True,
         catch=(FileNotFoundError,),
     )
@@ -332,7 +342,9 @@ def hyperparameter_tuning(
     slice.write_image(f"{logger.base_dir}/optuna_slice.png")
 
     for param_name, _ in network_config["architecture_parameters"].items():
-        head_config["architecture_parameters"][param_name] = study.best_params[param_name]
+        head_config["architecture_parameters"][param_name] = study.best_params[
+            param_name
+        ]
     for param_name, _ in network_config["training_parameters"].items():
         head_config["training_parameters"][param_name] = study.best_params[param_name]
 

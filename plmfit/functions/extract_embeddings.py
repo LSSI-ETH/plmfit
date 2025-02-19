@@ -8,14 +8,11 @@ from deepspeed.runtime.zero.stage3 import estimate_zero3_model_states_mem_needs_
 from lightning.pytorch.tuner import Tuner
 
 def extract_embeddings(args, logger):
-    # head_config = utils.load_config(f"inferring/{args.head_config}")
-    # task = head_config["architecture_parameters"]["task"]
 
     # Load dataset
     data = utils.load_dataset(args.data_type)
 
     model = utils.init_plm(args.plm, logger, task="extract_embeddings")
-    assert model != None, "Model is not initialized"
 
     model.experimenting = (
         args.experimenting == "True"
@@ -29,8 +26,7 @@ def extract_embeddings(args, logger):
 
     logger.save_data(vars(args), "arguments")
 
-    # TODO: Create predict dataloaders
-    data_loader = utils.create_predict_data_loader(encs, batch_size=4)
+    data_loader = utils.create_predict_data_loader(encs, batch_size=args.batch_size)
 
     model = LightningModel(
         model.py_model,

@@ -1,0 +1,193 @@
+{
+    "linear": {
+        "n_trials": 100,
+        "epochs_fragment": 0.2,
+        "epoch_sizing": 0.01,
+        "architecture_parameters": {},
+        "training_parameters": {
+            "learning_rate": {
+                "type": "float",
+                "range": [
+                    1e-7,
+                    1e-4
+                ]
+            },
+            "batch_size": {
+                "type": "int",
+                "range": [
+                    16,
+                    512
+                ]
+            },
+            "weight_decay": {
+                "type": "float",
+                "range": [
+                    1e-6,
+                    1e-2
+                ]
+            }
+        }
+    },
+    "mlp": {
+        "n_trials": 200,
+        "epochs_fragment": 0.2,
+        "epoch_sizing": 0.01,
+        "architecture_parameters": {
+            "hidden_dim": {
+                "type": "int",
+                "range": [
+                    64,
+                    2048
+                ]
+            },
+            "hidden_layers": {
+                "type": "int",
+                "range": [
+                    1,
+                    4
+                ]
+            },
+            "hidden_dropout": {
+                "type": "float",
+                "range": [
+                    0.0,
+                    1.0
+                ]
+            }
+        },
+        "training_parameters": {
+            "learning_rate": {
+                "type": "float",
+                "range": [
+                    1e-7,
+                    1e-4
+                ]
+            },
+            "batch_size": {
+                "type": "int",
+                "range": [
+                    16,
+                    512
+                ]
+            },
+            "weight_decay": {
+                "type": "float",
+                "range": [
+                    1e-7,
+                    1e-5
+                ]
+            }
+        }
+    },
+    "rnn": {
+        "n_trials": 200,
+        "epochs_fragment": 0.1,
+        "epoch_sizing": 0.1,
+        "architecture_parameters": {
+            "hidden_dim": {
+                "type": "int",
+                "range": [
+                    16,
+                    512
+                ]
+            },
+            "dropout": {
+                "type": "float",
+                "range": [
+                    0.0,
+                    1.0
+                ]
+            }
+        },
+        "training_parameters": {
+            "learning_rate": {
+                "type": "float",
+                "range": [
+                    1e-7,
+                    1e-4
+                ]
+            },
+            "batch_size": {
+                "type": "int",
+                "range": [
+                    8,
+                    128
+                ]
+            },
+            "weight_decay": {
+                "type": "float",
+                "range": [
+                    1e-6,
+                    1e-2
+                ]
+            }
+        }
+    },
+    "transformer": {
+        "n_trials": 200,
+        "epochs_fragment": 0.2,
+        "epoch_sizing": 0.01,
+        "architecture_parameters": {
+            "embd_dim": {
+                "type": "categorical",
+                "range": [
+                    32,
+                    64
+                ]
+            },
+            "nheads": {
+                "type": "categorical",
+                "range": [
+                    4,
+                    8
+                ]
+            },
+            "dropout": {
+                "type": "float",
+                "range": [
+                    0.1,
+                    0.5
+                ]
+            },
+            "d_hid": {
+                "type": "categorical",
+                "range": [
+                    64,
+                    128,
+                    256
+                ]
+            },
+            "pwff_dim": {
+                "type": "categorical",
+                "range": [
+                    64,
+                    128,
+                    256
+                ]
+            }
+        },
+        "training_parameters": {
+            "learning_rate": {
+                "type": "float",
+                "range": [
+                    1e-7,
+                    1e-4
+                ]
+            },
+            "batch_size": {
+                "type": "int",
+                "range": [
+                    16,
+                    512
+                ]
+            },
+            "weight_decay": {
+                "type": "float",
+                "range": [
+                    1e-6,
+                    1e-2
+                ]
+            }
+        }
+    }
+}

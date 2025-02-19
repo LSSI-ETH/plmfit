@@ -1,2 +1,0 @@
-function	data_type	split	head	task	head_config	ray_tuning	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-one_hot	ezy1	sampled	mlp	classification	mlp_multiclass_classification_head_config.json	True	/cluster/scratch/estamkopoulo	4	rtx_3090	20g	1	24	False

@@ -4,6 +4,7 @@ from torch.nn import init
 import torch.nn.functional as F
 from plmfit.shared_utils.utils import get_activation_function
 from plmfit.shared_utils.random_state import get_random_state
+from plmfit.models.custom_transformer import TransformerPWFF
 
 class LinearHead(nn.Module):
     def __init__(self, config):
@@ -38,12 +39,19 @@ class MLP(nn.Module):
 
         self.layers = nn.ModuleList()
 
-        # Hidden Layer
+        # Input Layer
         self.layers.append(nn.Linear(config['input_dim'], config['hidden_dim']))
         self.layers.append(nn.Dropout(config['hidden_dropout']))
         # Check if there's an activation function specified for the layer
         if 'hidden_activation' in config:
             self.layers.append(get_activation_function(config['hidden_activation']))
+
+        # Hidden Layers
+        for _ in range(config.get('hidden_layers', 1) - 1):
+            self.layers.append(nn.Linear(config['hidden_dim'], config['hidden_dim']))
+            self.layers.append(nn.Dropout(config['hidden_dropout']))
+            if 'hidden_activation' in config:
+                self.layers.append(get_activation_function(config['hidden_activation']))
 
         # Output Layer
         self.layers.append(nn.Linear(config['hidden_dim'], config['output_dim']))
@@ -55,6 +63,9 @@ class MLP(nn.Module):
         self.init_weights()
 
     def forward(self, x):
+        # if device is MPS, convert input to int
+        if torch.backends.mps.is_available():
+            x = x.to(torch.float)
         for layer in self.layers:
             x = layer(x)
         return x
@@ -86,13 +97,19 @@ class RNN(nn.Module):
             config["hidden_dim"] * 2 if self.rnn.bidirectional else config["hidden_dim"]
         )
         self.fc = nn.Linear(fc_input_dim, config["output_dim"])
-        self.activation = get_activation_function(config['output_activation'])
+        self.activation = None
+        if "output_activation" in config:
+            self.activation = get_activation_function(config['output_activation'])
         self.init_weights()
 
     def forward(self, x):
+        # if device is MPS, convert input to int
+        if torch.backends.mps.is_available():
+            x = x.to(torch.float)
         out, _ = self.rnn(x)
         out = self.fc(out)
-        out = self.activation(out)
+        if self.activation is not None:
+            out = self.activation(out)
         return out
 
     def init_weights(self):
@@ -131,3 +148,22 @@ class AdapterLayer(nn.Module):
         src = nn.relu(self.fc_down(src))
         src = self.fc_up(src)
         return self.dropout(src)
+
+
+def init_head(config, input_dim):
+    network_type = config["architecture_parameters"]["network_type"]
+    if network_type == "linear":
+        config["architecture_parameters"]["input_dim"] = input_dim
+        model = LinearHead(config["architecture_parameters"])
+    elif network_type == "mlp":
+        config["architecture_parameters"]["input_dim"] = input_dim
+        model = MLP(config["architecture_parameters"])
+    elif network_type == "rnn":
+        config["architecture_parameters"]["input_dim"] = input_dim
+        model = RNN(config["architecture_parameters"])
+    elif network_type == "transformer":
+        config["architecture_parameters"]["vocab_size"] = input_dim
+        model = TransformerPWFF.from_config(config["architecture_parameters"])
+    else:
+        raise ValueError("Head type not supported")
+    return model

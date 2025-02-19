@@ -25,19 +25,38 @@ from plmfit.models.pretrained_models import (
     ProGenFamily,
     ProteinBERTFamily,
     AnkhFamily,
+    ESMCFamily
 )
 from dotenv import load_dotenv
 import blosum as bl
 from collections import Counter
 import torch.nn.functional as F
 import ast
-from plmfit.shared_utils.random_state import get_random_state
+from plmfit.shared_utils.random_state import get_random_state, get_numpy_random_state
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from plmfit.shared_utils.samplers import LabelWeightedSampler
+from esm.utils import encoding
+from optuna.trial import Trial
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
 data_dir = os.getenv("DATA_DIR", "./data")
 config_dir = os.getenv("CONFIG_DIR", "./config")
 
+def set_plmfit_path(base_path):
+    global plmfit_path
+    plmfit_path = base_path
+    os.environ["PLMFIT_PATH"] = plmfit_path
+
+def set_data_dir(base_path):
+    global data_dir
+    data_dir = base_path
+    os.environ["DATA_DIR"] = data_dir
+
+def set_config_dir(base_path):
+    global config_dir
+    config_dir = base_path
+    os.environ["CONFIG_DIR"] = config_dir
 
 def set_path(base_path):
     global path, data_dir, config_dir
@@ -47,7 +66,10 @@ def set_path(base_path):
 
 
 def load_dataset(data_type):
-    return pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
+    try:
+        return pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
+    except:
+        return pd.read_csv(data_type) # Assume it is a full path to dataset
 
 
 def load_embeddings(
@@ -98,7 +120,7 @@ def create_data_loaders(
     validation_size=0.1,
     batch_size=64,
     scaler=None,
-    dtype=torch.float32,
+    dtype=torch.float16,
     num_workers=0,
     weights=None,
     sampler=False,
@@ -122,6 +144,7 @@ def create_data_loaders(
     """
     random_state = get_random_state()
     if split is None:
+        random_state = get_numpy_random_state()
         X_train, X_test, y_train, y_test = train_test_split(
             dataset, scores, test_size=test_size, random_state=random_state
         )
@@ -204,14 +227,14 @@ def create_data_loaders(
     # Add to X_test an identifier
     test_ids = torch.arange(X_test.size(0))
 
-    y_train = convert_or_clone_to_tensor(y_train, dtype=torch.float32)
-    y_val = convert_or_clone_to_tensor(y_val, dtype=torch.float32)
-    y_test = convert_or_clone_to_tensor(y_test, dtype=torch.float32)
+    y_train = convert_or_clone_to_tensor(y_train, dtype=torch.float16)
+    y_val = convert_or_clone_to_tensor(y_val, dtype=torch.float16)
+    y_test = convert_or_clone_to_tensor(y_test, dtype=torch.float16)
 
     if weights is not None:
-        weights_train = convert_or_clone_to_tensor(weights_train, dtype=torch.float32)
-        weights_val = convert_or_clone_to_tensor(weights_val, dtype=torch.float32)
-        weights_test = convert_or_clone_to_tensor(weights_test, dtype=torch.float32)
+        weights_train = convert_or_clone_to_tensor(weights_train, dtype=torch.float16)
+        weights_val = convert_or_clone_to_tensor(weights_val, dtype=torch.float16)
+        weights_test = convert_or_clone_to_tensor(weights_test, dtype=torch.float16)
 
     if dataset_type == "tensor":
         Dataset = TensorDataset
@@ -231,8 +254,18 @@ def create_data_loaders(
         test_dataset = Dataset(X_test, y_test, test_ids)
 
     if sampler:
-        train_sampler = init_weighted_sampler(train_dataset, weights_train)
-        val_sampler = init_weighted_sampler(val_dataset, weights_val)
+        train_sampler = init_weighted_sampler(
+            train_dataset,
+            weights_train,
+            num_samples_method="min_weighted",
+            sampler="weighted_random" if sampler is True else sampler
+        )
+        val_sampler = init_weighted_sampler(
+            val_dataset,
+            weights_val,
+            num_samples_method="min_weighted",
+            sampler="weighted_random" if sampler is True else sampler
+        )
         test_sampler = None
     else:
         train_sampler = None
@@ -346,12 +379,11 @@ def one_hot_encode(seqs, num_classes, flatten=True):
     return encs.flatten() if flatten else encs
 
 
-def init_weighted_sampler(dataset, weights, num_samples_method="min"):
-    # Count the occurrences of each class in the dataset
-    labels = dataset.tensors[1].numpy()  # Assuming that labels are in the second tensor
-    class_counts = Counter(labels)
-
+def init_weighted_sampler(dataset, weights, num_samples_method="min", sampler="weighted_random"):
     if num_samples_method == "min":
+        # Count the occurrences of each class in the dataset
+        labels = dataset.tensors[1].numpy()  # Assuming that labels are in the second tensor
+        class_counts = Counter(labels)
         # Find the class with the least count
         min_class_count = min(class_counts.values())
         # Calculate the number of unique classes
@@ -359,16 +391,49 @@ def init_weighted_sampler(dataset, weights, num_samples_method="min"):
 
         # Set num_samples to the product of the least count and the number of unique classes
         num_samples = min_class_count * num_unique_classes
+    elif num_samples_method == "min_weighted":
+        value_counts = pd.Series(weights.numpy()).value_counts()
+        # Find the class with the least count
+        min_class_count = value_counts.min()
+        # Calculate the number of unique classes
+        num_unique_classes = len(value_counts)
+
+        # Set num_samples to the product of the least count and the number of unique classes
+        num_samples = int(min_class_count * num_unique_classes)
+
+        ## -----------------------------------------------------------
+        # Map each unique weight value to an integer label: 0 .. N-1
+        # -----------------------------------------------------------
+        # 1) Collect the unique weight values from the Series index
+        unique_weight_values = value_counts.index.tolist()  # e.g., [0.1, 0.3, 1.0, ...]
+
+        # 2) Create a dictionary mapping each weight value -> new label index
+        weight_to_label = {w: i for i, w in enumerate(unique_weight_values)}
+
+        # 3) Convert the original `weights` (one weight per sample) into integer "labels"
+        labels = torch.tensor(
+            [weight_to_label[w.item()] for w in weights],
+            dtype=torch.int16
+        )
     else:
         raise ValueError("num_samples_method must be 'min'")
 
-    # Create the WeightedRandomSampler using these weights
-    return WeightedRandomSampler(
-        weights=weights,
-        num_samples=num_samples,
-        replacement=True,  # To allow resampling
-        generator=get_random_state()
-    )
+    if sampler == "weighted_random":
+        # Create the WeightedRandomSampler using these weights
+        return WeightedRandomSampler(
+            weights=weights,
+            num_samples=num_samples,
+            replacement=True,  # To allow resampling
+            generator=get_random_state()
+        )
+    elif sampler == "label_weighted":
+        return LabelWeightedSampler(
+            label_weights=unique_weight_values,
+            labels=labels,
+            num_samples=num_samples,
+            replacement=True,  # To allow resampling
+            generator=get_random_state()
+        )
 
 
 def convert_or_clone_to_tensor(data, dtype):
@@ -652,7 +717,6 @@ def blosum62_encode(sequences, pad_to_length, logger=None):
     # Stack all sequence tensors to create a 3D tensor for the batch
     return torch.stack(encoded_sequences)
 
-
 def categorical_encode(
     seqs,
     tokenizer,
@@ -661,88 +725,130 @@ def categorical_encode(
     add_eos=False,
     logger=None,
     model_name="progen2",
+    progress_interval=100000,
 ):
-    if logger != None:
-        logger.log(f"Initiating categorical encoding")
-        logger.log(f"Memory needed for encoding: {len(seqs) * max_len * 4}B")
+    """
+    Encodes a list of sequences in chunks to avoid high memory usage.
+    
+    Args:
+        seqs (List[str]): The sequences to encode.
+        tokenizer: The tokenizer object with `encode` and `get_vocab` methods.
+        max_len (int): Maximum length of the core sequence (excluding optional BOS/EOS).
+        add_bos (bool): If True, add a BOS token (depends on model_name).
+        add_eos (bool): If True, add an EOS token (depends on model_name).
+        logger (Optional): If provided, used for logging messages.
+        model_name (str): Name of the model ("progen2", "bert", "esm", ...).
+        progress_interval (int): How often to log the progress in each chunk.
+        chunk_size (int): Number of sequences to process in one parallel chunk.
 
-    if "progen2" in model_name:
-        # Adjust max_len if BOS or EOS tokens are to be added
-        internal_max_len = max_len + int(add_bos) + int(add_eos)
+    Returns:
+        torch.Tensor: A tensor of shape (len(seqs), internal_max_len).
+    """
 
-        seq_tokens = tokenizer.get_vocab()["<|pad|>"] * torch.ones(
-            (len(seqs), internal_max_len), dtype=int
-        )
-        for itr, seq in enumerate(seqs):
-            # Encode the sequence without adding special tokens by the tokenizer itself
-            encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
+    # --- Initial Logging ---
+    total_seqs = len(seqs)
+    if logger is not None:
+        logger.log(f"Initiating categorical encoding for {total_seqs} sequences.")
+        logger.log(f"Memory needed for encoding (approx): {total_seqs * max_len * 4}B")
 
-            # Prepare sequence with space for BOS and/or EOS if needed
-            sequence = []
-            if add_bos:
-                sequence.append(tokenizer.get_vocab()["<|bos|>"])
-            sequence.extend(
-                encoded_seq_ids[:max_len]
-            )  # Ensure the core sequence does not exceed user-specified max_len
-            if add_eos:
-                sequence.append(tokenizer.get_vocab()["<|eos|>"])
-
-            # Truncate the sequence if it exceeds internal_max_len
-            truncated_sequence = sequence[:internal_max_len]
-
-            # Update the seq_tokens tensor
-            seq_len = len(truncated_sequence)
-            seq_tokens[itr, :seq_len] = torch.tensor(
-                truncated_sequence, dtype=torch.long
-            )
-
-            if itr == 0 and logger is not None:
-                logger.log(f"First sequence tokens: {seq_tokens[0].tolist()}")
-    elif "bert" in model_name:
-        # Adjust max_len if BOS or EOS tokens are to be added
-        internal_max_len = max_len + int(add_bos) + int(add_eos)
-
-        seq_tokens = tokenizer.get_vocab()["<pad>"] * torch.ones(
-            (len(seqs), internal_max_len), dtype=int
-        )
-        for itr, seq in enumerate(seqs):
-            # Encode the sequence without adding special tokens by the tokenizer itself
-            encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
-
-            # Prepare sequence with space for BOS and/or EOS if needed
-            sequence = []
-            if add_bos:
-                sequence.append(tokenizer.get_vocab()["<cls>"])
-            sequence.extend(
-                encoded_seq_ids[:max_len]
-            )  # Ensure the core sequence does not exceed user-specified max_len
-            if add_eos:
-                sequence.append(tokenizer.get_vocab()["<sep>"])
-
-            # Truncate the sequence if it exceeds internal_max_len
-            truncated_sequence = sequence[:internal_max_len]
-
-            # Update the seq_tokens tensor
-            seq_len = len(truncated_sequence)
-            seq_tokens[itr, :seq_len] = torch.tensor(
-                truncated_sequence, dtype=torch.long
-            )
-
-            if itr == 0 and logger is not None:
-                logger.log(f"First sequence tokens: {seq_tokens[0].tolist()}")
-    elif "esm" in model_name:
-        seq_tokens = tokenizer.get_vocab()["<pad>"] * torch.ones(
-            (len(seqs), int(max_len) + 2), dtype=int
-        )  ### Adding  to max_len because ESMTokenizer adds cls and eos tokens in the begging and the neding of aa_seq
-        for itr, seq in enumerate(seqs):
-            tok_seq = torch.tensor(tokenizer.encode(seq))
-            seq_tokens[itr][: tok_seq.shape[0]] = tok_seq
+    # Determine the internal max length depending on the model
+    if "esm" in model_name:
+        internal_max_len = max_len + 2  # ESM adds <cls> and <eos> automatically
     else:
-        raise "Model tokenizer not defined"
-    if logger != None:
-        logger.log(f"Categorical encoding finished")
+        internal_max_len = max_len + int(add_bos) + int(add_eos)
+
+    # Identify the correct padding token
+    if "progen2" in model_name:
+        pad_token = tokenizer.get_vocab()["<|pad|>"]
+    elif "bert" in model_name:
+        pad_token = tokenizer.get_vocab()["<pad>"]
+    elif "esm2" in model_name:
+        pad_token = tokenizer.get_vocab()["<pad>"]
+    elif "esmc" in model_name:
+        pad_token = tokenizer.pad_token_id
+    else:
+        raise ValueError("Model tokenizer not defined")
+
+    # Pre-allocate the final tensor
+    seq_tokens = pad_token * torch.ones((total_seqs, internal_max_len), dtype=torch.int8)
+
+    # Decide whether to run in parallel
+    n_cpus = os.cpu_count() or 1
+    use_parallel = False # TODO enable parallel encoding
+    if logger is not None:
+        if use_parallel:
+            logger.log(f"Running parallel encoding with up to {n_cpus} workers.")
+        else:
+            logger.log("Only 1 CPU core detected. Will run in serial mode.")
+
+    # Track how many sequences have been processed so far
+    processed_so_far = 0
+
+    # --- Serial Mode ---
+    for local_i, seq in enumerate(seqs):
+        idx = local_i
+        encoded_seq = encode_sequence(seq, tokenizer, max_len, add_bos, add_eos, model_name)
+        seq_len = len(encoded_seq)
+        seq_tokens[idx, :seq_len] = encoded_seq
+
+        processed_so_far += 1
+        if logger is not None and processed_so_far % progress_interval == 0:
+            logger.log(f"Encoded {processed_so_far}/{total_seqs} sequences...")
+
+    # --- Final Logging ---
+    if logger is not None and total_seqs > 0:
+        logger.log(f"First sequence tokens: {seq_tokens[0].tolist()}")
+        logger.log("Categorical encoding finished")
+
     return seq_tokens
 
+def chunkify(data, chunk_size):
+    """Generator that yields (start_index, sublist) for each chunk."""
+    for i in range(0, len(data), chunk_size):
+        yield i, data[i : i + chunk_size]
+
+def encode_sequence(seq, tokenizer, max_len, add_bos, add_eos, model_name):
+    """Helper function to process encoding of a single sequence."""
+    if "progen2" in model_name:
+        internal_max_len = max_len + int(add_bos) + int(add_eos)
+        encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
+
+        sequence = []
+        if add_bos:
+            sequence.append(tokenizer.get_vocab()["<|bos|>"])
+        sequence.extend(encoded_seq_ids[:max_len])
+        if add_eos:
+            sequence.append(tokenizer.get_vocab()["<|eos|>"])
+
+        truncated_sequence = sequence[:internal_max_len]
+        return torch.tensor(truncated_sequence, dtype=torch.int8)
+
+    elif "bert" in model_name:
+        internal_max_len = max_len + int(add_bos) + int(add_eos)
+        encoded_seq_ids = tokenizer.encode(seq, add_special_tokens=False).ids
+
+        sequence = []
+        if add_bos:
+            sequence.append(tokenizer.get_vocab()["<cls>"])
+        sequence.extend(encoded_seq_ids[:max_len])
+        if add_eos:
+            sequence.append(tokenizer.get_vocab()["<sep>"])
+
+        truncated_sequence = sequence[:internal_max_len]
+        return torch.tensor(truncated_sequence, dtype=torch.int8)
+
+    elif "esm2" in model_name:
+        # ESMTokenizer automatically adds <cls> and <eos> tokens
+        # We'll ensure the final tensor doesn't exceed max_len+2
+        tok_seq = torch.tensor(tokenizer.encode(seq), dtype=torch.int8)
+        return tok_seq[: max_len + 2]
+    elif "esmc" in model_name:
+        # ESMTokenizer automatically adds <cls> and <eos> tokens
+        # We'll ensure the final tensor doesn't exceed max_len+2
+        tok_seq = encoding.tokenize_sequence(seq, tokenizer, add_special_tokens=True).type(torch.int8)
+        return tok_seq[: max_len + 2]
+    else:
+        raise ValueError("Model tokenizer not defined")
 
 def get_parameters(model, print_w_mat=False, logger=None):
     s = 0
@@ -823,6 +929,31 @@ def set_modules_to_train_mode(model, module_name="all"):
     # Note: This does not change the global training/evaluation mode of the model,
     # but specifically sets 'module_name' modules to training mode.
 
+
+def set_head_to_train_mode(model):
+    """
+    This function sets the head in the model to training mode.
+    """
+    for name, module in model.named_modules():
+        # Identify modules by checking if 'module_name' is in their name.
+        if 'lm_head' in name or 'classifier' in name:
+            module.train()  # Set the identified 'module_name' module to training mode
+
+    # Note: This does not change the global training/evaluation mode of the model,
+    # but specifically sets the head to training mode.
+
+def set_trainable_head(model):
+    """
+    This function sets the head in the model to trainable.
+    """
+    for name, module in model.named_modules():
+        # Identify modules by checking if 'module_name' is in their name.
+        if 'lm_head' in name or 'classifier' in name:
+            for param in module.parameters():
+                param.requires_grad = True
+
+    # Note: This does not change the global training/evaluation mode of the model,
+    # but specifically sets the head to training mode.
 
 def set_trainable_layers(model: nn.Module, layers_to_train: list):
     """
@@ -1017,12 +1148,16 @@ def init_plm(model_name, logger, task="regression"):
     ]
     # supported_Ankh = ["ankh-base", "ankh-large", "ankh2-large"]
     supported_Proteinbert = ["proteinbert"]
+    supported_ESMC = [
+        "esmc_300m",
+        "esmc_600m",
+    ]
 
     if "progen" in model_name:
         assert model_name in supported_progen2, "Progen version is not supported"
         model = ProGenFamily(model_name, logger, task)
 
-    elif "esm" in model_name:
+    elif "esm2" in model_name:
         assert model_name in supported_ESM, "ESM version is not supported"
         model = ESMFamily(model_name, logger, task)
     # elif "ankh" in model_name:
@@ -1035,9 +1170,13 @@ def init_plm(model_name, logger, task="regression"):
             model_name in supported_Proteinbert
         ), "ProteinBERT version is not supported"
         model = ProteinBERTFamily(logger, task)
+    elif "esmc" in model_name:
+        assert model_name in supported_ESMC, "ESMC version is not supported"
+        model = ESMCFamily(model_name, logger, task)
     else:
         raise "PLM not supported"
 
+    assert model != None, "Model is not initialized"
     return model
 
 
@@ -1164,3 +1303,33 @@ def create_mlm_data_loaders(
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, generator=random_state)
 
     return {"train": train_loader, "val": val_loader, "test": test_loader}
+
+
+def data_pipeline(dataset, split=None, weights=None, sampler=None, dev=False):
+    # Load dataset
+    dataset = load_dataset(dataset)
+
+    # For development purposes, we can sample the dataset to speed up the process
+    if dev:
+        dataset = dataset[:100000]
+
+    # This checks if args.split is set to 'sampled' and if 'sampled' is not in data, or if args.split is not a key in data.
+    split = (
+        None if split == "sampled" and "sampled" not in dataset else dataset.get(split)
+    )
+
+    # If weights are provided, load them
+    weights = None if weights is None else dataset.get(weights)
+
+    # If a sampler is provided, load it
+    sampler = False if sampler is None else sampler
+
+    return dataset, split, weights, sampler
+
+def suggest_number_of_type(trial: Trial, name, min, max, type):
+    if type == "int":
+        return trial.suggest_int(name, min, max)
+    elif type == "float":
+        return trial.suggest_float(name, min, max)
+    else:
+        raise ValueError("Type of hyperparameter not supported")

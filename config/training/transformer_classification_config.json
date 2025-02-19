@@ -1,0 +1,33 @@
+{
+    "architecture_parameters": {
+        "network_type": "transformer",
+        "output_dim": 1,
+        "embd_dim": 32,
+        "task": "classification",
+        "nheads": 4,
+        "d_hid": 128,
+        "nlayers": 2,
+        "max_seq_len": 232,
+        "pwff_dim": 64,
+        "dropout": 0.1420540479285826
+    },
+    "training_parameters": {
+        "learning_rate": 8.985863677552064e-05,
+        "epochs": 200,
+        "batch_size": 19,
+        "loss_f": "bce_logits",
+        "optimizer": "adam",
+        "val_split": 0.2,
+        "weight_decay": 0.0018442045946123063,
+        "warmup_steps": 0,
+        "gradient_clipping": false,
+        "scheduler": false,
+        "scaler": false,
+        "gradient_accumulation": false,
+        "epoch_sizing": false,
+        "early_stopping": 10,
+        "weights": "weights",
+        "sampler": true,
+        "no_classes": 1
+    }
+}

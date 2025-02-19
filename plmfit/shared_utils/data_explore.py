@@ -256,7 +256,7 @@ def create_recall_plot(train_recalls,val_recalls):
     plt.title('Training and Validation Recalls')
     plt.legend()
     return fig
-    
+
 
 def create_loss_plot(training_losses=None, validation_losses=None, json_path=None):
     if json_path:
@@ -317,14 +317,14 @@ def plot_actual_vs_predicted(y_test_list=None, y_pred_list=None, axis_range=[0, 
     y_test_list = np.asarray(y_test_list, dtype=np.float32).flatten()
     y_pred_list = np.asarray(y_pred_list, dtype=np.float32).flatten()
     ax.scatter(y_test_list, y_pred_list, color='darkorange', alpha=0.1, label='Predicted vs Actual')
-    
+
     min_val = min(min(y_test_list), min(y_pred_list), axis_range[0])
     max_val = max(max(y_test_list), max(y_pred_list), axis_range[1])
-    
+
     ax.plot([min_val, max_val], [min_val, max_val], 'k--', lw=2, label='Ideal')
     ax.set_xlim([min_val, max_val])
     ax.set_ylim([min_val, max_val])
-    
+
     ax.set_xlabel('Actual')
     ax.set_ylabel('Predicted')
     ax.set_title('Actual vs. Predicted')
@@ -337,41 +337,87 @@ def plot_actual_vs_predicted(y_test_list=None, y_pred_list=None, axis_range=[0, 
     plt.tight_layout()
     return fig
 
+
 def plot_confusion_matrix_heatmap(cm=None, json_path=None, class_names=None):
     """
-    Plots a confusion matrix heatmap.
-    
+    Plots a confusion matrix heatmap or multilabel confusion matrix heatmaps.
+
     Args:
-    - cm: Confusion matrix as a 2D numpy array. If None, json_path should be provided.
+    - cm: Confusion matrix as a 2D or 3D numpy array. If None, json_path should be provided.
+      For 3D input, the first dimension should correspond to the number of labels.
     - json_path: Path to a JSON file containing the confusion matrix data.
     - class_names: List of class names. If None, class names will be generated based on the confusion matrix shape.
     """
     # Load confusion matrix from JSON if provided
     if json_path:
-        with open(json_path, 'r') as file:
+        with open(json_path, "r") as file:
             json_data = json.load(file)
-            cm = json_data['main']['confusion_matrix']
+            cm = json_data["main"]["confusion_matrix"]
             cm = np.array(cm)
 
-    # Calculate the percentage of each value in the confusion matrix
-    cm_percentage = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    # Check if cm is 3D
+    if cm.ndim == 3:
+        num_labels = cm.shape[0]
+        fig, axes = plt.subplots(1, num_labels, figsize=(8 * num_labels, 8))
+        if num_labels == 1:
+            axes = [axes]  # Ensure axes is iterable when there's only one label
 
-    # If class names are not provided, generate based on confusion matrix size
-    if class_names is None:
-        class_names = [f"Class {i}" for i in range(cm.shape[0])]
+        for i in range(num_labels):
+            cm_label = cm[i]
+            cm_percentage = (
+                cm_label.astype("float") / cm_label.sum(axis=1)[:, np.newaxis]
+            )
 
-    # Create heatmap figure
-    fig, ax = plt.subplots(figsize=(8, 8))  # Increase figure size for better visibility in multiclass
-    sns.heatmap(cm_percentage, annot=True, fmt=".2%", cmap='Blues', cbar=False, 
-                xticklabels=class_names, yticklabels=class_names, ax=ax)
+            if class_names is None:
+                label_class_names = [f"Class {j}" for j in range(cm_label.shape[0])]
+            else:
+                label_class_names = class_names
 
-    # Set labels and title
-    plt.ylabel('Actual')
-    plt.xlabel('Predicted')
-    plt.title('Confusion Matrix Heatmap')
-    plt.tight_layout()
+            sns.heatmap(
+                cm_percentage,
+                annot=True,
+                fmt=".2%",
+                cmap="Blues",
+                cbar=False,
+                xticklabels=label_class_names,
+                yticklabels=label_class_names,
+                ax=axes[i],
+            )
 
-    return fig
+            axes[i].set_ylabel("Actual")
+            axes[i].set_xlabel("Predicted")
+            axes[i].set_title(f"Confusion Matrix for Label {i}")
+
+        plt.tight_layout()
+        return fig
+
+    elif cm.ndim == 2:
+        cm_percentage = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]
+
+        if class_names is None:
+            class_names = [f"Class {i}" for i in range(cm.shape[0])]
+
+        fig, ax = plt.subplots(figsize=(8, 8))
+        sns.heatmap(
+            cm_percentage,
+            annot=True,
+            fmt=".2%",
+            cmap="Blues",
+            cbar=False,
+            xticklabels=class_names,
+            yticklabels=class_names,
+            ax=ax,
+        )
+
+        ax.set_ylabel("Actual")
+        ax.set_xlabel("Predicted")
+        ax.set_title("Confusion Matrix Heatmap")
+
+        plt.tight_layout()
+        return fig
+
+    else:
+        raise ValueError("Confusion matrix must be either 2D or 3D.")
 
 
 def binary_accuracy(y_true, y_pred):

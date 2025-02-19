@@ -9,19 +9,22 @@
   },
   "training_parameters":
   {
-    "learning_rate": 0.00005,
+    "learning_rate": 0.0004722248137843737,
     "epochs": 200,
-    "batch_size": 64,
-    "loss_f": "bce",
+    "batch_size": 92,
+    "loss_f": "bce_logits",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 0.01,
+    "weight_decay": 2.125324400687282e-05,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,
     "scaler": false,
     "gradient_accumulation": false,
     "epoch_sizing": false,
-    "early_stopping": 30
+    "early_stopping": 10,
+    "weights": "weights",
+    "sampler": true,
+    "no_classes": 1
   }
 }
