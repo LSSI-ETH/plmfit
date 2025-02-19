@@ -198,7 +198,7 @@ def objective(
     if args.data_type == "herH3" and args.split == "one_vs_rest":
         model.track_validation_after = -1
 
-    devices = 1
+    devices = int(args.gpus)
     strategy = "auto"
 
     callbacks = []

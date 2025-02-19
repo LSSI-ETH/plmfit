@@ -30,7 +30,7 @@ from torchmetrics.regression import (
 )
 from torchmetrics.text import Perplexity
 from lightning.pytorch.callbacks import BasePredictionWriter
-from plmfit.shared_utils.custom_loss_functions import MaskedBCEWithLogitsLoss
+from plmfit.shared_utils.custom_loss_functions import MaskedBCEWithLogitsLoss, MaskedFocalWithLogitsLoss
 import numpy as np
 
 
@@ -619,8 +619,10 @@ class LightningModel(L.LightningModule):
                     self.hparams.pos_weight
                     if self.handle_hparam_exists("pos_weight")
                     else None
-                ),
+                )
             )
+        elif self.hparams.loss_f == "masked_focal_logits":
+            return MaskedFocalWithLogitsLoss()
         else:
             raise ValueError(f"Unsupported loss function: {self.hparams.loss_f}")
 

@@ -821,7 +821,7 @@ def encode_sequence(seq, tokenizer, max_len, add_bos, add_eos, model_name):
             sequence.append(tokenizer.get_vocab()["<|eos|>"])
 
         truncated_sequence = sequence[:internal_max_len]
-        return torch.tensor(truncated_sequence, dtype=torch.long)
+        return torch.tensor(truncated_sequence, dtype=torch.int8)
 
     elif "bert" in model_name:
         internal_max_len = max_len + int(add_bos) + int(add_eos)
@@ -840,12 +840,12 @@ def encode_sequence(seq, tokenizer, max_len, add_bos, add_eos, model_name):
     elif "esm2" in model_name:
         # ESMTokenizer automatically adds <cls> and <eos> tokens
         # We'll ensure the final tensor doesn't exceed max_len+2
-        tok_seq = torch.tensor(tokenizer.encode(seq))
+        tok_seq = torch.tensor(tokenizer.encode(seq), dtype=torch.int8)
         return tok_seq[: max_len + 2]
     elif "esmc" in model_name:
         # ESMTokenizer automatically adds <cls> and <eos> tokens
         # We'll ensure the final tensor doesn't exceed max_len+2
-        tok_seq = encoding.tokenize_sequence(seq, tokenizer, add_special_tokens=True)
+        tok_seq = encoding.tokenize_sequence(seq, tokenizer, add_special_tokens=True).type(torch.int8)
         return tok_seq[: max_len + 2]
     else:
         raise ValueError("Model tokenizer not defined")
