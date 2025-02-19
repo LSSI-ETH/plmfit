@@ -40,6 +40,13 @@
                     2048
                 ]
             },
+            "hidden_layers": {
+                "type": "int",
+                "range": [
+                    1,
+                    4
+                ]
+            },
             "hidden_dropout": {
                 "type": "float",
                 "range": [
