@@ -107,6 +107,8 @@ class LightningModel(L.LightningModule):
         self.experimenting = experimenting
 
     def forward(self, input, **args):
+        if torch.backends.mps.is_available():
+            input = input.to(torch.float)
         output = self.model(input, **args)
         return output
 
@@ -224,6 +226,8 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits.squeeze(dim=1)
                 else:
                     outputs = outputs.squeeze(dim=1)
+            if torch.backends.mps.is_available():
+                labels = labels.to(torch.float32)
             loss = self.loss_function(outputs, labels)
 
         if self.model.task == "classification" and self.hparams.no_classes > 1:
@@ -363,6 +367,8 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits.squeeze(dim=1)
                 else:
                     outputs = outputs.squeeze(dim=1)
+            if torch.backends.mps.is_available():
+                labels = labels.to(torch.float32)
             loss = self.loss_function(outputs, labels)
 
         self.log(
@@ -483,6 +489,8 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits.squeeze(dim=1)
                 else:
                     outputs = outputs.squeeze(dim=1)
+            if torch.backends.mps.is_available():
+                labels = labels.to(torch.float32)
             loss = self.loss_function(outputs, labels)
         self.log(
             "test_loss", loss, on_step=True, on_epoch=True, logger=True, prog_bar=False

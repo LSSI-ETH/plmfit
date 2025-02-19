@@ -72,15 +72,15 @@ def fine_tune(args, logger):
 
     if args.ft_method == "lora":
         fine_tuner = LowRankAdaptationFineTuner(
-            training_config=training_params, logger=logger
+            logger=logger
         )
     elif args.ft_method == "bottleneck_adapters":
         fine_tuner = BottleneckAdaptersFineTuner(
-            training_config=training_params, logger=logger
+            logger=logger
         )
     elif args.ft_method == "full":
         fine_tuner = FullRetrainFineTuner(
-            training_config=training_params, logger=logger
+            logger=logger
         )
     else:
         raise ValueError("Fine-tuning method not supported")
@@ -133,7 +133,7 @@ def fine_tune(args, logger):
         limit_val_batches=(model.epoch_sizing()),
         devices=devices,
         strategy=strategy,
-        precision="16-mixed",
+        precision="16-mixed" if torch.cuda.is_available() else 32,
         callbacks=[model.early_stopping()],
     )
     if torch.cuda.is_available():
