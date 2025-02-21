@@ -44,6 +44,7 @@ class LightningModel(L.LightningModule):
         method="lora",
         experimenting=False,
         train=True,
+        mlflow=None,
     ):
         torch.set_float32_matmul_precision("medium")
         super().__init__()
@@ -101,7 +102,7 @@ class LightningModel(L.LightningModule):
 
             self.track_validation_after = 0
             self.track_training_loss = False
-
+        self.mlflow = mlflow
         self.profiling_interval = 100
 
         self.experimenting = experimenting
@@ -276,6 +277,9 @@ class LightningModel(L.LightningModule):
             sync_dist=True,
         )
 
+        if self.mlflow is not None:
+            self.mlflow.log_metric("train_loss", loss, step=batch_idx)
+
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(
                 f"(train) batch : {batch_idx + 1}  / {len(self.trainer.train_dataloader)} | running_loss : {loss} (batch time : {time.time() - batch_start_time:.4f})"
@@ -427,6 +431,9 @@ class LightningModel(L.LightningModule):
             sync_dist=True,
         )
 
+        if self.mlflow is not None:
+            self.mlflow.log_metric("val_loss", loss, step=batch_idx)
+
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(
                 f"(val) batch : {batch_idx + 1}  / {len(self.trainer.val_dataloaders)} | running_loss : {loss} (batch time : {time.time() - batch_start_time:.4f})"
@@ -532,6 +539,9 @@ class LightningModel(L.LightningModule):
             outputs = torch.sigmoid(outputs)
             labels = labels.int()
         self.metrics.add(outputs, labels, ids)
+
+        if self.mlflow is not None:
+            self.mlflow.log_metric("test_loss", loss, step=batch_idx)
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(
