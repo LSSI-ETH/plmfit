@@ -109,7 +109,7 @@ class LightningModel(L.LightningModule):
 
     def forward(self, input, **args):
         if torch.backends.mps.is_available():
-            input = input.to(torch.float)
+            input = input.to(torch.long)
         output = self.model(input, **args)
         return output
 
