@@ -38,3 +38,4 @@ optuna
 optuna-integration[pytorch_lightning]
 plotly
 kaleido
+mlflow
