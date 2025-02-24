@@ -278,14 +278,17 @@ class LightningModel(L.LightningModule):
     def on_train_batch_end(self, outputs, batch, batch_idx):
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             for name, params in self.named_parameters():
-                self.logger.experiment.add_histogram(
-                    tag=f"weights/{name}", values=params, global_step=self.global_step
-                )
-                self.logger.experiment.add_histogram(
-                    tag=f"gradients/{name}",
-                    values=params.grad,
-                    global_step=self.global_step,
-                )
+                if params.grad is not None:
+                    self.logger.experiment.add_histogram(
+                        tag=f"weights/{name}",
+                        values=params,
+                        global_step=self.global_step,
+                    )
+                    self.logger.experiment.add_histogram(
+                        tag=f"gradients/{name}",
+                        values=params.grad,
+                        global_step=self.global_step,
+                    )
         if batch_idx == 99 and self.experimenting:
             # self.profiler.print_model_profile(profile_step=batch_idx, output_file=f'{self.plmfit_logger.base_dir}/flops.log')
             self.profiler.end_profile()
