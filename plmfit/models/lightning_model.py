@@ -265,6 +265,10 @@ class LightningModel(L.LightningModule):
             sync_dist=True,
         )
 
+        for i, optimizer in enumerate(self.trainer.optimizers):
+            current_lr = optimizer.param_groups[0]["lr"]
+            self.log(f"learning_rate/optimizer_{i}", current_lr, on_step=True, on_epoch=False)
+
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(
                 f"(train) batch : {batch_idx + 1}  / {len(self.trainer.train_dataloader)} | running_loss : {loss} (batch time : {time.time() - batch_start_time:.4f})"
@@ -272,6 +276,16 @@ class LightningModel(L.LightningModule):
         return loss
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
+        if self.log_interval != -1 and batch_idx % self.log_interval == 0:
+            for name, params in self.named_parameters():
+                self.logger.experiment.add_histogram(
+                    tag=f"weights/{name}", values=params, global_step=self.global_step
+                )
+                self.logger.experiment.add_histogram(
+                    tag=f"gradients/{name}",
+                    values=params.grad,
+                    global_step=self.global_step,
+                )
         if batch_idx == 99 and self.experimenting:
             # self.profiler.print_model_profile(profile_step=batch_idx, output_file=f'{self.plmfit_logger.base_dir}/flops.log')
             self.profiler.end_profile()
