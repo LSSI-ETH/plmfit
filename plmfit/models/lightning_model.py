@@ -101,7 +101,7 @@ class LightningModel(L.LightningModule):
 
             self.track_validation_after = 0
             self.track_training_loss = False
-            
+
         self.profiling_interval = 100
 
         self.experimenting = experimenting
@@ -256,9 +256,9 @@ class LightningModel(L.LightningModule):
 
         self.train_metric.update(outputs, labels)
         self.log(
-            f"train_{self.metric_label}_step",
+            f"train_{self.metric_label}",
             self.train_metric,
-            on_step=False,
+            on_step=True,
             on_epoch=True,
             logger=True,
             prog_bar=False,
@@ -285,7 +285,6 @@ class LightningModel(L.LightningModule):
             raise SystemExit("Experiment over")
 
     def on_train_epoch_end(self):
-        self.log(f"train_{self.metric_label}_epoch", self.train_metric, sync_dist=True)
         self.epoch_train_loss.append(
             self.trainer.logged_metrics["train_loss_epoch"].item()
         )
@@ -396,9 +395,9 @@ class LightningModel(L.LightningModule):
             labels = labels.int()
         self.val_metric.update(outputs, labels)
         self.log(
-            f"val_{self.metric_label}_step",
+            f"val_{self.metric_label}",
             self.val_metric,
-            on_step=False,
+            on_step=True,
             on_epoch=True,
             logger=True,
             prog_bar=False,
@@ -412,7 +411,6 @@ class LightningModel(L.LightningModule):
         return loss
 
     def on_validation_epoch_end(self):
-        self.log(f"val_{self.metric_label}_epoch", self.val_metric, sync_dist=True)
         if not self.trainer.sanity_checking:
             self.epoch_val_loss.append(
                 self.trainer.logged_metrics["val_loss_epoch"].item()
