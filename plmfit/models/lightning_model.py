@@ -557,7 +557,10 @@ class LightningModel(L.LightningModule):
 
     def predict_step(self, batch, batch_idx):
         batch_start_time = time.time()
-        (input,) = batch
+        if self.model.task == "masked_lm":
+            input = batch["input_ids"]
+        else:
+            (input,) = batch
         outputs = self(input)
         if hasattr(outputs, "logits"):
             outputs = outputs.logits
