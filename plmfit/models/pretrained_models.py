@@ -471,26 +471,26 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 class ESMFamily(IPretrainedProteinLanguageModel):
     tokenizer: AutoTokenizer
 
-    def __init__(self, esm_version: str, logger: l.Logger, task: str = "regression"):
+    def __init__(self, esm_version: str, logger: l.Logger, task: str = "regression", **args):
         super().__init__(logger, task)
         self.version = esm_version
         if self.task == "masked_lm":
             self.py_model: PlmfitEsmForMaskedLM = PlmfitEsmForMaskedLM.from_pretrained(
-                f"facebook/{esm_version}", output_hidden_states=True
+                f"facebook/{esm_version}", output_hidden_states=True, **args
             )
             self.output_dim = self.py_model.lm_head.decoder.out_features
         elif self.task == "token_classification":
             self.py_model = PlmfitEsmForTokenClassification.from_pretrained(
-                f"facebook/{esm_version}", output_hidden_states=True
+                f"facebook/{esm_version}", output_hidden_states=True, **args
             )
             self.output_dim = self.py_model.classifier.out_features
         elif self.task == "extract_embeddings":
             self.py_model = PlmfitEsmForEmbdeddingsExtraction.from_pretrained(
-                f"facebook/{esm_version}", output_hidden_states=True
+                f"facebook/{esm_version}", output_hidden_states=True, **args
             )
         else:
             self.py_model = PlmfitEsmForSequenceClassification.from_pretrained(
-                f"facebook/{esm_version}", output_hidden_states=True
+                f"facebook/{esm_version}", output_hidden_states=True, **args
             )
             self.output_dim = self.py_model.classifier.out_features
         self.no_parameters = utils.get_parameters(self.py_model)
