@@ -1209,7 +1209,7 @@ def find_mutation_positions(seq, ref, padding_id=None):
     return [i for i, (s, r) in enumerate(zip(seq, ref)) if s != r]
 
 
-def init_plm(model_name, logger, task="regression"):
+def init_plm(model_name, logger, task="regression", **args):
     model = None
     supported_progen2 = ["progen2-small", "progen2-medium", "progen2-xlarge"]
     supported_ESM = [
@@ -1233,7 +1233,7 @@ def init_plm(model_name, logger, task="regression"):
 
     elif "esm2" in model_name:
         assert model_name in supported_ESM, "ESM version is not supported"
-        model = ESMFamily(model_name, logger, task)
+        model = ESMFamily(model_name, logger, task, **args)
     # elif "ankh" in model_name:
     #     assert model_name in supported_Ankh, "Ankh version is not supported"
     #     model = AnkhFamily(model_name)
