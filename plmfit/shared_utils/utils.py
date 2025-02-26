@@ -1159,7 +1159,7 @@ def init_plm(model_name, logger, task="regression", **args):
 
     elif "esm2" in model_name:
         assert model_name in supported_ESM, "ESM version is not supported"
-        model = ESMFamily(model_name, logger, task, **args)
+        model = ESMFamily(model_name, logger, task, output_attentions=args.get("output_attentions", False))
     # elif "ankh" in model_name:
     #     assert model_name in supported_Ankh, "Ankh version is not supported"
     #     model = AnkhFamily(model_name)
