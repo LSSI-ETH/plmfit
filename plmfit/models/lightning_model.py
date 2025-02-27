@@ -626,7 +626,7 @@ class LightningModel(L.LightningModule):
     def initialize_lr_scheduler(self, optimizer):
         if optimizer is None:
             return None
-        return torch.optim.lr_scheduler.ConstantLR(optimizer)
+        return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: 1.0)
 
     def initialize_loss_function(self):
         if self.hparams.loss_f == "bce":
