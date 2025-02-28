@@ -107,6 +107,8 @@ class LightningModel(L.LightningModule):
         self.experimenting = experimenting
 
     def forward(self, input, **args):
+        if torch.backends.mps.is_available():
+            input = input.to(torch.long)
         output = self.model(input, **args)
         return output
 
@@ -224,6 +226,8 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits.squeeze(dim=1)
                 else:
                     outputs = outputs.squeeze(dim=1)
+            if torch.backends.mps.is_available():
+                labels = labels.to(torch.float32)
             loss = self.loss_function(outputs, labels)
 
         if self.model.task == "classification" and self.hparams.no_classes > 1:
@@ -252,14 +256,18 @@ class LightningModel(L.LightningModule):
 
         self.train_metric.update(outputs, labels)
         self.log(
-            f"train_{self.metric_label}_step",
+            f"train_{self.metric_label}",
             self.train_metric,
-            on_step=False,
+            on_step=True,
             on_epoch=True,
             logger=True,
             prog_bar=False,
             sync_dist=True,
         )
+
+        for i, optimizer in enumerate(self.trainer.optimizers):
+            current_lr = optimizer.param_groups[0]["lr"]
+            self.log(f"learning_rate/optimizer_{i}", current_lr, on_step=True, on_epoch=False)
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(
@@ -268,6 +276,19 @@ class LightningModel(L.LightningModule):
         return loss
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
+        if self.log_interval != -1 and batch_idx % self.log_interval == 0:
+            for name, params in self.named_parameters():
+                if params.grad is not None:
+                    self.logger.experiment.add_histogram(
+                        tag=f"weights/{name}",
+                        values=params,
+                        global_step=self.global_step,
+                    )
+                    self.logger.experiment.add_histogram(
+                        tag=f"gradients/{name}",
+                        values=params.grad,
+                        global_step=self.global_step,
+                    )
         if batch_idx == 99 and self.experimenting:
             # self.profiler.print_model_profile(profile_step=batch_idx, output_file=f'{self.plmfit_logger.base_dir}/flops.log')
             self.profiler.end_profile()
@@ -281,7 +302,6 @@ class LightningModel(L.LightningModule):
             raise SystemExit("Experiment over")
 
     def on_train_epoch_end(self):
-        self.log(f"train_{self.metric_label}_epoch", self.train_metric, sync_dist=True)
         self.epoch_train_loss.append(
             self.trainer.logged_metrics["train_loss_epoch"].item()
         )
@@ -363,6 +383,8 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits.squeeze(dim=1)
                 else:
                     outputs = outputs.squeeze(dim=1)
+            if torch.backends.mps.is_available():
+                labels = labels.to(torch.float32)
             loss = self.loss_function(outputs, labels)
 
         self.log(
@@ -390,9 +412,9 @@ class LightningModel(L.LightningModule):
             labels = labels.int()
         self.val_metric.update(outputs, labels)
         self.log(
-            f"val_{self.metric_label}_step",
+            f"val_{self.metric_label}",
             self.val_metric,
-            on_step=False,
+            on_step=True,
             on_epoch=True,
             logger=True,
             prog_bar=False,
@@ -406,7 +428,6 @@ class LightningModel(L.LightningModule):
         return loss
 
     def on_validation_epoch_end(self):
-        self.log(f"val_{self.metric_label}_epoch", self.val_metric, sync_dist=True)
         if not self.trainer.sanity_checking:
             self.epoch_val_loss.append(
                 self.trainer.logged_metrics["val_loss_epoch"].item()
@@ -483,6 +504,8 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.logits.squeeze(dim=1)
                 else:
                     outputs = outputs.squeeze(dim=1)
+            if torch.backends.mps.is_available():
+                labels = labels.to(torch.float32)
             loss = self.loss_function(outputs, labels)
         self.log(
             "test_loss", loss, on_step=True, on_epoch=True, logger=True, prog_bar=False
@@ -534,7 +557,10 @@ class LightningModel(L.LightningModule):
 
     def predict_step(self, batch, batch_idx):
         batch_start_time = time.time()
-        (input,) = batch
+        if self.model.task == "masked_lm":
+            input = batch["input_ids"]
+        else:
+            (input,) = batch
         outputs = self(input)
         if hasattr(outputs, "logits"):
             outputs = outputs.logits
@@ -591,7 +617,7 @@ class LightningModel(L.LightningModule):
     def initialize_lr_scheduler(self, optimizer):
         if optimizer is None:
             return None
-        return torch.optim.lr_scheduler.ConstantLR(optimizer)
+        return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: 1.0)
 
     def initialize_loss_function(self):
         if self.hparams.loss_f == "bce":
