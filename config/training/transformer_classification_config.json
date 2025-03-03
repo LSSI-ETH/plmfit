@@ -26,7 +26,7 @@
         "gradient_accumulation": false,
         "epoch_sizing": false,
         "early_stopping": 10,
-        "weights": "weights",
+        "weights": "random_weights",
         "sampler": true,
         "no_classes": 1
     }
