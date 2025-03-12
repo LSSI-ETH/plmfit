@@ -88,8 +88,7 @@ def fine_tune(args, logger):
     model = fine_tuner.prepare_model(model, target_layers=args.target_layers)
 
     utils.trainable_parameters_summary(model, logger)
-    model.py_model.task = task
-
+    
     model = LightningModel(
         model.py_model,
         training_params,
@@ -97,8 +96,24 @@ def fine_tune(args, logger):
         log_interval=100,
         experimenting=model.experimenting,
     )
+    # if args.checkpoint is not None:
+    #     # If ckpt_path is a zero checkpoint (check if it is a folder), convert it to fp32
+    #     checkpoint = args.checkpoint
+    #     if Path(args.checkpoint).is_dir():
+    #         convert_zero_checkpoint_to_fp32_state_dict(
+    #             args.checkpoint,
+    #             f"{logger.base_dir}/checkpoint.ckpt",
+    #         )
+    #         checkpoint = f"{logger.base_dir}/checkpoint.ckpt"
+    #     model = LightningModel.load_from_checkpoint(
+    #         checkpoint, 
+    #         model=model.model, 
+    #         plmfit_logger=logger, 
+    #         log_interval=100,
+    #         experimenting=model.experimenting,
+    #     )
     lightning_logger = TensorBoardLogger(
-        save_dir=logger.base_dir, version=0, name="lightning_logs"
+        save_dir=logger.base_dir, name="lightning_logs"
     )
 
     # TODO make this through the configuration defined
@@ -113,7 +128,7 @@ def fine_tune(args, logger):
         stage=3,
         offload_optimizer=True,
         offload_parameters=True,
-        load_full_weights=True,
+        load_full_weights=False,
         initial_scale_power=20,
         loss_scale_window=2000,
         min_loss_scale=0.25,
@@ -143,7 +158,7 @@ def fine_tune(args, logger):
 
     if args.evaluate != "True":
         model.train()
-        trainer.fit(model, data_loaders["train"], data_loaders["val"])
+        trainer.fit(model, data_loaders["train"], data_loaders["val"], ckpt_path=args.checkpoint)
 
         ckpt_path = f"{logger.base_dir}/lightning_logs/best_model.ckpt"
         if torch.cuda.is_available():
@@ -165,7 +180,6 @@ def fine_tune(args, logger):
                 ckpt_path,
                 f"{logger.base_dir}/best_model.ckpt",
             )
-            ckpt_path = f"{logger.base_dir}/best_model.ckpt"
 
     # TODO: Testing for lm
     if task != "masked_lm":

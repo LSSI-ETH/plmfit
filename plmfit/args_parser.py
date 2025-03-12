@@ -45,5 +45,6 @@ def parse_args():
     parser.add_argument('--hyperparam_config', default="hyperparam_config.json", type=str)
     parser.add_argument('--prediction_data', default=None, type=str)
     parser.add_argument('--batch_size', default=100, type=int, help="Batch size mainly used for prediction")
+    parser.add_argument('--checkpoint', type=str, default=None, help='Checkpoint file to resume training from')
 
     return parser.parse_args()
