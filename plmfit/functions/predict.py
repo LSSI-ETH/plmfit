@@ -163,7 +163,7 @@ def predict(args, logger):
         log_interval=100,
     )
     lightning_logger = TensorBoardLogger(
-        save_dir=logger.base_dir, version=0, name="lightning_logs"
+        save_dir=logger.base_dir, name="lightning_logs"
     )
 
     devices = args.gpus if torch.cuda.is_available() else 1
