@@ -37,6 +37,9 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from plmfit.shared_utils.samplers import LabelWeightedSampler
 from esm.utils import encoding
 from optuna.trial import Trial
+from lightning.pytorch.utilities.deepspeed import (
+    convert_zero_checkpoint_to_fp32_state_dict,
+)
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
@@ -65,50 +68,15 @@ def set_path(base_path):
     config_dir = os.getenv("CONFIG_DIR", "./config")
 
 
-#def load_dataset(data_type):
-    #try:
-        #return pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
-    #except:
-        #return pd.read_csv(data_type) # Assume it is a full path to dataset
-
-def load_dataset(data_type, data_dir=None):
-    """
-    Loads the dataset from a constructed path or directly from a full path.
-
-    Parameters:
-    - data_type (str): The type of dataset (e.g., 'RBDHC').
-    - data_dir (str): The directory containing the dataset. If not provided, it defaults to the environment variable DATA_DIR.
-    
-    Returns:
-    - pandas.DataFrame: Loaded dataset
-    """
-    # Default to the global data_dir if none is provided
-    if data_dir is None:
-        data_dir = os.getenv("DATA_DIR", "./data")
-
-    # Ensure data_dir is valid
-    if not data_dir:
-        raise ValueError("data_dir is not defined. Please provide a valid directory path.")
-    
-    # Construct the file path
-    file_path = os.path.join(data_dir, data_type, f"{data_type}_data_full.csv")
-
+def load_dataset(data_type):
     try:
-        # Try to load the dataset from the constructed path
-        if os.path.exists(file_path):
-            print(f"Loading dataset from {file_path}")
-            return pd.read_csv(file_path)
-        else:
-            raise FileNotFoundError(f"File not found: {file_path}")
-    
-    except Exception as e:
-        print(f"Error loading dataset from {file_path}: {str(e)}")
-        # If the file isn't found, check if data_type is a full path
-        if os.path.exists(data_type):
-            print(f"Loading dataset from the provided full path: {data_type}")
-            return pd.read_csv(data_type)
-        else:
-            raise FileNotFoundError(f"Dataset file {data_type} not found at the provided path.")
+        dataset = pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
+    except:
+        dataset = pd.read_csv(data_type) # Assume it is a full path to dataset
+    # If "len" column does not exist, calculate it based on the "aa_seq" column
+    if "len" not in dataset.columns and "aa_seq" in dataset.columns:
+        dataset["len"] = dataset["aa_seq"].apply(len)
+    return dataset
 
 def load_embeddings(
     emb_path=None,
@@ -1407,3 +1375,8 @@ def suggest_number_of_type(trial: Trial, name, min, max, type):
         return trial.suggest_float(name, min, max)
     else:
         raise ValueError("Type of hyperparameter not supported")
+
+def is_checkpoint_valid(ckpt_path, new_path=None):
+    # If directory run conversion
+    if os.path.isdir(ckpt_path):
+        convert_zero_checkpoint_to_fp32_state_dict(ckpt_path, new_path)
