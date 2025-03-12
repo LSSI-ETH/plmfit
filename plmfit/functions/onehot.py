@@ -227,7 +227,7 @@ def objective(
         log_interval=100 if not on_ray_tuning else -1,
     )
     lightning_logger = TensorBoardLogger(
-        save_dir=logger.base_dir, version=0, name="lightning_logs"
+        save_dir=logger.base_dir, name="lightning_logs"
     )
 
     # TODO make this through the configuration defined

@@ -36,6 +36,8 @@ def extract_embeddings(args, logger):
 
     data_loader = utils.create_predict_data_loader(encs, batch_size=args.batch_size)
 
+    model.py_model.task = "extract_embeddings"
+
     model = LightningModel(
         model.py_model,
         plmfit_logger=logger,
@@ -45,7 +47,7 @@ def extract_embeddings(args, logger):
     )
     model.eval()
     lightning_logger = TensorBoardLogger(
-        save_dir=logger.base_dir, version=0, name="lightning_logs"
+        save_dir=logger.base_dir, name="lightning_logs"
     )
 
     strategy = DeepSpeedStrategy(
