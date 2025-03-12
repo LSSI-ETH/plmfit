@@ -37,6 +37,9 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from plmfit.shared_utils.samplers import LabelWeightedSampler
 from esm.utils import encoding
 from optuna.trial import Trial
+from lightning.pytorch.utilities.deepspeed import (
+    convert_zero_checkpoint_to_fp32_state_dict,
+)
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
@@ -67,10 +70,13 @@ def set_path(base_path):
 
 def load_dataset(data_type):
     try:
-        return pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
+        dataset = pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
     except:
-        return pd.read_csv(data_type) # Assume it is a full path to dataset
-
+        dataset = pd.read_csv(data_type) # Assume it is a full path to dataset
+    # If "len" column does not exist, calculate it based on the "aa_seq" column
+    if "len" not in dataset.columns and "aa_seq" in dataset.columns:
+        dataset["len"] = dataset["aa_seq"].apply(len)
+    return dataset
 
 def load_embeddings(
     emb_path=None,
@@ -1333,3 +1339,8 @@ def suggest_number_of_type(trial: Trial, name, min, max, type):
         return trial.suggest_float(name, min, max)
     else:
         raise ValueError("Type of hyperparameter not supported")
+
+def is_checkpoint_valid(ckpt_path, new_path=None):
+    # If directory run conversion
+    if os.path.isdir(ckpt_path):
+        convert_zero_checkpoint_to_fp32_state_dict(ckpt_path, new_path)
