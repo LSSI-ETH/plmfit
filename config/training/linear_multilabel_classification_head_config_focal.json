@@ -10,7 +10,7 @@
     "learning_rate": 0.00005,
     "epochs": 200,
     "batch_size": 1024,
-    "loss_f": "masked_bce_logits",
+    "loss_f": "masked_focal_logits",
     "optimizer": "adam",
     "val_split": 0.2,
     "weight_decay": 0.01,

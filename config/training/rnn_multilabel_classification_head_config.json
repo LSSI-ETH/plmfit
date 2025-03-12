@@ -1,19 +1,21 @@
 {
-  "architecture_parameters":
-  {
-    "network_type": "linear",
+  "architecture_parameters": {
+    "network_type": "rnn",
+    "hidden_dim": 128,
     "output_dim": 8,
-    "task": "multilabel_classification"
+    "task": "multilabel_classification",
+    "dropout": 0,
+    "bidirectional": true,
+    "num_layers": 2
   },
-  "training_parameters":
-  {
-    "learning_rate": 0.00005,
+  "training_parameters": {
+    "learning_rate": 6.945946876809846e-05,
     "epochs": 200,
-    "batch_size": 1024,
+    "batch_size": 302,
     "loss_f": "masked_bce_logits",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 0.01,
+    "weight_decay": 6.523661693987702e-06,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,
