@@ -1,7 +1,7 @@
-torch==2.2.1
-accelerate==0.27.2
+torch==2.6.0
+accelerate==1.4.0
 libaio
-torchmetrics==1.6.1
+torchmetrics==1.6.2
 torchvision
 pandas
 matplotlib
@@ -27,8 +27,8 @@ botocore
 boto3
 paramiko
 bayesian-optimization
-lightning==2.2.1
-deepspeed==0.14.0
+lightning==2.5.0
+deepspeed==0.16.2
 Bio
 python-dotenv
 tensorboard
@@ -38,4 +38,3 @@ optuna
 optuna-integration[pytorch_lightning]
 plotly
 kaleido
-mlflow
