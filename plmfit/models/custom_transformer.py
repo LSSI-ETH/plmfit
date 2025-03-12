@@ -123,3 +123,87 @@ class TransformerModel(nn.Module):
             embeddings = self.pos_encoder(embeddings)
             encoded = self.transformer_encoder(embeddings, src_mask)
             return encoded.transpose(0, 1)
+        
+class TransformerPWFF(nn.Module):
+    """
+    A simple classifier architecture that uses a Transformer encoder, then applies
+    a position-wise feedforward (pwff) layer over the entire sequence, and finally
+    flattens the result for classification.
+    """
+
+    def __init__(
+        self,
+        num_classes: int,
+        vocab_size: int,
+        embd_dim: int,
+        nheads: int,
+        d_hid: int,
+        nlayers: int,
+        max_seq_len: int,
+        pwff_dim: int,
+        dropout: float = 0.5,
+        task: str = "classification",
+    ):
+        super().__init__()
+
+        # Transformer encoder backbone
+        self.encoder = TransformerModel(
+            vocab_size=vocab_size,
+            embd_dim=embd_dim,
+            nhead=nheads,
+            d_hid=d_hid,
+            nlayers=nlayers,
+            max_seq_len=max_seq_len,
+            dropout=dropout,
+        )
+
+        self.task = task
+
+        self.pwff = nn.Linear(embd_dim, pwff_dim)
+        self.act1 = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+
+        # Final classification layer
+        self.linear = nn.Linear(pwff_dim * max_seq_len, num_classes)
+
+    def from_config(config):
+        return TransformerPWFF(
+            num_classes=config["output_dim"],
+            vocab_size=config["vocab_size"],
+            embd_dim=config["embd_dim"],
+            nheads=config["nheads"],
+            d_hid=config["d_hid"],
+            nlayers=config["nlayers"],
+            max_seq_len=config["max_seq_len"],
+            pwff_dim=config["pwff_dim"],
+            dropout=config["dropout"],
+            task=config["task"],
+        )
+
+    def forward(self, src: Tensor) -> Tensor:
+        """
+        Args:
+            src (Tensor): Shape [batch_size, seq_len].
+
+        Returns:
+            Tensor: Logits of shape [batch_size, num_classes].
+        """
+        # Convert token IDs to int
+        src = src.to(torch.int8)
+
+        # Encode the sequence with the Transformer
+        enc_output = self.encoder(src)  # [batch_size, seq_len, embd_dim]
+
+        # Apply a feedforward layer to each position
+        pwff_output = self.dropout(
+            self.act1(self.pwff(enc_output))
+        )  # [batch_size, seq_len, pwff_dim]
+
+        # Flatten the sequence dimension
+        pwff_flatten = pwff_output.flatten(
+            start_dim=1
+        )  # [batch_size, seq_len * pwff_dim]
+
+        # Classify
+        logits = self.linear(pwff_flatten)  # [batch_size, num_classes]
+        return logits
