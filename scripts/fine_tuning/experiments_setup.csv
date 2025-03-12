@@ -1,2 +1,10 @@
 function	ft_method	target_layers	data_type	split	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-fine_tuning	lora	all	R1_240821	sampled	esm2_t33_650M_UR50D	linear	classification	lora_linear_mutliclassification_head_config.json	last	mean	/cluster/scratch/eirvine	6	rtx_4090	35g	1	72	False
+fine_tuning	lora	all	R1_filtered	random	esmc_300m	linear	classification	lora_linear_classification_head_config.json	last	bos	/cluster/scratch/eirvine	5	rtx_4090	15g	1	24	False
+fine_tuning	lora	all	FcRn6_filtered	random	esmc_300m	linear	classification	lora_linear_classification_head_config.json	last	bos	/cluster/scratch/eirvine	5	rtx_3090	15g	1	24	False
+fine_tuning	lora	all	R2AH_filtered	random	esmc_300m	linear	classification	lora_linear_classification_head_config.json	last	bos	/cluster/scratch/eirvine	3	quadro_rtx_6000	15g	1	24	False
+fine_tuning	lora	all	R2AR_filtered	random	esmc_300m	linear	classification	lora_linear_classification_head_config.json	last	bos	/cluster/scratch/eirvine	3	titan_rtx	15g	1	24	False
+fine_tuning	lora	all	R2B_filtered	random	esmc_300m	linear	classification	lora_linear_classification_head_config.json	last	bos	/cluster/scratch/eirvine	3	rtx_4090	15g	1	24	False
+fine_tuning	lora	all	R3AF_filtered	random	esmc_300m	linear	classification	lora_linear_classification_head_config.json	last	bos	/cluster/scratch/eirvine	3	rtx_3090	15g	1	24	False
+fine_tuning	lora	all	R3AV_filtered	random	esmc_300m	linear	classification	lora_linear_classification_head_config.json	last	bos	/cluster/scratch/eirvine	3	quadro_rtx_6000	15g	1	24	False
+fine_tuning	lora	all	R3B_filtered	random	esmc_300m	linear	classification	lora_linear_classification_head_config.json	last	bos	/cluster/scratch/eirvine	3	titan_rtx	15g	1	24	False
+fine_tuning	lora	all	FcRprofile_filtered	random	esmc_300m	linear	multilabel_classificationclassification	lora_linear_multilabel_classification_head_config.json	last	bos	/cluster/scratch/eirvine	5	rtx_4090	45g	1	72	False

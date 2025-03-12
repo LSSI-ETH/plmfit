@@ -23,7 +23,7 @@
     "scheduler": false,
     "scaler": false,
     "gradient_accumulation": false,
-    "epoch_sizing": 1000000,
+    "epoch_sizing": 1.0,
     "early_stopping": 10,
     "weights": "random_weights_per_label",
     "sampler": "label_weighted",

@@ -6,22 +6,23 @@
     "task": "classification",
     "dropout": 0
   },
-  "training_parameters":
+  "training_parameters": 
   {
-    "learning_rate": 0.0004722248137843737,
-    "epochs": 200,
-    "batch_size": 92,
+    "learning_rate": 0.0001,
+    "epochs": 10,
+    "batch_size": 4,
     "loss_f": "bce_logits",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 2.125324400687282e-05,
+    "weight_decay": 0.01,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,
     "scaler": false,
-    "gradient_accumulation": false,
-    "epoch_sizing": false,
-    "early_stopping": 10,
+    "gradient_accumulation": 1,
+    "early_stopping": 2,
+    "epoch_sizing": 1.0,
+    "model_output": "logits",
     "weights": "random_weights",
     "sampler": true,
     "no_classes": 1

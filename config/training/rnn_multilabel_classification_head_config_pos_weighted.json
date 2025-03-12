@@ -1,12 +1,12 @@
 {
   "architecture_parameters": {
-    "network_type": "mlp",
+    "network_type": "rnn",
+    "hidden_dim": 128,
     "output_dim": 8,
-    "hidden_dim": 1920,
-    "hidden_layers": 2,
     "task": "multilabel_classification",
-    "hidden_activation": "relu",
-    "hidden_dropout": 0.059925049927049015
+    "dropout": 0,
+    "bidirectional": true,
+    "num_layers": 2
   },
   "training_parameters": {
     "learning_rate": 6.945946876809846e-05,

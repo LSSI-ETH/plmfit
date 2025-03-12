@@ -1,2 +1,2 @@
 function	data_type	plm	reduction	layer	output_dir	gpus	gres	mem-per-cpu	batch_size
-extract_embeddings	FcRprofile_binary	esmc_300m	bos	last	/cluster/scratch/eirvine	1	80g	200g	2048
+extract_embeddings	250312_published_fclib_flag_df	esm2_t33_650M_UR50D	bos	last	/cluster/scratch/eirvine	1	20g	20g	128

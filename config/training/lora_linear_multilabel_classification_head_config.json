@@ -5,12 +5,12 @@
     "output_dim": 8,
     "task": "multilabel_classification"
   },
-  "training_parameters":
+  "training_parameters": 
   {
-    "learning_rate": 0.00005,
-    "epochs": 200,
-    "batch_size": 1024,
-    "loss_f": "masked_bce_logits",
+    "learning_rate": 0.0001,
+    "epochs": 10,
+    "batch_size": 4,
+    "loss_f": "masked_focal_logits",
     "optimizer": "adam",
     "val_split": 0.2,
     "weight_decay": 0.01,
@@ -18,9 +18,10 @@
     "gradient_clipping": false,
     "scheduler": false,
     "scaler": false,
-    "gradient_accumulation": false,
+    "gradient_accumulation": 1,
+    "early_stopping": 2,
     "epoch_sizing": 1.0,
-    "early_stopping": 10,
+    "model_output": "logits",
     "no_classes": 1,
     "no_labels": 8
   }
