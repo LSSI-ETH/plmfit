@@ -12,6 +12,60 @@ class WeightedBCELoss(nn.Module):
         loss = -2 * (self.weights[0] * (targets * torch.log(pred + EPS)) + self.weights[1] * (1 - targets) * torch.log(1 - pred +EPS))
         return loss.mean()
 
+class MaskedBCELoss(nn.Module):
+    """
+    Custom BCE loss that assumes the inputs are probabilities (i.e. no sigmoid is applied)
+    and ignores targets equal to ignore_index.
+    """
+    def __init__(self, reduction="mean", ignore_index=-100, pos_weight=None):
+        super(MaskedBCELoss, self).__init__()
+        self.reduction = reduction
+        self.ignore_index = ignore_index
+        if pos_weight is not None:
+            pos_weight_tensor = torch.tensor(pos_weight, dtype=torch.float)
+            # Register the tensor so it moves with the model.
+            self.register_buffer("pos_weight", pos_weight_tensor)
+        else:
+            self.pos_weight = None
+
+    def forward(self, probs, targets):
+        """
+        probs:   Tensor of shape [batch_size, num_labels] with probabilities (in [0,1]).
+        targets: Tensor of shape [batch_size, num_labels], where positions with the value 
+                 `ignore_index` will be ignored.
+        """
+        # Create a mask for valid targets.
+        mask = targets != self.ignore_index
+
+        # Clamp ignored targets to 0.0 so that BCE computation remains valid.
+        clamped_targets = targets.clone()
+        clamped_targets[~mask] = 0.0
+
+        # To avoid log(0) issues, clamp probabilities to a small epsilon.
+        eps = 1e-7
+        probs = probs.clamp(min=eps, max=1 - eps)
+
+        # Compute the element-wise BCE loss.
+        # If pos_weight is provided, weight the positive examples accordingly.
+        if self.pos_weight is not None:
+            element_loss = - (clamped_targets * self.pos_weight * torch.log(probs) +
+                              (1 - clamped_targets) * torch.log(1 - probs))
+        else:
+            element_loss = - (clamped_targets * torch.log(probs) +
+                              (1 - clamped_targets) * torch.log(1 - probs))
+
+        # Apply the mask to zero out loss for ignored targets.
+        masked_loss = element_loss * mask.float()
+
+        # Reduce the loss over the valid elements.
+        if self.reduction == "mean":
+            loss = masked_loss.sum() / mask.sum().float()
+        elif self.reduction == "sum":
+            loss = masked_loss.sum()
+        else:  # "none": return the full loss matrix.
+            loss = masked_loss
+
+        return loss
 
 class MaskedBCEWithLogitsLoss(nn.Module):
     """
