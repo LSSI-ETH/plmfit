@@ -1,4 +1,4 @@
-torch==2.6.0
+torch==2.5.1
 accelerate==1.4.0
 libaio
 torchmetrics==1.6.2
@@ -7,7 +7,7 @@ pandas
 matplotlib
 numpy==1.26.4
 scipy
-transformers
+transformers==4.49.0 
 tokenizers
 scikit-learn
 seaborn
@@ -28,7 +28,7 @@ boto3
 paramiko
 bayesian-optimization
 lightning==2.5.0
-deepspeed==0.16.2
+deepspeed==0.16.3
 Bio
 python-dotenv
 tensorboard
