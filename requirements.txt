@@ -3,6 +3,7 @@ accelerate==1.4.0
 libaio
 torchmetrics==1.6.2
 torchvision
+torchaudio
 pandas
 matplotlib
 numpy==1.26.4
