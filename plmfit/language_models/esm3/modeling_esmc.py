@@ -59,7 +59,7 @@ class PlmfitEsmCForSequenceClassification(ESMC):
     def from_pretrained(
         cls, model_name, device: torch.device | None = None
     ):
-        from plmfit.language_models.esmC.pretrained import load_local_model
+        from plmfit.language_models.esm3.pretrained import load_local_model
 
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -171,7 +171,7 @@ class PlmfitEsmCForEmbdeddingsExtraction(ESMC):
 
     @classmethod
     def from_pretrained(cls, model_name, device: torch.device | None = None):
-        from plmfit.language_models.esmC.pretrained import load_local_model
+        from plmfit.language_models.esm3.pretrained import load_local_model
 
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

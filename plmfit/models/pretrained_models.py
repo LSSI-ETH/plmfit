@@ -16,7 +16,7 @@ from plmfit.language_models.esm.modeling_esm import (
     PlmfitEsmForTokenClassification,
     PlmfitEsmForEmbdeddingsExtraction,
 )
-from plmfit.language_models.esmC.modeling_esmc import (
+from plmfit.language_models.esm3.modeling_esmc import (
     PlmfitEsmCForSequenceClassification,
     PlmfitEsmCForEmbdeddingsExtraction,
 )
