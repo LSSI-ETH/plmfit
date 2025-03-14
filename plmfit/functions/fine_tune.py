@@ -8,7 +8,7 @@ from plmfit.models.fine_tuners import (
 )
 from lightning import Trainer
 from lightning.pytorch.loggers import TensorBoardLogger
-from lightning.pytorch.utilities.deepspeed import (
+from plmfit.shared_utils.deepspeed import (
     convert_zero_checkpoint_to_fp32_state_dict,
 )
 from deepspeed.runtime.zero.stage3 import estimate_zero3_model_states_mem_needs_all_live
@@ -157,7 +157,7 @@ def fine_tune(args, logger):
         stage=3,
         offload_optimizer=True,
         offload_parameters=True,
-        load_full_weights=False,
+        load_full_weights=args.evaluate=="True",
         initial_scale_power=20,
         loss_scale_window=2000,
         min_loss_scale=0.25,
@@ -206,7 +206,6 @@ def fine_tune(args, logger):
                 f"{logger.base_dir}/lightning_logs/best_model.ckpt",
                 f"{logger.base_dir}/best_model.ckpt",
             )
-            ckpt_path = f"{logger.base_dir}/best_model.ckpt"
 
             loss_plot = data_explore.create_loss_plot(
                 json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
@@ -220,6 +219,7 @@ def fine_tune(args, logger):
                 ckpt_path,
                 f"{logger.base_dir}/best_model.ckpt",
             )
+            ckpt_path = f"{logger.base_dir}/best_model.ckpt"
 
     # TODO: Testing for lm
     if task != "masked_lm":

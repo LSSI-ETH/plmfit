@@ -37,7 +37,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from plmfit.shared_utils.samplers import LabelWeightedSampler
 from esm.utils import encoding
 from optuna.trial import Trial
-from lightning.pytorch.utilities.deepspeed import (
+from plmfit.shared_utils.deepspeed import (
     convert_zero_checkpoint_to_fp32_state_dict,
 )
 
@@ -808,6 +808,7 @@ def categorical_encode(
         pad_token = tokenizer.get_vocab()["<pad>"]
     elif "esmc" in model_name:
         pad_token = tokenizer.pad_token_id
+        print(tokenizer, flush=True)
     else:
         raise ValueError("Model tokenizer not defined")
 
