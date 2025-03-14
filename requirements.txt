@@ -1,4 +1,4 @@
-torch==2.5.1
+torch==2.6.0
 accelerate==1.4.0
 libaio
 torchmetrics==1.6.2
@@ -7,7 +7,7 @@ pandas
 matplotlib
 numpy==1.26.4
 scipy
-transformers==4.49.0 
+transformers>=4.46.0 
 tokenizers
 scikit-learn
 seaborn
