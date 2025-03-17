@@ -15,8 +15,8 @@
             "batch_size": {
                 "type": "int",
                 "range": [
-                    16,
-                    512
+                    128,
+                    1024
                 ]
             },
             "weight_decay": {
@@ -66,8 +66,8 @@
             "batch_size": {
                 "type": "int",
                 "range": [
-                    16,
-                    512
+                    128,
+                    1024
                 ]
             },
             "weight_decay": {
@@ -117,8 +117,8 @@
             "batch_size": {
                 "type": "int",
                 "range": [
-                    16,
-                    512
+                    128,
+                    1024
                 ]
             },
             "weight_decay": {
@@ -184,8 +184,8 @@
             "batch_size": {
                 "type": "int",
                 "range": [
-                    16,
-                    512
+                    128,
+                    1024
                 ]
             },
             "weight_decay": {
