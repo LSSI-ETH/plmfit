@@ -36,6 +36,9 @@ class MaskedBCELoss(nn.Module):
         """
         # Create a mask for valid targets.
         mask = targets != self.ignore_index
+        
+        if mask.sum() == 0:
+            return torch.tensor(0.0, device=probs.device, dtype=probs.dtype)
 
         # Clamp ignored targets to 0.0 so that BCE computation remains valid.
         clamped_targets = targets.clone()
