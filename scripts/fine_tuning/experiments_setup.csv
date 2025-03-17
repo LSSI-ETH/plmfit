@@ -7,4 +7,4 @@ fine_tuning	lora	all	R2B_filtered	random	esmc_300m	linear	classification	lora_li
 fine_tuning	lora	all	R3AF_filtered	random	esmc_300m	linear	classification	lora_linear_classification_head_config.json	last	bos	/cluster/scratch/eirvine	3	rtx_3090	15g	1	24	False
 fine_tuning	lora	all	R3AV_filtered	random	esmc_300m	linear	classification	lora_linear_classification_head_config.json	last	bos	/cluster/scratch/eirvine	3	quadro_rtx_6000	15g	1	24	False
 fine_tuning	lora	all	R3B_filtered	random	esmc_300m	linear	classification	lora_linear_classification_head_config.json	last	bos	/cluster/scratch/eirvine	3	titan_rtx	15g	1	24	False
-fine_tuning	lora	all	FcRprofile_filtered	random	esmc_300m	linear	multilabel_classificationclassification	lora_linear_multilabel_classification_head_config.json	last	bos	/cluster/scratch/eirvine	5	rtx_4090	45g	1	72	False
+fine_tuning	lora	all	FcRprofile_filtered	random	esmc_300m	linear	multilabel_classification	lora_linear_multilabel_classification_head_config.json	last	bos	/cluster/scratch/eirvine	6	quadro_rtx_6000	20g	1	72	False

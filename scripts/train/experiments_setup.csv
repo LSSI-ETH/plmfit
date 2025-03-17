@@ -55,7 +55,6 @@ one_hot	R2B_noisy	random	mlp	classification	mlp_classification_head_config.json	
 one_hot	R3AF_noisy	random	mlp	classification	mlp_classification_head_config.json	True	/cluster/scratch/eirvine	1	quadro_rtx_6000	50g	1	72	False
 one_hot	R3AV_noisy	random	mlp	classification	mlp_classification_head_config.json	True	/cluster/scratch/eirvine	1	titan_rtx	50g	1	72	False
 one_hot	R3B_noisy	random	mlp	classification	mlp_classification_head_config.json	True	/cluster/scratch/eirvine	1	titan_rtx	50g	1	72	False
-one_hot	FcRprofile_noisy	random	mlp	multilabel_classification	mlp_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	1	rtx_4090	75g	1	72	False
 one_hot	R1_noisy	random	rnn	classification	rnn_classification_head_config.json	True	/cluster/scratch/eirvine	1	rtx_4090	50g	1	72	False
 one_hot	FcRn6_noisy	random	rnn	classification	rnn_classification_head_config.json	True	/cluster/scratch/eirvine	1	rtx_4090	50g	1	72	False
 one_hot	R2AH_noisy	random	rnn	classification	rnn_classification_head_config.json	True	/cluster/scratch/eirvine	1	rtx_3090	50g	1	72	False
@@ -80,6 +79,7 @@ categorical_train	R2B_noisy	random	transformer	classification	transformer_classi
 categorical_train	R3AF_noisy	random	transformer	classification	transformer_classification_config.json	True	/cluster/scratch/eirvine	1	quadro_rtx_6000	50g	1	72	False
 categorical_train	R3AV_noisy	random	transformer	classification	transformer_classification_config.json	True	/cluster/scratch/eirvine	1	titan_rtx	50g	1	72	False
 categorical_train	R3B_noisy	random	transformer	classification	transformer_classification_config.json	True	/cluster/scratch/eirvine	1	titan_rtx	50g	1	72	False
-one_hot	FcRprofile_noisy	random	linear	multilabel_classification	linear_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	1	rtx_4090	75g	1	72	False
-one_hot	FcRprofile_noisy	random	rnn	multilabel_classification	rnn_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	1	rtx_3090	75g	1	72	False
-categorical_train	FcRprofile_noisy	random	transformer	multilabel_classification	transformer_multilabel_classification_config.json	True	/cluster/scratch/eirvine	1	rtx_4090	75g	1	72	False
+one_hot	FcRprofile_noisy	random	mlp	multilabel_classification	mlp_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	1	quadro_rtx_6000	65g	1	72	False
+one_hot	FcRprofile_noisy	random	linear	multilabel_classification	linear_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	1	rtx_3090	65g	1	72	False
+one_hot	FcRprofile_noisy	random	rnn	multilabel_classification	rnn_multilabel_classification_head_config.json	True	/cluster/scratch/eirvine	1	rtx_4090	65g	1	72	False
+categorical_train	FcRprofile_noisy	random	transformer	multilabel_classification	transformer_multilabel_classification_config.json	True	/cluster/scratch/eirvine	1	quadro_rtx_6000	65g	1	72	False

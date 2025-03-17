@@ -208,6 +208,11 @@ def fine_tune(args, logger):
             json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
         )
         logger.save_plot(fig, "confusion_matrix")
+    elif task == "multilabel_classification":
+        fig = data_explore.plot_confusion_matrix_heatmap(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
+        )
+        logger.save_plot(fig, "confusion_matrix")
 
     if torch.cuda.is_available():
         shutil.rmtree(f"{logger.base_dir}/lightning_logs/best_model.ckpt")
@@ -253,6 +258,12 @@ def downstream_prep(
             prepend_single_pad=True,
             append_single_pad=True,
         )
+    elif task == "multilabel_classification":
+        # Labels are all columns starting with 'label_'
+        scores = data[[col for col in data.columns if "label_" in col]].values
+
+        # Replace -1 with -100
+        scores[scores == -1] = -100
     else:
         raise ValueError("Task not supported")
 
