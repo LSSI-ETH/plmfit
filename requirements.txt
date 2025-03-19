@@ -29,7 +29,7 @@ boto3
 paramiko
 bayesian-optimization
 lightning==2.5.0
-deepspeed==0.16.3
+deepspeed==0.16.4
 Bio
 python-dotenv
 tensorboard
