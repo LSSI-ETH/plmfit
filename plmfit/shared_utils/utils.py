@@ -1314,8 +1314,9 @@ def create_mlm_data_loaders(
 
 def data_pipeline(dataset, split=None, weights=None, sampler=None, dev=False):
     # Load dataset
+    global dataset_test
     dataset = load_dataset(dataset)
-
+    dataset_test = dataset["test"].reset_index(drop=True)
     # For development purposes, we can sample the dataset to speed up the process
     if dev:
         dataset = dataset[:100000]
@@ -1345,3 +1346,7 @@ def is_checkpoint_valid(ckpt_path, new_path=None):
     # If directory run conversion
     if os.path.isdir(ckpt_path):
         convert_zero_checkpoint_to_fp32_state_dict(ckpt_path, new_path)
+
+def get_test_dataset():
+    # Return only the test dataset
+    return dataset_test
