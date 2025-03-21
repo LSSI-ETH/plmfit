@@ -20,6 +20,7 @@
     "epoch_sizing": 1.0,
     "early_stopping": 10,
     "no_classes": 1,
-    "no_labels": 8
+    "no_labels": 8,
+    "extra_divisions": ["is_monotone", "is_mixed", "is_wanted", "is_literature"]
   }
 }
