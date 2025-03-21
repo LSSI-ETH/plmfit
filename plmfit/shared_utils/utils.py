@@ -1360,9 +1360,9 @@ def data_pipeline(dataset, split=None, weights=None, sampler=None, dev=False):
     split = (
         None if split == "sampled" and "sampled" not in dataset else dataset.get(split)
     )
-    
+
     if split is not None:
-        dataset_test = dataset[dataset[split] == "test"].reset_index(drop=True)
+        dataset_test = dataset[split == "test"].reset_index(drop=True)
 
     # If weights are provided, load them
     weights = None if weights is None else dataset.get(weights)
