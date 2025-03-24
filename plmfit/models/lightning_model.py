@@ -94,6 +94,7 @@ class LightningModel(L.LightningModule):
 
         self.track_validation_after = 0
         self.track_training_loss = False
+        self.epoch_start_time = 0
 
 
     def forward(self, input, **args):
