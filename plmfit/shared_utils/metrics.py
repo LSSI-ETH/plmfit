@@ -287,13 +287,13 @@ class MultilabelClassificationMetrics(BaseMetrics):
             # Get the dataset reference (assumed to be available via a helper function)
             dataset = get_test_dataset()  
             # Get the set of valid IDs based on the division column condition (1/True)
-            valid_ids = set(dataset.loc[dataset[division] == 1, 'id'].tolist())
-            
+            valid_ids = set(dataset.loc[dataset[division] == 1].index.tolist())
+
             # Convert tensors to lists for easier filtering
             preds_list = preds.tolist()
             actual_list = actual.tolist()
             ids_list = ids.tolist()
-            
+
             # Filter out predictions, actuals, and ids for valid ids only
             filtered_preds = []
             filtered_actual = []
@@ -303,7 +303,7 @@ class MultilabelClassificationMetrics(BaseMetrics):
                     filtered_preds.append(pred)
                     filtered_actual.append(act)
                     filtered_ids.append(id_)
-            
+
             self.preds_list.extend(filtered_preds)
             self.actual_list.extend(filtered_actual)
             self.ids.extend(filtered_ids)
