@@ -561,7 +561,7 @@ class LightningModel(L.LightningModule):
             outputs = torch.sigmoid(outputs)
             labels = labels.int()
         self.metrics.add(outputs, labels, ids)
-        if self.extra_metrics:
+        if hasattr(self, "extra_metrics"):
             for value, metric in self.extra_metrics.items():
                 metric.add(outputs, labels, ids, value)
 
@@ -578,7 +578,7 @@ class LightningModel(L.LightningModule):
         self.metrics.ids = self.merge_lists(self.metrics.ids)
         metrics = self.metrics.get_metrics(device=self.device)
         
-        if self.extra_metrics:
+        if hasattr(self, "extra_metrics"):
             extra_metrics = {}
             for value, metric in self.extra_metrics.items():
                 metric.preds_list = self.merge_lists(metric.preds_list)
@@ -596,7 +596,7 @@ class LightningModel(L.LightningModule):
             self.metrics.save_metrics(
                 path=f"{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}"
             )
-            if self.extra_metrics:
+            if hasattr(self, "extra_metrics"):
                 for value, metric in extra_metrics.items():
                     self.plmfit_logger.save_data(metric["main"], f"metrics_{value}")
                 for value, metric in self.extra_metrics.items():

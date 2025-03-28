@@ -272,6 +272,17 @@ class MultilabelClassificationMetrics(BaseMetrics):
         self.cm = MultilabelConfusionMatrix(
             num_labels=self.no_labels, ignore_index=-100
         )
+        
+    def to_device(self, device):
+        self.macro_acc = self.macro_acc.to(device)
+        self.micro_acc = self.micro_acc.to(device)
+        self.mcc = self.mcc.to(device)
+        self.exact_match = self.exact_match.to(device)
+        self.macro_f1 = self.macro_f1.to(device)
+        self.micro_f1 = self.micro_f1.to(device)
+        self.per_label_acc = self.per_label_acc.to(device)
+        self.per_label_f1 = self.per_label_f1.to(device)
+        self.cm = self.cm.to(device)
 
     def add(self, preds, actual, ids, division=None):
         """
@@ -287,7 +298,7 @@ class MultilabelClassificationMetrics(BaseMetrics):
             # Get the dataset reference (assumed to be available via a helper function)
             dataset = get_test_dataset()  
             # Get the set of valid IDs based on the division column condition (1/True)
-            valid_ids = set(dataset.loc[dataset[division] == 1, 'id'].tolist())
+            valid_ids = set(dataset.loc[dataset[division] == 1].index.tolist())
             
             # Convert tensors to lists for easier filtering
             preds_list = preds.tolist()
@@ -333,8 +344,9 @@ class MultilabelClassificationMetrics(BaseMetrics):
         Compute per-label MCC by iterating over each label column using a binary MCC metric.
         """
         per_label_mcc = []
+        device = preds.device  # Ensure the metric is on the same device as preds
         for i in range(self.no_labels):
-            binary_mcc = BinaryMatthewsCorrCoef(ignore_index=-100)
+            binary_mcc = BinaryMatthewsCorrCoef(ignore_index=-100).to(device)
             binary_mcc.update(preds[:, i], actual[:, i])
             per_label_mcc.append(binary_mcc.compute().item())
         return per_label_mcc
@@ -342,6 +354,7 @@ class MultilabelClassificationMetrics(BaseMetrics):
     def get_metrics(self, device="cpu"):
         preds_tensor = torch.tensor(self.preds_list, device=device)
         actual_tensor = torch.tensor(self.actual_list, device=device)
+        self.to_device(device)
         self.calculate(preds_tensor, actual_tensor)
 
         # Compute per-label MCC and macro MCC manually
