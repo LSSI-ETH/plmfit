@@ -96,22 +96,9 @@ def fine_tune(args, logger):
         log_interval=100,
         experimenting=model.experimenting,
     )
-    # if args.checkpoint is not None:
-    #     # If ckpt_path is a zero checkpoint (check if it is a folder), convert it to fp32
-    #     checkpoint = args.checkpoint
-    #     if Path(args.checkpoint).is_dir():
-    #         convert_zero_checkpoint_to_fp32_state_dict(
-    #             args.checkpoint,
-    #             f"{logger.base_dir}/checkpoint.ckpt",
-    #         )
-    #         checkpoint = f"{logger.base_dir}/checkpoint.ckpt"
-    #     model = LightningModel.load_from_checkpoint(
-    #         checkpoint, 
-    #         model=model.model, 
-    #         plmfit_logger=logger, 
-    #         log_interval=100,
-    #         experimenting=model.experimenting,
-    #     )
+    if args.model_path is not None:
+        checkpoint = torch.load(args.model_path, map_location="cpu", weights_only=False)
+        model.load_state_dict(checkpoint['state_dict'])
     lightning_logger = TensorBoardLogger(
         save_dir=logger.base_dir, name="lightning_logs"
     )
@@ -123,12 +110,16 @@ def fine_tune(args, logger):
         model.track_validation_after = -1
     if args.data_type == "herH3" and args.split == "one_vs_rest":
         model.track_validation_after = -1
+    
+    load_full_weights = True
+    if args.evaluate != "True" and args.model_path is None and args.checkpoint is not None:
+        load_full_weights = False
 
     strategy = DeepSpeedStrategy(
         stage=3,
         offload_optimizer=True,
         offload_parameters=True,
-        load_full_weights=args.evaluate=="True",
+        load_full_weights=load_full_weights,
         initial_scale_power=20,
         loss_scale_window=2000,
         min_loss_scale=0.25,
@@ -166,7 +157,7 @@ def fine_tune(args, logger):
                 f"{logger.base_dir}/lightning_logs/best_model.ckpt",
                 f"{logger.base_dir}/best_model.ckpt",
             )
-
+            ckpt_path = f"{logger.base_dir}/best_model.ckpt"
             loss_plot = data_explore.create_loss_plot(
                 json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
             )
@@ -214,9 +205,9 @@ def fine_tune(args, logger):
         )
         logger.save_plot(fig, "confusion_matrix")
 
-    if torch.cuda.is_available():
-        shutil.rmtree(f"{logger.base_dir}/lightning_logs/best_model.ckpt")
-        shutil.rmtree(f"{logger.base_dir}/lightning_logs/version_0/checkpoints")
+    # if torch.cuda.is_available():
+    #     shutil.rmtree(f"{logger.base_dir}/lightning_logs/best_model.ckpt")
+    #     shutil.rmtree(f"{logger.base_dir}/lightning_logs/version_0/checkpoints")
 
 
 def downstream_prep(
