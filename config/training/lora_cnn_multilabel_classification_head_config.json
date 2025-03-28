@@ -1,7 +1,12 @@
 {
   "architecture_parameters":
   {
-    "network_type": "linear",
+    "network_type": "cnn",
+    "num_filters": 32,
+    "kernel_size": 3,
+    "dropout": 0.25,
+    "hidden_activation": "relu",
+    "num_conv_layers": 2,
     "output_dim": 8,
     "task": "multilabel_classification"
   },
@@ -23,7 +28,6 @@
     "epoch_sizing": 1.0,
     "model_output": "logits",
     "no_classes": 1,
-    "no_labels": 8,
-    "extra_divisions": ["is_wanted"]
+    "no_labels": 8
   }
 }
