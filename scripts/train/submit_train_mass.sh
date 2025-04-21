@@ -23,6 +23,9 @@ do
          --gpus-per-node=$gres:$gpus \
          --time=$run_time:00:00 \
          scripts/train/train_mass.sh \
-         "$function" "$head_config" "$ray_tuning" "$data_type" "$split" "$output_dir" "$experiment_dir" "$experiment_name" "$gpus" "$nodes" "$experimenting"
+         "$function" "$head_config" "$ray_tuning" "$data_type" "$split" "$output_dir" "$experiment_dir" "$experiment_name" "$gpus" "$nodes" "$experimenting" "$model_path" "$eval_name"
   sleep 2
 done
+
+#one_hot	RBDDS	default	mlp	classification	RBD_mlp_classification_head_config_weighted.json	True	/cluster/scratch/askrika/DS	1	rtx_4090	100g	1	72	False
+#"$function" "$head_config" "$ray_tuning" "$data_type" "$split" "$output_dir" "$experiment_dir" "$experiment_name" "$gpus" "$nodes" "$experimenting"
