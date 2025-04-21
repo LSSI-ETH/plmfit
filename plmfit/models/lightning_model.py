@@ -510,7 +510,7 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
-            input, labels, ids = batch
+            input, labels, _, ids = batch
             outputs = self(input)
 
             # No squeezing, leave logits as is for CrossEntropyLoss
