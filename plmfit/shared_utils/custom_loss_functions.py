@@ -30,7 +30,7 @@ class MaskedBCEWithLogitsLoss(nn.Module):
         else:
             self.pos_weight = None
 
-    def forward(self, logits, targets):
+    def forward(self, logits, targets,sample_weight=None):
         """
         logits:   shape [batch_size, num_labels]
         targets:  shape [batch_size, num_labels], with ignore_index in some places
@@ -50,6 +50,12 @@ class MaskedBCEWithLogitsLoss(nn.Module):
 
         # Zero out ignored labels
         masked_loss = element_loss * mask 
+
+        # Apply sample weights, if provided
+        if sample_weight is not None:
+            if sample_weight.ndim == 1:
+                sample_weight = sample_weight.unsqueeze(1)
+            masked_loss = masked_loss * sample_weight
 
         # 3) Reduce over the valid elements only
         if self.reduction == "mean":
