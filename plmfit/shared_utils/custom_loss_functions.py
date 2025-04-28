@@ -28,7 +28,7 @@ class MaskedBCELoss(nn.Module):
         else:
             self.pos_weight = None
 
-    def forward(self, probs, targets):
+    def forward(self, probs, targets, sample_weight=None):
         """
         probs:   Tensor of shape [batch_size, num_labels] with probabilities (in [0,1]).
         targets: Tensor of shape [batch_size, num_labels], where positions with the value 
@@ -59,6 +59,12 @@ class MaskedBCELoss(nn.Module):
 
         # Apply the mask to zero out loss for ignored targets.
         masked_loss = element_loss * mask.float()
+        
+        # Apply sample weights, if provided
+        if sample_weight is not None:
+            if sample_weight.ndim == 1:
+                sample_weight = sample_weight.unsqueeze(1)
+            masked_loss = masked_loss * sample_weight
 
         # Reduce the loss over the valid elements.
         if self.reduction == "mean":
