@@ -31,26 +31,26 @@
     "mlp": {
         "n_trials": 200,
         "epochs_fragment": 0.2,
-        "epoch_sizing": 0.01,
+        "epoch_sizing": 0.25,
         "architecture_parameters": {
             "hidden_dim": {
                 "type": "int",
                 "range": [
-                    64,
+                    512,
                     2048
                 ]
             },
             "hidden_layers": {
                 "type": "int",
                 "range": [
-                    1,
-                    4
+                    2,
+                    8
                 ]
             },
             "hidden_dropout": {
                 "type": "float",
                 "range": [
-                    0.0,
+                    0.1,
                     1.0
                 ]
             }

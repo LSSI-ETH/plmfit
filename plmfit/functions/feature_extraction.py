@@ -14,9 +14,10 @@ from plmfit.shared_utils import utils, data_explore
 from plmfit.logger import LogOptunaTrialCallback
 import gc
 import copy
-
+import numpy as np
 
 def feature_extraction(args, logger):
+    print(f"Using embeddings path: {args.embeddings_path}")
     head_config = utils.load_config(f"training/{args.head_config}")
     task = head_config["architecture_parameters"]["task"]
 

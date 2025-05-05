@@ -1,18 +1,18 @@
 {
   "architecture_parameters": {
     "network_type": "linear",
-    "output_dim": 4,
-    "task": "multilabel_classification",
+    "output_dim": 1,
+    "task": "classification",
     "dropout": 0
   },
   "training_parameters": {
-    "learning_rate": 0.0001,
+    "learning_rate": 0.001,
     "epochs": 20,
     "batch_size": 4,
     "loss_f": "bce_logits",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 0.01,
+    "weight_decay": 0.001,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,
@@ -20,8 +20,6 @@
     "gradient_accumulation": false,
     "epoch_sizing": false,
     "early_stopping": 5,
-    "model_output": "logits",
-    "no_classes": 1,
-    "no_labels":4
+    "model_output": "logits"
   }
 }

@@ -38,6 +38,18 @@ python3 plmfit --function $1 --head_config $2 \
         --data_type $4 --split $5 --ray_tuning $3 \
         --output_dir ${6} --experiment_dir ${7} --experiment_name ${8} \
         --gpus ${9} --nodes ${10} --beta True --experimenting ${11}
+<<<<<<< Updated upstream
+=======
+
+#python3 plmfit --function $1 --head_config $2 \
+        #--data_type $4 --split $5 --ray_tuning $3 \
+        #--output_dir "${6}" --experiment_dir "${7}" --experiment_name "${8}" \
+        #--gpus "${9}" --nodes "${10}" --beta True --experimenting "${11}" \
+        #--model_path "${12}" --evaluate "${13}"
+
+       
+
+>>>>>>> Stashed changes
 
 kill $NVIDIA_SMI_PID
 kill $CPU_FREE_PID

@@ -38,6 +38,7 @@ def run_predict(args, logger):
 
 def main():
     args = parse_args()
+    print(f"Parsed arguments: {args}")
     experiment_dir = args.experiment_dir
     if not os.path.exists(experiment_dir):
         os.makedirs(experiment_dir, exist_ok=True)

@@ -73,16 +73,19 @@ class MLP(nn.Module):
     def init_weights(self):
         """Initialize weights using Xavier initialization for internal layers 
         and near-zero initialization for the output layer."""
-        random_state = get_random_state()
+        #random_state = get_random_state()
+        torch_generator = torch.Generator()
+        torch_generator.manual_seed(42)
+
         for i, layer in enumerate(self.layers):
             if isinstance(layer, nn.Linear):
                 if i == len(self.layers) - 2:  # Check if it's the output layer
                     # Initialize output layer weights near zero for classification
-                    init.normal_(layer.weight, mean=0.0, std=0.01, generator=random_state)
+                    init.normal_(layer.weight, mean=0.0, std=0.01, generator=torch_generator)
                     init.constant_(layer.bias, 0)
                 else:
                     # Xavier initialization for internal layers
-                    init.xavier_uniform_(layer.weight, generator=random_state)
+                    init.xavier_uniform_(layer.weight, generator=torch_generator)
                     if layer.bias is not None:
                         init.constant_(layer.bias, 0)
 

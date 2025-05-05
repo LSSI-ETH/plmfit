@@ -65,12 +65,50 @@ def set_path(base_path):
     config_dir = os.getenv("CONFIG_DIR", "./config")
 
 
-def load_dataset(data_type):
-    try:
-        return pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
-    except:
-        return pd.read_csv(data_type) # Assume it is a full path to dataset
+#def load_dataset(data_type):
+    #try:
+        #return pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
+    #except:
+        #return pd.read_csv(data_type) # Assume it is a full path to dataset
 
+def load_dataset(data_type, data_dir=None):
+    """
+    Loads the dataset from a constructed path or directly from a full path.
+
+    Parameters:
+    - data_type (str): The type of dataset (e.g., 'RBDHC').
+    - data_dir (str): The directory containing the dataset. If not provided, it defaults to the environment variable DATA_DIR.
+    
+    Returns:
+    - pandas.DataFrame: Loaded dataset
+    """
+    # Default to the global data_dir if none is provided
+    if data_dir is None:
+        data_dir = os.getenv("DATA_DIR", "./data")
+
+    # Ensure data_dir is valid
+    if not data_dir:
+        raise ValueError("data_dir is not defined. Please provide a valid directory path.")
+    
+    # Construct the file path
+    file_path = os.path.join(data_dir, data_type, f"{data_type}_data_full.csv")
+
+    try:
+        # Try to load the dataset from the constructed path
+        if os.path.exists(file_path):
+            print(f"Loading dataset from {file_path}")
+            return pd.read_csv(file_path)
+        else:
+            raise FileNotFoundError(f"File not found: {file_path}")
+    
+    except Exception as e:
+        print(f"Error loading dataset from {file_path}: {str(e)}")
+        # If the file isn't found, check if data_type is a full path
+        if os.path.exists(data_type):
+            print(f"Loading dataset from the provided full path: {data_type}")
+            return pd.read_csv(data_type)
+        else:
+            raise FileNotFoundError(f"Dataset file {data_type} not found at the provided path.")
 
 def load_embeddings(
     emb_path=None,
@@ -142,9 +180,16 @@ def create_data_loaders(
     Returns:
         dict: Dictionary containing DataLoader objects for train, validation, and test.
     """
-    random_state = get_random_state()
+    seed = 42
+    random_state = np.random.RandomState(seed)  # for train_test_split
+    torch_generator = torch.Generator().manual_seed(seed)  # for DataLoader
+
+    print("Before splitting:")
+    print(f"Dataset length: {len(dataset)}")
+    print(f"Scores length: {len(scores)}")
+
     if split is None:
-        random_state = get_numpy_random_state()
+        #random_state = get_numpy_random_state()
         X_train, X_test, y_train, y_test = train_test_split(
             dataset, scores, test_size=test_size, random_state=random_state
         )
@@ -154,6 +199,10 @@ def create_data_loaders(
             test_size=validation_size / (1 - test_size),
             random_state=random_state,
         )
+        print("\n=== DEBUG: After splitting ===")
+        print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+        print(f"X_val shape: {X_val.shape}, y_val shape: {y_val.shape}")
+        print(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
 
         if weights is not None:
             # Splitting with weights for the initial train-test split
@@ -166,6 +215,7 @@ def create_data_loaders(
                     random_state=random_state,
                 )
             )
+            print(f"Train weights shape: {weights_train.shape}, Test weights shape: {weights_test.shape}")
 
             # Splitting with weights for the train-validation split
             X_train, X_val, y_train, y_val, weights_train, weights_val = (
@@ -177,6 +227,7 @@ def create_data_loaders(
                     random_state=random_state,
                 )
             )
+            print(f"Train weights shape: {weights_train.shape}, Validation weights shape: {weights_val.shape}")
 
     else:
         # Use the provided split
@@ -190,19 +241,27 @@ def create_data_loaders(
             scores[split == "validation"],
             scores[split == "test"],
         )
-        if weights is not None:
-            weights_train, weights_val, weights_test = (
-                weights[split == "train"],
-                weights[split == "validation"],
-                weights[split == "test"],
-            )
 
-        # Check if the validation set is empty and split the training data if necessary
-        if X_val.shape[0] == 0 or y_val.shape[0] == 0:
-            X_train, X_val, y_train, y_val = train_test_split(
-                X_train, y_train, test_size=validation_size, random_state=random_state
-            )
-            if weights is not None:
+        print(f"Train size: {X_train.shape[0]}, Validation size: {X_val.shape[0]}, Test size: {X_test.shape[0]}")
+        
+        # Check if weights is provided and handle resplitting
+        if weights is not None:
+            # Convert weights to numpy if it's a pandas Series
+            weights_train = weights[split == "train"].to_numpy() if isinstance(weights, pd.Series) else weights[split == "train"]
+            weights_val = weights[split == "validation"].to_numpy() if isinstance(weights, pd.Series) else weights[split == "validation"]
+            weights_test = weights[split == "test"].to_numpy() if isinstance(weights, pd.Series) else weights[split == "test"]
+            
+            # Print the sizes before splitting to ensure they align
+            # Print the sizes before splitting to ensure they align
+            print(f"Before resplitting: weights_train size = {weights_train.shape[0]}, weights_val size = {weights_val.shape[0]}")
+            print(f"Before resplitting: X_train size = {X_train.shape[0]}, y_train size = {y_train.shape[0]}")
+
+            
+            # Ensure X_train, y_train, and weights_train all have the same length
+            if X_train.shape[0] == y_train.shape[0] == weights_train.shape[0]:
+                print("Shapes are consistent. Proceeding with the split.")
+
+                # Perform the train-test split for weights along with data and target
                 X_train, X_val, y_train, y_val, weights_train, weights_val = (
                     train_test_split(
                         X_train,
@@ -212,6 +271,16 @@ def create_data_loaders(
                         random_state=random_state,
                     )
                 )
+                
+                # Print the new weight sizes after the split
+                print(f"After resplitting weights: Train weights size = {weights_train.shape[0]}, Validation weights size = {weights_val.shape[0]}")
+            else:
+                # Handle the case where shapes do not align
+                print(f"ERROR: Shapes do not align! X_train: {X_train.shape[0]}, y_train: {y_train.shape[0]}, weights_train: {weights_train.shape[0]}")
+
+        # Check the final sizes of X_train, y_train, X_val, y_val after resplitting
+        print(f"After resplitting: X_train = {X_train.shape}, X_val = {X_val.shape}")
+        print(f"After resplitting: y_train = {y_train.shape}, y_val = {y_val.shape}")
 
     # Scale the features if scaler is provided
     if scaler:
@@ -271,6 +340,10 @@ def create_data_loaders(
         train_sampler = None
         val_sampler = None
         test_sampler = None
+    
+    print("\n=== DEBUG: After Dataset creation ===")
+    print(f"Train dataset size: {len(train_dataset)}, Val dataset size: {len(val_dataset)}, Test dataset size: {len(test_dataset)}")
+
 
     train_loader = DataLoader(
         train_dataset,
@@ -279,7 +352,7 @@ def create_data_loaders(
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=train_sampler,
-        generator=random_state,
+        generator=torch_generator,
     )
     val_loader = DataLoader(
         val_dataset,
@@ -288,7 +361,7 @@ def create_data_loaders(
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=val_sampler,
-        generator=random_state,
+        generator=torch_generator,
     )
     test_loader = DataLoader(
         test_dataset,
@@ -297,7 +370,7 @@ def create_data_loaders(
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=test_sampler,
-        generator=random_state,
+        generator=torch_generator,
     )
 
     return {"train": train_loader, "val": val_loader, "test": test_loader}
@@ -594,6 +667,7 @@ def load_config(config_file_name):
         config = json.load(file)
 
     return config
+    
 
 
 def get_activation_function(name):

@@ -1,0 +1,30 @@
+{
+  "architecture_parameters": {
+    "network_type": "mlp",
+    "output_dim": 1,
+    "hidden_dim": 1872,
+    "hidden_layers": 1,
+    "task": "classification",
+    "hidden_activation": "relu",
+    "hidden_dropout": 0.6007076850663554,
+    "input_dim": 2670
+  },
+  "training_parameters": {
+    "learning_rate": 3.989202879680382e-05,
+    "epochs": 200,
+    "batch_size": 16,
+    "loss_f": "masked_bce_logits",
+    "optimizer": "adam",
+    "val_split": 0.2,
+    "weight_decay": 9.603046232441057e-06,
+    "warmup_steps": 0,
+    "gradient_clipping": false,
+    "scheduler": false,
+    "scaler": false,
+    "gradient_accumulation": false,
+    "epoch_sizing": 1000000,
+    "early_stopping": 10,
+    "weights": "weights",
+    "sampler": false
+  }
+}

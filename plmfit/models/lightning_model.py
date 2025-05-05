@@ -30,7 +30,7 @@ from torchmetrics.regression import (
 )
 from torchmetrics.text import Perplexity
 from lightning.pytorch.callbacks import BasePredictionWriter
-from plmfit.shared_utils.custom_loss_functions import MaskedBCEWithLogitsLoss, MaskedFocalWithLogitsLoss
+from plmfit.shared_utils.custom_loss_functions import MaskedBCEWithLogitsLoss, MaskedFocalWithLogitsLoss,SampleWeightedCrossEntropyLoss
 import numpy as np
 
 
@@ -197,17 +197,24 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
+<<<<<<< Updated upstream
             input, labels, weights = batch
             #input, labels = batch
+=======
+            #input, labels, weights = batch
+            input, labels = batch
+>>>>>>> Stashed changes
             outputs = self(input)
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == "classification" and self.hparams.no_classes > 1:
                 if hasattr(outputs, "logits"):
                     outputs = outputs.logits
-                labels = torch.nn.functional.one_hot(
-                    labels.long(), num_classes=self.hparams.no_classes
-                )
-                labels = labels.float()
+                #labels = torch.nn.functional.one_hot(
+                    #labels.long(), num_classes=self.hparams.no_classes
+                #)
+                #labels = labels.float()
+                labels = labels.long()
+
             elif (
                 self.model.task == "token_classification"
                 and self.hparams.no_classes > 1
@@ -230,7 +237,14 @@ class LightningModel(L.LightningModule):
             if torch.backends.mps.is_available():
                 labels = labels.to(torch.float32)
             #loss = self.loss_function(outputs, labels)
+<<<<<<< Updated upstream
             loss = self.loss_function(outputs, labels, sample_weight=weights)
+=======
+            if self.hparams.loss_f in ["masked_bce_logits", "masked_focal_logits","sample_weighted_cross_entropy"]:
+                loss = self.loss_function(outputs, labels, sample_weight=weights)
+            else:
+                loss = self.loss_function(outputs, labels)
+>>>>>>> Stashed changes
 
 
         if self.model.task == "classification" and self.hparams.no_classes > 1:
@@ -275,7 +289,9 @@ class LightningModel(L.LightningModule):
         return loss
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
+        # print(batch, flush=True)
         if batch_idx == 99 and self.experimenting:
+            raise ValueError("Please work")
             # self.profiler.print_model_profile(profile_step=batch_idx, output_file=f'{self.plmfit_logger.base_dir}/flops.log')
             self.profiler.end_profile()
 
@@ -343,17 +359,24 @@ class LightningModel(L.LightningModule):
             outputs = outputs.to(torch.float32)
         else:
             #allaxe to input 
+<<<<<<< Updated upstream
             input, labels, weights = batch
             #input, labels = batch
+=======
+            #input, labels, weights = batch
+            input, labels = batch
+>>>>>>> Stashed changes
             outputs = self(input)
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == "classification" and self.hparams.no_classes > 1:
                 if hasattr(outputs, "logits"):
                     outputs = outputs.logits
-                labels = torch.nn.functional.one_hot(
-                    labels.long(), num_classes=self.hparams.no_classes
-                )
-                labels = labels.float()
+                #labels = torch.nn.functional.one_hot(
+                    #labels.long(), num_classes=self.hparams.no_classes
+                #)
+                #labels = labels.float()
+                labels = labels.long()
+
             elif (
                 self.model.task == "token_classification"
                 and self.hparams.no_classes > 1
@@ -375,7 +398,14 @@ class LightningModel(L.LightningModule):
             if torch.backends.mps.is_available():
                 labels = labels.to(torch.float32)
             #loss = self.loss_function(outputs, labels)
+<<<<<<< Updated upstream
             loss = self.loss_function(outputs, labels, sample_weight=weights)
+=======
+            if self.hparams.loss_f in ["masked_bce_logits", "masked_focal_logits","sample_weighted_cross_entropy"]:
+                loss = self.loss_function(outputs, labels, sample_weight=weights)
+            else:
+                loss = self.loss_function(outputs, labels)
+>>>>>>> Stashed changes
 
 
         self.log(
@@ -466,7 +496,13 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
+<<<<<<< Updated upstream
             input, labels, _, ids = batch
+=======
+            #input, labels, _, ids = batch
+            #input, labels, weights, ids = batch
+            input, labels, ids = batch
+>>>>>>> Stashed changes
             outputs = self(input)
 
             # No squeezing, leave logits as is for CrossEntropyLoss
@@ -615,10 +651,16 @@ class LightningModel(L.LightningModule):
             return torch.nn.BCEWithLogitsLoss()
         elif self.hparams.loss_f == "mse":
             return torch.nn.MSELoss()
-        elif (
-            self.hparams.loss_f == "cross_entropy"
-        ):  # Add cross-entropy loss for multiclass
+        elif self.hparams.loss_f == "sample_weighted_cross_entropy":
+            return SampleWeightedCrossEntropyLoss(ignore_index=-100)
+            
+        elif self.hparams.loss_f == "cross_entropy":  # multiclass case
+            if self.handle_hparam_exists("weights"):
+                weights = torch.tensor(self.hparams.weights, dtype=torch.float32)
+                return torch.nn.CrossEntropyLoss(weight=weights, ignore_index=-100)
             return torch.nn.CrossEntropyLoss(ignore_index=-100)
+        
+        
         elif self.hparams.loss_f == "masked_bce_logits":
             return MaskedBCEWithLogitsLoss(
                 ignore_index=-100,
@@ -685,6 +727,16 @@ class LightningModel(L.LightningModule):
             dist.all_gather_object(all_rank_list, lists)
             lists = [x for y in all_rank_list for x in y]
         return lists
+    
+    def log_final_metrics(self, logger):
+        if hasattr(self, "metrics"):
+            metrics_dict = self.metrics.get_metrics(device=self.device)
+            if self.trainer.global_rank == 0:
+                logger.save_data(metrics_dict["main"], "metrics")
+                self.metrics.save_metrics(
+                    path=f"{logger.base_dir}/{logger.experiment_name}"
+                )
+
 
 
 class Metrics(torch.nn.Module):

@@ -148,3 +148,64 @@ class MaskedFocalWithLogitsLoss(nn.Module):
                 f"Invalid 'reduction' mode: {self.reduction}. "
                 "Supported: 'none', 'mean', 'sum'."
             )
+
+class SampleWeightedCrossEntropyLoss(nn.Module):
+    def __init__(self, reduction="mean", ignore_index=-100):
+        super().__init__()
+        self.reduction = reduction
+        self.ignore_index = ignore_index
+
+    def forward(self, logits, targets, sample_weight=None):
+        if logits.dim() == 2:
+            # Shape: [B, C] → Sequence-level classification
+            loss = F.cross_entropy(
+                logits,
+                targets,
+                reduction="none"
+            )
+            if sample_weight is not None:
+                loss = loss * sample_weight.float()
+
+        elif logits.dim() == 3:
+            # Shape: [B, T, C] → Token-level classification
+            B, T, C = logits.shape
+            logits = logits.view(-1, C)          # [B*T, C]
+            targets = targets.view(-1)           # [B*T]
+            
+            # Expand sample weights to token level
+            if sample_weight is not None:
+                sample_weight = sample_weight.view(B, 1).expand(B, T).reshape(-1)  # [B*T]
+
+            loss = F.cross_entropy(
+                logits,
+                targets,
+                reduction="none",
+                ignore_index=self.ignore_index
+            )
+
+            mask = targets != self.ignore_index
+            loss = loss * mask.float()
+
+            if sample_weight is not None:
+                loss = loss * sample_weight
+
+            if self.reduction == "mean":
+                denom = mask.float().sum()
+                if sample_weight is not None:
+                    denom = sample_weight[mask].sum()
+                return loss.sum() / (denom + 1e-8)  # prevent divide-by-zero
+            elif self.reduction == "sum":
+                return loss.sum()
+            else:
+                return loss  # no reduction
+
+        else:
+            raise ValueError(f"Unsupported logits dim: {logits.dim()}")
+        
+        # For sequence-level case, apply reduction
+        if self.reduction == "mean":
+            return loss.mean()
+        elif self.reduction == "sum":
+            return loss.sum()
+        else:
+            return loss
