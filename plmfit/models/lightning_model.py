@@ -509,8 +509,6 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
-            #input, labels, _, ids = batch
-            #input, labels, weights, ids = batch
             input, labels, ids = batch
             outputs = self(input)
 
