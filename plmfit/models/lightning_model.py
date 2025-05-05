@@ -197,13 +197,9 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
-<<<<<<< Updated upstream
-            input, labels, weights = batch
-            #input, labels = batch
-=======
             #input, labels, weights = batch
+            #input, labels = batch
             input, labels = batch
->>>>>>> Stashed changes
             outputs = self(input)
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == "classification" and self.hparams.no_classes > 1:
@@ -237,14 +233,12 @@ class LightningModel(L.LightningModule):
             if torch.backends.mps.is_available():
                 labels = labels.to(torch.float32)
             #loss = self.loss_function(outputs, labels)
-<<<<<<< Updated upstream
-            loss = self.loss_function(outputs, labels, sample_weight=weights)
-=======
+            #loss = self.loss_function(outputs, labels, sample_weight=weights)
             if self.hparams.loss_f in ["masked_bce_logits", "masked_focal_logits","sample_weighted_cross_entropy"]:
                 loss = self.loss_function(outputs, labels, sample_weight=weights)
             else:
                 loss = self.loss_function(outputs, labels)
->>>>>>> Stashed changes
+
 
 
         if self.model.task == "classification" and self.hparams.no_classes > 1:
@@ -358,14 +352,8 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
-            #allaxe to input 
-<<<<<<< Updated upstream
-            input, labels, weights = batch
-            #input, labels = batch
-=======
             #input, labels, weights = batch
             input, labels = batch
->>>>>>> Stashed changes
             outputs = self(input)
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == "classification" and self.hparams.no_classes > 1:
@@ -398,14 +386,11 @@ class LightningModel(L.LightningModule):
             if torch.backends.mps.is_available():
                 labels = labels.to(torch.float32)
             #loss = self.loss_function(outputs, labels)
-<<<<<<< Updated upstream
-            loss = self.loss_function(outputs, labels, sample_weight=weights)
-=======
             if self.hparams.loss_f in ["masked_bce_logits", "masked_focal_logits","sample_weighted_cross_entropy"]:
                 loss = self.loss_function(outputs, labels, sample_weight=weights)
             else:
                 loss = self.loss_function(outputs, labels)
->>>>>>> Stashed changes
+
 
 
         self.log(
@@ -496,13 +481,7 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
-<<<<<<< Updated upstream
-            input, labels, _, ids = batch
-=======
-            #input, labels, _, ids = batch
-            #input, labels, weights, ids = batch
             input, labels, ids = batch
->>>>>>> Stashed changes
             outputs = self(input)
 
             # No squeezing, leave logits as is for CrossEntropyLoss

@@ -1,2 +1,2 @@
 function	data_type	plm	reduction	layer	output_dir	gpus	gres	mem-per-cpu	batch_size
-extract_embeddings	RBDGF	esm2_t33_650M_UR50D	bos	last	/cluster/scratch/askrika/GEF	1	20g	100g	512
+extract_embeddings	RBDGF	esmc_300m	bos	last	/cluster/scratch/askrika/GEF	1	20g	100g	512
