@@ -24,6 +24,7 @@ from plmfit.shared_utils.custom_loss_functions import (
     MaskedBCEWithLogitsLoss,
     MaskedFocalWithLogitsLoss,
 )
+from plmfit.shared_utils.custom_loss_functions import MaskedBCEWithLogitsLoss, MaskedFocalWithLogitsLoss,SampleWeightedCrossEntropyLoss
 import numpy as np
 from plmfit.shared_utils.metrics import (
     ClassificationMetrics,
@@ -243,7 +244,6 @@ class LightningModel(L.LightningModule):
                 loss = self.loss_function(outputs, labels)
 
 
-
         if self.model.task == "classification" and self.hparams.no_classes > 1:
             labels = torch.argmax(labels, dim=1)
             outputs = torch.argmax(outputs, dim=1)
@@ -409,7 +409,6 @@ class LightningModel(L.LightningModule):
                 loss = self.loss_function(outputs, labels)
 
 
-
         if self.model.task == "classification" and self.hparams.no_classes > 1:
             labels = torch.argmax(labels, dim=1)
             outputs = torch.argmax(outputs, dim=1)
@@ -510,7 +509,9 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
-            input, labels, _, ids = batch
+            #input, labels, _, ids = batch
+            #input, labels, weights, ids = batch
+            input, labels, ids = batch
             outputs = self(input)
 
             # No squeezing, leave logits as is for CrossEntropyLoss

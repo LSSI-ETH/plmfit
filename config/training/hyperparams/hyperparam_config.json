@@ -29,15 +29,15 @@
         }
     },
     "mlp": {
-        "n_trials": 500,
-        "epochs_fragment": 0.4,
-        "epoch_sizing": 0.001,
+        "n_trials": 200,
+        "epochs_fragment": 0.2,
+        "epoch_sizing": 0.25,
         "architecture_parameters": {
             "hidden_dim": {
                 "type": "int",
                 "range": [
-                    64,
-                    4096
+                    512,
+                    2048
                 ]
             },
             "hidden_layers": {
@@ -51,7 +51,7 @@
                 "type": "float",
                 "range": [
                     0.1,
-                    0.9
+                    1.0
                 ]
             }
         },
