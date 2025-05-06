@@ -44,8 +44,9 @@ def main():
         os.makedirs(experiment_dir, exist_ok=True)
 
     # Set global seed
-    head_config = load_config(f"training/{args.head_config}")
-    set_seed(head_config['training_parameters']['seed'])
+    if args.function != 'extract_embeddings':
+        head_config = load_config(f"training/{args.head_config}")
+        set_seed(head_config['training_parameters']['seed'])
         
     # Removing the output_dir prefix from experiment_dir
     trimmed_experiment_dir = experiment_dir.removeprefix(f"{args.output_dir}/")
