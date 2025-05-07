@@ -2,7 +2,7 @@
     "linear": {
         "n_trials": 100,
         "epochs_fragment": 0.2,
-        "epoch_sizing": 0.005,
+        "epoch_sizing": 0.1,
         "architecture_parameters": {},
         "training_parameters": {
             "learning_rate": {
@@ -31,7 +31,7 @@
     "mlp": {
         "n_trials": 500,
         "epochs_fragment": 0.4,
-        "epoch_sizing": 0.001,
+        "epoch_sizing": 0.1,
         "architecture_parameters": {
             "hidden_dim": {
                 "type": "int",
@@ -82,7 +82,7 @@
     "rnn": {
         "n_trials": 500,
         "epochs_fragment": 0.2,
-        "epoch_sizing": 0.005,
+        "epoch_sizing": 0.1,
         "architecture_parameters": {
             "hidden_dim": {
                 "type": "int",
@@ -133,7 +133,7 @@
     "cnn": {
         "n_trials": 500,
         "epochs_fragment": 0.2,
-        "epoch_sizing": 0.005,
+        "epoch_sizing": 0.1,
         "architecture_parameters": {
             "num_filters": {
                 "type": "categorical",
@@ -192,7 +192,7 @@
     "transformer": {
         "n_trials": 500,
         "epochs_fragment": 0.2,
-        "epoch_sizing": 0.005,
+        "epoch_sizing": 0.1,
         "architecture_parameters": {
             "embd_dim": {
                 "type": "categorical",

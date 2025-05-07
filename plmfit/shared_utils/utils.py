@@ -205,9 +205,7 @@ def create_data_loaders(
 
         # Check if the validation set is empty and split the training data if necessary
         if X_val.shape[0] == 0 or y_val.shape[0] == 0:
-            X_train, X_val, y_train, y_val = train_test_split(
-                X_train, y_train, test_size=validation_size, random_state=random_state
-            )
+
             if weights is not None:
                 X_train, X_val, y_train, y_val, weights_train, weights_val = (
                     train_test_split(
@@ -215,8 +213,15 @@ def create_data_loaders(
                         y_train,
                         weights_train,
                         test_size=validation_size,
-                        random_state=random_state,
+                        random_state=get_numpy_random_state(),
                     )
+                )
+            else:
+                X_train, X_val, y_train, y_val = train_test_split(
+                    X_train,
+                    y_train,
+                    test_size=validation_size,
+                    random_state=get_numpy_random_state(),
                 )
 
     # Scale the features if scaler is provided

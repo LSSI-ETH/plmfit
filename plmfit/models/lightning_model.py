@@ -63,6 +63,7 @@ class LightningModel(L.LightningModule):
         self.loss_function = self.initialize_loss_function()
 
         no_classes = getattr(self.hparams, "no_classes", 1)
+        self.hparams.no_classes = no_classes
         no_labels = getattr(self.hparams, "no_labels", 1)
 
         if self.model.task == "classification":
@@ -487,7 +488,7 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
-            input, labels, ids = batch
+            input, labels, ids, weights = batch
             outputs = self(input)
 
             # No squeezing, leave logits as is for CrossEntropyLoss
@@ -519,7 +520,7 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.squeeze(dim=1)
             if torch.backends.mps.is_available():
                 labels = labels.to(torch.float32)
-            loss = self.loss_function(outputs, labels)
+            loss = self.loss_function(outputs, labels, sample_weight=weights)
         self.log(
             "test_loss", loss, on_step=True, on_epoch=True, logger=True, prog_bar=False
         )

@@ -93,7 +93,7 @@ class MaskedBCEWithLogitsLoss(nn.Module):
         else:
             self.pos_weight = None
 
-    def forward(self, logits, targets):
+    def forward(self, logits, targets, sample_weight=None):
         """
         logits:   shape [batch_size, num_labels]
         targets:  shape [batch_size, num_labels], with ignore_index in some places
@@ -104,15 +104,18 @@ class MaskedBCEWithLogitsLoss(nn.Module):
         # so that the BCE won't produce NaNs.
         clamped_targets = targets.clone()
         clamped_targets[~mask] = 0.0  # or 1.0, doesn't matter, because they'll be masked out
-        
+
+        # Apply sample weights, if provided
         element_loss = F.binary_cross_entropy_with_logits(
             logits, clamped_targets,
             pos_weight=self.pos_weight,
+            weight=sample_weight,
             reduction="none"  # shape [batch_size, num_labels]
         )
 
         # Zero out ignored labels
         masked_loss = element_loss * mask 
+
 
         # 3) Reduce over the valid elements only
         if self.reduction == "mean":

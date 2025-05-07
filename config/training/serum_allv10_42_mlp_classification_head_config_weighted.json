@@ -1,0 +1,30 @@
+{
+  "architecture_parameters": {
+    "network_type": "linear",
+    "output_dim": 1,
+    "hidden_dim": 128,
+    "hidden_layers": 2,
+    "task": "classification",
+    "hidden_activation": "relu",
+    "hidden_dropout": 0.25
+  },
+  "training_parameters": {
+    "learning_rate": 5e-05,
+    "epochs": 200,
+    "batch_size": 512,
+    "loss_f": "masked_bce_logits",
+    "optimizer": "adam",
+    "val_split": 0.2,
+    "weight_decay": 0.01,
+    "warmup_steps": 0,
+    "gradient_clipping": false,
+    "scheduler": false,
+    "scaler": false,
+    "gradient_accumulation": false,
+    "epoch_sizing": 1000000,
+    "early_stopping": 10,
+    "weights": "weights_allv10_unbalanced_42",
+    "sampler": false,
+    "seed": 42
+  }
+}

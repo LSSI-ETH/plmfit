@@ -1,7 +1,7 @@
 import torch
 import os
 import json
-from torchmetrics.classification import BinaryAccuracy, BinaryAUROC, BinaryMatthewsCorrCoef, BinaryConfusionMatrix, BinaryROC, MulticlassAccuracy, MulticlassMatthewsCorrCoef, MulticlassConfusionMatrix
+from torchmetrics.classification import BinaryAccuracy, BinaryAUROC, BinaryMatthewsCorrCoef, BinaryConfusionMatrix, BinaryROC, MulticlassAccuracy, MulticlassMatthewsCorrCoef, MulticlassConfusionMatrix, BinaryF1Score, BinaryPrecision, BinaryRecall
 from torchmetrics.regression import MeanSquaredError, MeanAbsoluteError, R2Score, SpearmanCorrCoef
 from torchmetrics.text import Perplexity
 from torchmetrics.classification import MultilabelAccuracy, MultilabelMatthewsCorrCoef, MultilabelConfusionMatrix, MultilabelExactMatch, MultilabelF1Score
@@ -73,6 +73,9 @@ class ClassificationMetrics(BaseMetrics):
             self.mcc = BinaryMatthewsCorrCoef()
             self.cm = BinaryConfusionMatrix()
             self.roc = BinaryROC()
+            self.f1 = BinaryF1Score()
+            self.precision = BinaryPrecision()
+            self.recall = BinaryRecall()
         else:
             # Multiclass classification metrics
             self.acc = MulticlassAccuracy(num_classes=self.no_classes)
@@ -87,6 +90,9 @@ class ClassificationMetrics(BaseMetrics):
         if self.no_classes < 2:
             self.roc_auc.update(preds, actual)
             self.roc.update(preds, actual.int())
+            self.f1.update(preds, actual)
+            self.precision.update(preds, actual)
+            self.recall.update(preds, actual)
         else:
             self.micro_acc.update(preds, actual)
         self.mcc.update(preds, actual)
@@ -105,6 +111,9 @@ class ClassificationMetrics(BaseMetrics):
                     "roc_auc": self.roc_auc.compute().item(),
                     "mcc": self.mcc.compute().item(),
                     "confusion_matrix": self.cm.compute().tolist(),
+                    "f1": self.f1.compute().item(),
+                    "precision": self.precision.compute().item(),
+                    "recall": self.recall.compute().item(),
                 },
                 "roc_auc_data": {
                     "fpr": fpr.tolist(),
