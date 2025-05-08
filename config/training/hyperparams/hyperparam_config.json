@@ -1,8 +1,8 @@
 {
     "linear": {
         "n_trials": 100,
-        "epochs_fragment": 0.2,
-        "epoch_sizing": 0.1,
+        "epochs_fragment": 0.25,
+        "epoch_sizing": 1.0,
         "architecture_parameters": {},
         "training_parameters": {
             "learning_rate": {
