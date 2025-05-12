@@ -131,6 +131,10 @@ def objective(
 ):
     config = copy.deepcopy(head_config)
 
+
+    from plmfit.shared_utils.random_state import set_seed
+    set_seed(config['training_parameters']['seed'])
+
     network_type = config["architecture_parameters"]["network_type"]
 
     epochs = config["training_parameters"]["epochs"]

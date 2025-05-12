@@ -130,6 +130,10 @@ def objective(
 
     network_type = config["architecture_parameters"]["network_type"]
 
+
+    from plmfit.shared_utils.random_state import set_seed
+    set_seed(config['training_parameters']['seed'])
+
     epochs = config["training_parameters"]["epochs"]
     if trial is not None and on_ray_tuning:
         epochs = int(config["training_parameters"]["epochs"] // (1 / hyperparam_config["epochs_fragment"]))

@@ -15,7 +15,7 @@
             "batch_size": {
                 "type": "int",
                 "range": [
-                    128,
+                    58,
                     1024
                 ]
             },

@@ -2,7 +2,6 @@ from plmfit.logger import Logger
 import os
 from plmfit.args_parser import parse_args
 import traceback
-from plmfit.shared_utils.random_state import set_seed
 from plmfit.shared_utils.utils import load_config
 
 NUM_WORKERS = 0
@@ -43,11 +42,6 @@ def main():
     if not os.path.exists(experiment_dir):
         os.makedirs(experiment_dir, exist_ok=True)
 
-    # Set global seed
-    if args.function != 'extract_embeddings':
-        head_config = load_config(f"training/{args.head_config}")
-        set_seed(head_config['training_parameters']['seed'])
-        
     # Removing the output_dir prefix from experiment_dir
     trimmed_experiment_dir = experiment_dir.removeprefix(f"{args.output_dir}/")
     logger = Logger(
