@@ -32,7 +32,7 @@ import blosum as bl
 from collections import Counter
 import torch.nn.functional as F
 import ast
-from plmfit.shared_utils.random_state import get_random_state, get_numpy_random_state
+#from plmfit.shared_utils.random_state import get_random_state, get_numpy_random_state
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from plmfit.shared_utils.samplers import LabelWeightedSampler
 from esm.utils import encoding
@@ -148,17 +148,15 @@ def create_data_loaders(
     Returns:
         dict: Dictionary containing DataLoader objects for train, validation, and test.
     """
-    random_state = get_random_state()
     if split is None:
-        random_state = get_numpy_random_state()
+        
         X_train, X_test, y_train, y_test = train_test_split(
-            dataset, scores, test_size=test_size, random_state=random_state
+            dataset, scores, test_size=test_size
         )
         X_train, X_val, y_train, y_val = train_test_split(
             X_train,
             y_train,
             test_size=validation_size / (1 - test_size),
-            random_state=random_state,
         )
 
         if weights is not None:
@@ -168,8 +166,7 @@ def create_data_loaders(
                     dataset,
                     scores,
                     weights,
-                    test_size=test_size,
-                    random_state=random_state,
+                    test_size=test_size
                 )
             )
 
@@ -179,8 +176,7 @@ def create_data_loaders(
                     X_train,
                     y_train,
                     weights_train,
-                    test_size=validation_size / (1 - test_size),
-                    random_state=random_state,
+                    test_size=validation_size / (1 - test_size)
                 )
             )
 
@@ -213,7 +209,6 @@ def create_data_loaders(
                         y_train,
                         weights_train,
                         test_size=validation_size,
-                        random_state=get_numpy_random_state(),
                     )
                 )
             else:
@@ -221,7 +216,6 @@ def create_data_loaders(
                     X_train,
                     y_train,
                     test_size=validation_size,
-                    random_state=get_numpy_random_state(),
                 )
 
     # Scale the features if scaler is provided
@@ -290,7 +284,6 @@ def create_data_loaders(
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=train_sampler,
-        generator=random_state,
     )
     val_loader = DataLoader(
         val_dataset,
@@ -299,7 +292,6 @@ def create_data_loaders(
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=val_sampler,
-        generator=random_state,
     )
     test_loader = DataLoader(
         test_dataset,
@@ -308,7 +300,6 @@ def create_data_loaders(
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=test_sampler,
-        generator=random_state,
     )
 
     return {"train": train_loader, "val": val_loader, "test": test_loader}
@@ -435,7 +426,6 @@ def init_weighted_sampler(dataset, weights, num_samples_method="min", sampler="w
             weights=weights,
             num_samples=num_samples,
             replacement=True,  # To allow resampling
-            generator=get_random_state()
         )
     elif sampler == "label_weighted":
         return LabelWeightedSampler(
@@ -443,7 +433,6 @@ def init_weighted_sampler(dataset, weights, num_samples_method="min", sampler="w
             labels=labels,
             num_samples=num_samples,
             replacement=True,  # To allow resampling
-            generator=get_random_state()
         )
 
 
@@ -569,7 +558,6 @@ def get_epoch_dataloaders(dataloader, epoch_size=0):
         shuffle=True,
         num_workers=dataloader["train"].num_workers,
         pin_memory=dataloader["train"].pin_memory,
-        generator=get_random_state(),
     )
     val_dataloader = DataLoader(
         val_set,
@@ -577,7 +565,6 @@ def get_epoch_dataloaders(dataloader, epoch_size=0):
         shuffle=False,
         num_workers=dataloader["val"].num_workers,
         pin_memory=dataloader["val"].pin_memory,
-        generator=get_random_state(),
     )
 
     return {
@@ -1230,26 +1217,25 @@ def masking_collator(
     ):
         special_tokens_mask = special_tokens_mask.bool()
     probability_matrix.masked_fill_(special_tokens_mask, value=0.0)
-    random_state = get_random_state()
 
     # Create mask array
-    masked_indices = torch.bernoulli(probability_matrix, generator=random_state).bool()
+    masked_indices = torch.bernoulli(probability_matrix).bool()
 
     # Apply 80-10-10 masking strategy:
     # 80% MASK
     indices_replaced_with_mask = (
-        torch.bernoulli(torch.full(labels.shape, 0.8), generator=random_state).bool()
+        torch.bernoulli(torch.full(labels.shape, 0.8)).bool()
         & masked_indices
     )
     input_ids[indices_replaced_with_mask] = tokenizer.mask_token_id
 
     # 10% random token
     indices_replaced_with_random = (
-        torch.bernoulli(torch.full(labels.shape, 0.1), generator=random_state).bool()
+        torch.bernoulli(torch.full(labels.shape, 0.1)).bool()
         & masked_indices
         & ~indices_replaced_with_mask
     )
-    random_tokens = torch.randint(low=0, high=tokenizer.vocab_size, size=labels.shape, generator=random_state)
+    random_tokens = torch.randint(low=0, high=tokenizer.vocab_size, size=labels.shape)
     input_ids[indices_replaced_with_random] = random_tokens[
         indices_replaced_with_random
     ]
@@ -1300,19 +1286,18 @@ def create_mlm_data_loaders(
     val_size = int(len(dataset) * split_ratios[1])
     test_size = len(dataset) - train_size - val_size
 
-    random_state = get_random_state()
 
     # Randomly split the dataset
     train_dataset, val_dataset, test_dataset = random_split(
-        dataset, [train_size, val_size, test_size], generator=random_state
+        dataset, [train_size, val_size, test_size]
     )
 
     # Create data loaders for each split
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, generator=random_state
+        train_dataset, batch_size=batch_size, shuffle=True
     )
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, generator=random_state)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, generator=random_state)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     return {"train": train_loader, "val": val_loader, "test": test_loader}
 

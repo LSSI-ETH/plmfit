@@ -14,9 +14,8 @@ class LinearHead(nn.Module):
         self.config = config
         # Check if there's an activation function specified for the layer
         if "output_activation" in config:
-            random_state = get_random_state()
             # Initialize weights with a normal distribution around zero
-            init.normal_(self.linear.weight, mean=0.0, std=0.01, generator=random_state)
+            init.normal_(self.linear.weight, mean=0.0, std=0.01)
             # Initialize biases to zero
             init.zeros_(self.linear.bias)
 

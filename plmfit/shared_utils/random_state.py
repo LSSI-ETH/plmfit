@@ -1,6 +1,7 @@
 # plmfit/shared_utils/random_state.py
 import numpy as np
 import torch
+import random
 
 # Global variable for numpy
 GLOBAL_RANDOM_STATE = None
