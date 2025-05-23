@@ -5,105 +5,19 @@ from torch import nn, Tensor
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
 
-class TransformerModel(nn.Module):
-    """
-    A Transformer-based encoder model that embeds token IDs, applies positional encoding,
-    and passes them through a TransformerEncoder.
-
-    Args:
-        vocab_size (int): Size of the token vocabulary.
-        embd_dim (int): Dimensionality of the token embeddings.
-        nhead (int): Number of attention heads.
-        d_hid (int): Dimensionality of the feedforward network in each Transformer layer.
-        nlayers (int): Number of Transformer encoder layers.
-        max_seq_len (int): Maximum sequence length (for positional encoding).
-        dropout (float): Dropout probability.
-    """
-
-    def __init__(
-        self,
-        vocab_size: int,
-        embd_dim: int,
-        nhead: int,
-        d_hid: int,
-        nlayers: int,
-        max_seq_len: int,
-        dropout: float = 0.1,
-    ):
-        super().__init__()
-
-        self.embd_dim = embd_dim
-
-        # Embedding layer
-        self.embedding = nn.Embedding(vocab_size, embd_dim)
-
-        # Positional encoding
-        self.pos_encoder = PositionalEncoding(embd_dim, dropout, max_seq_len)
-
-        # Transformer encoder
-        encoder_layer = TransformerEncoderLayer(
-            d_model=embd_dim,
-            nhead=nhead,
-            dim_feedforward=d_hid,
-            dropout=dropout,
-            norm_first=True,  # if you want pre-layer normalization
-            batch_first=False,
-        )
-        self.transformer_encoder = TransformerEncoder(encoder_layer, nlayers)
-
-    def forward(self, src: Tensor, src_mask: Tensor = None) -> Tensor:
-        """
-        Args:
-            src (Tensor): Token IDs of shape [batch_size, seq_len].
-            src_mask (Tensor, optional): Attention mask of shape [seq_len, seq_len].
-
-        Returns:
-            Tensor of shape [batch_size, seq_len, embd_dim] representing
-            encoded (transformed) embeddings.
-        """
-        src = src.to(torch.long)
-
-        # src -> [batch_size, seq_len]
-        # Embed and scale by sqrt(embd_dim) for better variance
-        src = self.embedding(src) * math.sqrt(
-            self.embd_dim
-        )  # [batch_size, seq_len, embd_dim]
-
-        # TransformerEncoder with batch_first=False expects [seq_len, batch_size, embd_dim].
-        src = src.transpose(0, 1)  # -> [seq_len, batch_size, embd_dim]
-
-        # Positional encoding: also expects [seq_len, batch_size, embd_dim]
-        src = self.pos_encoder(src)
-
-        # Pass through TransformerEncoder
-        output = self.transformer_encoder(
-            src, src_mask
-        )  # [seq_len, batch_size, embd_dim]
-
-        # Transpose back to [batch_size, seq_len, embd_dim] for downstream usage
-        return output.transpose(0, 1)
-
-
 class PositionalEncoding(nn.Module):
     """
-    Adds positional information to each token embedding via sine/cosine functions.
+    Adds fixed sine/cosine positional encodings.
     """
-
     def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
 
-        # Create positional encoding matrix 'pe' of shape [max_len, 1, d_model].
         position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(
-            torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)
-        )
-
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
         pe = torch.zeros(max_len, 1, d_model)
         pe[:, 0, 0::2] = torch.sin(position * div_term)
         pe[:, 0, 1::2] = torch.cos(position * div_term)
-
-        # register_buffer ensures 'pe' is not a learnable parameter but is moved with the model's device
         self.register_buffer("pe", pe)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -118,41 +32,98 @@ class PositionalEncoding(nn.Module):
 
 class LearnedPositionalEmbedding(nn.Embedding):
     """
-    An alternative to PositionalEncoding that learns positional embeddings up to a fixed max size.
-    Not used in the current model, but provided for completeness.
+    A learned positional embedding. It takes as input a positions tensor
+    of shape [batch_size, seq_len] (with values 0, 1, ..., seq_len-1) and returns
+    the corresponding embeddings.
     """
-
-    def __init__(self, num_embeddings: int, embedding_dim: int, padding_idx: int):
-        if padding_idx is not None:
-            num_embeddings_ = num_embeddings + padding_idx + 1
-        else:
-            num_embeddings_ = num_embeddings
-        super().__init__(num_embeddings_, embedding_dim, padding_idx)
+    def __init__(self, num_embeddings: int, embedding_dim: int, padding_idx: int = 0):
+        super().__init__(num_embeddings, embedding_dim, padding_idx)
         self.max_positions = num_embeddings
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
+    def forward(self, positions: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            input (Tensor): Shape [batch_size, seq_len].
+            positions (Tensor): Shape [batch_size, seq_len] containing position indices.
         """
-        if input.size(1) > self.max_positions:
+        if positions.size(1) > self.max_positions:
             raise ValueError(
-                f"Sequence length {input.size(1)} exceeds maximum "
-                f"length of {self.max_positions}"
+                f"Sequence length {positions.size(1)} exceeds maximum length of {self.max_positions}"
             )
-        mask = input.ne(self.padding_idx).int()
-        positions = (torch.cumsum(mask, dim=1) * mask).long() + self.padding_idx
-        return F.embedding(
-            positions,
-            self.weight,
-            self.padding_idx,
-            self.max_norm,
-            self.norm_type,
-            self.scale_grad_by_freq,
-            self.sparse,
+        return super().forward(positions)
+
+
+class TransformerModel(nn.Module):
+    """
+    A Transformer-based encoder model that embeds token IDs, adds positional information
+    (either via fixed sinusoidal encodings or learned embeddings), and passes them through a TransformerEncoder.
+    """
+    def __init__(
+        self,
+        vocab_size: int,
+        embd_dim: int,
+        nhead: int,
+        d_hid: int,
+        nlayers: int,
+        max_seq_len: int,
+        dropout: float = 0.1,
+        positional_embedding: str = "learned",  # choose "sinusoidal" or "learned"
+        padding_idx: int = 0,
+    ):
+        super().__init__()
+        self.embd_dim = embd_dim
+        self.positional_embedding_choice = positional_embedding
+
+        # Token embedding
+        self.embedding = nn.Embedding(vocab_size, embd_dim, padding_idx=padding_idx)
+
+        # Choose positional encoding type
+        if positional_embedding == "learned":
+            self.pos_encoder = LearnedPositionalEmbedding(num_embeddings=max_seq_len, embedding_dim=embd_dim, padding_idx=padding_idx)
+        else:
+            self.pos_encoder = PositionalEncoding(embd_dim, dropout, max_seq_len)
+
+        # Transformer encoder
+        encoder_layer = TransformerEncoderLayer(
+            d_model=embd_dim,
+            nhead=nhead,
+            dim_feedforward=d_hid,
+            dropout=dropout,
+            norm_first=True,  # pre-layer normalization if desired
+            batch_first=False,
         )
+        self.transformer_encoder = TransformerEncoder(encoder_layer, nlayers)
 
+    def forward(self, src: Tensor, src_mask: Tensor = None) -> Tensor:
+        """
+        Args:
+            src (Tensor): Token IDs of shape [batch_size, seq_len].
+            src_mask (Tensor, optional): Attention mask of shape [seq_len, seq_len].
 
+        Returns:
+            Tensor of shape [batch_size, seq_len, embd_dim] representing encoded embeddings.
+        """
+        src = src.to(torch.long)
+        # Embed tokens and scale embeddings
+        token_embeddings = self.embedding(src) * math.sqrt(self.embd_dim)  # [batch_size, seq_len, embd_dim]
+
+        if self.positional_embedding_choice == "learned":
+            # Generate position indices for each token in the batch
+            batch_size, seq_len, _ = token_embeddings.size()
+            positions = torch.arange(seq_len, device=token_embeddings.device).unsqueeze(0).expand(batch_size, seq_len)
+            pos_embeddings = self.pos_encoder(positions)  # [batch_size, seq_len, embd_dim]
+            # Add learned positional embeddings to token embeddings
+            embeddings = token_embeddings + pos_embeddings
+            # Transformer expects [seq_len, batch_size, embd_dim]
+            embeddings = embeddings.transpose(0, 1)
+            encoded = self.transformer_encoder(embeddings, src_mask)
+            return encoded.transpose(0, 1)
+        else:
+            # For sinusoidal encoding, our module expects [seq_len, batch_size, embd_dim]
+            embeddings = token_embeddings.transpose(0, 1)
+            embeddings = self.pos_encoder(embeddings)
+            encoded = self.transformer_encoder(embeddings, src_mask)
+            return encoded.transpose(0, 1)
+        
 class TransformerPWFF(nn.Module):
     """
     A simple classifier architecture that uses a Transformer encoder, then applies

@@ -16,7 +16,7 @@ from plmfit.language_models.esm.modeling_esm import (
     PlmfitEsmForTokenClassification,
     PlmfitEsmForEmbdeddingsExtraction,
 )
-from plmfit.language_models.esmC.modeling_esmc import (
+from plmfit.language_models.esm3.modeling_esmc import (
     PlmfitEsmCForSequenceClassification,
     PlmfitEsmCForEmbdeddingsExtraction,
 )
@@ -219,6 +219,7 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
         self.layer_to_use = self.no_layers - 1
         self.config = self.py_model.config
         self.experimenting = False
+        self.py_model.task = task
 
     def zeroed_model(self):
         # Neutralize the model by setting weights to ones and bias to zeros
@@ -471,26 +472,30 @@ class ProGenFamily(IPretrainedProteinLanguageModel):
 class ESMFamily(IPretrainedProteinLanguageModel):
     tokenizer: AutoTokenizer
 
-    def __init__(self, esm_version: str, logger: l.Logger, task: str = "regression"):
+    def __init__(self, esm_version: str, logger: l.Logger, task: str = "regression", output_attentions=False):
         super().__init__(logger, task)
         self.version = esm_version
         if self.task == "masked_lm":
             self.py_model: PlmfitEsmForMaskedLM = PlmfitEsmForMaskedLM.from_pretrained(
-                f"facebook/{esm_version}", output_hidden_states=True
+                f"facebook/{esm_version}", output_hidden_states=True, output_attentions=output_attentions
             )
             self.output_dim = self.py_model.lm_head.decoder.out_features
         elif self.task == "token_classification":
             self.py_model = PlmfitEsmForTokenClassification.from_pretrained(
-                f"facebook/{esm_version}", output_hidden_states=True
+                f"facebook/{esm_version}", output_hidden_states=True, output_attentions=output_attentions
             )
             self.output_dim = self.py_model.classifier.out_features
         elif self.task == "extract_embeddings":
             self.py_model = PlmfitEsmForEmbdeddingsExtraction.from_pretrained(
-                f"facebook/{esm_version}", output_hidden_states=True
+                f"facebook/{esm_version}",
+                output_hidden_states=True,
+                output_attentions=output_attentions,
             )
         else:
             self.py_model = PlmfitEsmForSequenceClassification.from_pretrained(
-                f"facebook/{esm_version}", output_hidden_states=True
+                f"facebook/{esm_version}",
+                output_hidden_states=True,
+                output_attentions=output_attentions,
             )
             self.output_dim = self.py_model.classifier.out_features
         self.no_parameters = utils.get_parameters(self.py_model)
@@ -501,6 +506,7 @@ class ESMFamily(IPretrainedProteinLanguageModel):
         self.tokenizer = AutoTokenizer.from_pretrained(f"facebook/{esm_version}")
         self.layer_to_use = self.no_layers - 1
         self.experimenting = False
+        self.py_model.task = task
 
     def extract_embeddings(
         self, data_type, batch_size=1, layer=11, reduction="mean", log_interval=1000
@@ -716,6 +722,7 @@ class ESMCFamily(IPretrainedProteinLanguageModel):
         self.tokenizer = self.py_model.tokenizer
         self.layer_to_use = self.no_layers - 1
         self.experimenting = False
+        self.py_model.task = task
 
     def categorical_encode(self, data, max_length="default"):
         encs = utils.categorical_encode(
@@ -762,6 +769,7 @@ class ProteinBERTFamily(IPretrainedProteinLanguageModel):
         self.layer_to_use = self.no_layers - 1
         self.experimenting = False
         self.config = self.py_model.config
+        self.py_model.task = task
 
     def categorical_encode(self, data, max_length="default"):
         encs = utils.categorical_encode(

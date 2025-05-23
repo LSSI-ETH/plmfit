@@ -11,104 +11,106 @@ import os
 import torch.distributed as dist
 from torchmetrics.classification import (
     MulticlassAccuracy,
-    MulticlassConfusionMatrix,
-    MulticlassMatthewsCorrCoef,
     BinaryAccuracy,
-    BinaryAUROC,
-    BinaryConfusionMatrix,
-    BinaryMatthewsCorrCoef,
-    BinaryROC,
     MultilabelAccuracy,
-    MultilabelMatthewsCorrCoef,
-    MultilabelConfusionMatrix,
 )
 from torchmetrics.regression import (
     MeanSquaredError,
-    MeanAbsoluteError,
-    R2Score,
-    SpearmanCorrCoef,
 )
 from torchmetrics.text import Perplexity
 from lightning.pytorch.callbacks import BasePredictionWriter
-from plmfit.shared_utils.custom_loss_functions import MaskedBCEWithLogitsLoss, MaskedFocalWithLogitsLoss
+from plmfit.shared_utils.custom_loss_functions import (
+    MaskedBCEWithLogitsLoss,
+    MaskedFocalWithLogitsLoss,
+)
 import numpy as np
+from plmfit.shared_utils.metrics import (
+    ClassificationMetrics,
+    TokenClassificationMetrics,
+    MultilabelClassificationMetrics,
+    RegressionMetrics,
+    MaskedLMetrics,
+)
 
 
 class LightningModel(L.LightningModule):
     def __init__(
         self,
-        model,
+        model=None,
         training_config=None,
         plmfit_logger=None,
         log_interval=-1,
-        method="lora",
         experimenting=False,
         train=True,
     ):
         torch.set_float32_matmul_precision("medium")
         super().__init__()
         self.model = model
-        self.save_hyperparameters(training_config)
-        if train:
-            self.loss_function = self.initialize_loss_function()
+        self.save_hyperparameters(
+            training_config, ignore=["model"]
+        )  # Save only serializable hyperparams
+
         self.plmfit_logger = plmfit_logger
         self.log_interval = log_interval
-        self.method = method
-
-        if train:
-            if "no_classes" not in self.hparams:
-                self.hparams.no_classes = 1
-            if self.model.task == "classification":
-                if self.hparams.no_classes < 2:
-                    self.train_metric = (
-                        BinaryAccuracy()
-                    )  # Binary accuracy requires 1 dimension at output
-                else:
-                    self.train_metric = MulticlassAccuracy(
-                        num_classes=self.hparams.no_classes
-                    )
-                self.metric_label = "accuracy"
-            elif self.model.task == "regression":
-                self.train_metric = MeanSquaredError(squared=False)
-                self.metric_label = "rmse"
-            elif self.model.task == "masked_lm":
-                self.train_metric = Perplexity(ignore_index=-100)
-                self.metric_label = "perplexity"
-            elif self.model.task == "token_classification":
-                self.train_metric = MulticlassAccuracy(
-                    num_classes=self.hparams.no_classes, ignore_index=-100
-                )
-                self.metric_label = "accuracy"
-            elif self.model.task == "multilabel_classification":
-                self.train_metric = MultilabelAccuracy(
-                    num_labels=self.hparams.no_labels, ignore_index=-100
-                )
-                self.metric_label = "accuracy"
-            else:
-                raise ValueError(f"Unsupported task: {self.model.task}")
-
-            self.val_metric = self.train_metric.clone()
-
-            self.metrics = Metrics(
-                self.model.task,
-                no_classes=(
-                    1 if "no_classes" not in self.hparams else self.hparams.no_classes
-                ),
-                no_labels=(
-                    1 if "no_labels" not in self.hparams else self.hparams.no_labels
-                ),
-            )
-
-            self.track_validation_after = 0
-            self.track_training_loss = False
-
+        self.experimenting = experimenting
         self.profiling_interval = 100
 
-        self.experimenting = experimenting
+        if train:
+            self.initialize_training_components()
+
+    def initialize_training_components(self):
+        """Initialize loss function and metrics."""
+        self.loss_function = self.initialize_loss_function()
+
+        no_classes = getattr(self.hparams, "no_classes", 1)
+        no_labels = getattr(self.hparams, "no_labels", 1)
+
+        if self.model.task == "classification":
+            self.train_metric = (
+                BinaryAccuracy()
+                if no_classes < 2
+                else MulticlassAccuracy(num_classes=no_classes)
+            )
+            self.metric_label = "accuracy"
+            self.metrics = ClassificationMetrics(no_classes=no_classes)
+        elif self.model.task == "regression":
+            self.train_metric = MeanSquaredError(squared=False)
+            self.metric_label = "rmse"
+            self.metrics = RegressionMetrics()
+        elif self.model.task == "masked_lm":
+            self.train_metric = Perplexity(ignore_index=-100)
+            self.metric_label = "perplexity"
+            self.metrics = MaskedLMetrics()
+        elif self.model.task == "token_classification":
+            self.train_metric = MulticlassAccuracy(
+                num_classes=no_classes, ignore_index=-100
+            )
+            self.metric_label = "accuracy"
+            self.metrics = TokenClassificationMetrics(no_classes=no_classes)
+        elif self.model.task == "multilabel_classification":
+            self.train_metric = MultilabelAccuracy(
+                num_labels=no_labels, ignore_index=-100
+            )
+            self.metric_label = "accuracy"
+            self.metrics = MultilabelClassificationMetrics(no_labels=no_labels)
+            if getattr(self.hparams, "extra_divisions", None) is not None:
+                self.extra_metrics = {}
+                for value in self.hparams.extra_divisions:
+                    self.extra_metrics[value] = MultilabelClassificationMetrics(
+                        no_labels=no_labels
+                    )
+        else:
+            raise ValueError(f"Unsupported task: {self.model.task}")
+
+        self.val_metric = self.train_metric.clone()
+
+        self.track_validation_after = 0
+        self.track_training_loss = False
+        self.epoch_start_time = 0
 
     def forward(self, input, **args):
         if torch.backends.mps.is_available():
-            input = input.to(torch.float)
+            input = input.to(torch.long)
         output = self.model(input, **args)
         return output
 
@@ -197,7 +199,13 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
-            input, labels = batch
+            if len(batch) == 3:
+                input, labels, weights = batch
+            else:
+                input, labels = batch
+                weights = None  # If weights are missing, set them to None
+            
+            #input, labels, weights = batch
             outputs = self(input)
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == "classification" and self.hparams.no_classes > 1:
@@ -228,7 +236,18 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.squeeze(dim=1)
             if torch.backends.mps.is_available():
                 labels = labels.to(torch.float32)
-            loss = self.loss_function(outputs, labels)
+            #weights_expanded = weights.unsqueeze(1).repeat(1, 2)
+            #loss = self.loss_function(outputs, labels,sample_weight=weights_expanded)
+            # Only expand weights if multi-label
+            if weights is None:
+                loss = self.loss_function(outputs, labels)  # No weights provided, so don't pass them
+            else:
+                # If weights are provided, expand them accordingly and pass them to the loss function
+                if self.model.task == "multilabel_classification":
+                    weights_expanded = weights.unsqueeze(1).repeat(1, outputs.shape[1])
+                    loss = self.loss_function(outputs, labels, sample_weight=weights_expanded)
+                else:
+                    loss = self.loss_function(outputs, labels, sample_weight=weights)
 
         if self.model.task == "classification" and self.hparams.no_classes > 1:
             labels = torch.argmax(labels, dim=1)
@@ -248,7 +267,7 @@ class LightningModel(L.LightningModule):
             "train_loss",
             loss,
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
             logger=True,
             prog_bar=False,
             sync_dist=True,
@@ -256,14 +275,20 @@ class LightningModel(L.LightningModule):
 
         self.train_metric.update(outputs, labels)
         self.log(
-            f"train_{self.metric_label}_step",
+            f"train_{self.metric_label}",
             self.train_metric,
-            on_step=False,
-            on_epoch=True,
+            on_step=True,
+            on_epoch=False,
             logger=True,
             prog_bar=False,
             sync_dist=True,
         )
+
+        for i, optimizer in enumerate(self.trainer.optimizers):
+            current_lr = optimizer.param_groups[0]["lr"]
+            self.log(
+                f"learning_rate/optimizer_{i}", current_lr, on_step=True, on_epoch=False
+            )
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(
@@ -285,16 +310,22 @@ class LightningModel(L.LightningModule):
             raise SystemExit("Experiment over")
 
     def on_train_epoch_end(self):
-        self.log(f"train_{self.metric_label}_epoch", self.train_metric, sync_dist=True)
-        self.epoch_train_loss.append(
-            self.trainer.logged_metrics["train_loss_epoch"].item()
+        if "train_loss" not in self.trainer.logged_metrics:
+            return
+        self.epoch_train_loss.append(self.trainer.logged_metrics["train_loss"].item())
+        self.log(
+            f"train_{self.metric_label}",
+            self.train_metric.compute().item(),
+            logger=True,
+            prog_bar=False,
+            sync_dist=True,
         )
         if self.plmfit_logger:
             self.plmfit_logger.log(
-                f'(train) loss: {self.trainer.logged_metrics["train_loss_epoch"]:.4f} {time.time() - self.epoch_start_time:.4f}s'
+                f'(train) loss: {self.trainer.logged_metrics["train_loss"]:.4f} {time.time() - self.epoch_start_time:.4f}s'
             )
             self.plmfit_logger.log(
-                f'(train) {self.metric_label}: {self.trainer.logged_metrics[f"train_{self.metric_label}_epoch"]:.4f}'
+                f'(train) {self.metric_label}: {self.trainer.logged_metrics[f"train_{self.metric_label}"]:.4f}'
             )
         if self.experimenting:
             print("Successful test")
@@ -320,6 +351,8 @@ class LightningModel(L.LightningModule):
                 "avg_time_per_epoch": f"{total_time/(self.current_epoch+1):.4f}",
             }
             self.plmfit_logger.save_data(report, "report")
+        # Reset metric to prevent state accumulation.
+        self.train_metric.reset()
 
     ### VALIDATION STEPS ###
     def on_validation_epoch_start(self):
@@ -339,7 +372,14 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
-            input, labels = batch
+            # Check if batch contains 3 elements (input, labels, weights)
+            if len(batch) == 3:
+                input, labels, weights = batch
+            else:
+                input, labels = batch
+                weights = None  # If weights are missing, set them to None
+
+            #input, labels, weights = batch
             outputs = self(input)
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == "classification" and self.hparams.no_classes > 1:
@@ -369,17 +409,19 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.squeeze(dim=1)
             if torch.backends.mps.is_available():
                 labels = labels.to(torch.float32)
-            loss = self.loss_function(outputs, labels)
-
-        self.log(
-            "val_loss",
-            loss,
-            on_step=True,
-            on_epoch=True,
-            logger=True,
-            prog_bar=False,
-            sync_dist=True,
-        )
+            #loss = self.loss_function(outputs, labels, sample_weight=weights)
+            #weights_expanded = weights.unsqueeze(1).repeat(1, 2)
+            #loss = self.loss_function(outputs, labels,sample_weight=weights_expanded)
+            # Handle loss calculation based on whether weights are available
+            if weights is None:
+                loss = self.loss_function(outputs, labels)  # No weights provided, so don't pass them
+            else:
+                # If weights are provided, expand them accordingly and pass them to the loss function
+                if self.model.task == "multilabel_classification":
+                    weights_expanded = weights.unsqueeze(1).repeat(1, outputs.shape[1])
+                    loss = self.loss_function(outputs, labels, sample_weight=weights_expanded)
+                else:
+                    loss = self.loss_function(outputs, labels, sample_weight=weights)
 
         if self.model.task == "classification" and self.hparams.no_classes > 1:
             labels = torch.argmax(labels, dim=1)
@@ -394,12 +436,23 @@ class LightningModel(L.LightningModule):
             # Logits loss function must be being used so we have to convert to probabilities
             outputs = torch.sigmoid(outputs)
             labels = labels.int()
+
+        self.log(
+            "val_loss",
+            loss,
+            on_step=True,
+            on_epoch=False,
+            logger=True,
+            prog_bar=False,
+            sync_dist=True,
+        )
+
         self.val_metric.update(outputs, labels)
         self.log(
-            f"val_{self.metric_label}_step",
+            f"val_{self.metric_label}",
             self.val_metric,
-            on_step=False,
-            on_epoch=True,
+            on_step=True,
+            on_epoch=False,
             logger=True,
             prog_bar=False,
             sync_dist=True,
@@ -412,35 +465,46 @@ class LightningModel(L.LightningModule):
         return loss
 
     def on_validation_epoch_end(self):
-        self.log(f"val_{self.metric_label}_epoch", self.val_metric, sync_dist=True)
         if not self.trainer.sanity_checking:
-            self.epoch_val_loss.append(
-                self.trainer.logged_metrics["val_loss_epoch"].item()
-            )
+            self.epoch_val_loss.append(self.trainer.logged_metrics["val_loss"].item())
+        self.log(
+            f"val_loss",
+            self.trainer.logged_metrics["val_loss"].item(),
+            logger=True,
+            prog_bar=False,
+            sync_dist=True,
+        )
+        self.log(
+            f"val_{self.metric_label}",
+            self.val_metric.compute().item(),
+            logger=True,
+            prog_bar=False,
+            sync_dist=True,
+        )
         if self.plmfit_logger:
             self.plmfit_logger.log(
-                f'(val) loss: {self.trainer.logged_metrics["val_loss_epoch"]:.4f}'
+                f'(val) loss: {self.trainer.logged_metrics["val_loss"]:.5f}'
             )
             self.plmfit_logger.log(
-                f'(val) {self.metric_label}: {self.trainer.logged_metrics[f"val_{self.metric_label}_epoch"]:.4f}'
+                f'(val) {self.metric_label}: {self.trainer.logged_metrics[f"val_{self.metric_label}"]:.5f}'
             )
-
-        if (
-            self.trainer.logged_metrics["val_loss_epoch"] < self.best_val_loss
-            and self.current_epoch >= self.track_validation_after
-            or self.track_validation_after == -1
-        ):
-            self.best_val_loss = self.trainer.logged_metrics["val_loss_epoch"]
-            self.trainer.save_checkpoint(
-                f"{self.plmfit_logger.base_dir}/lightning_logs/best_model.ckpt"
+        if not self.trainer.sanity_checking:
+            if (
+                self.trainer.logged_metrics["val_loss"] < self.best_val_loss
+                and self.current_epoch >= self.track_validation_after
+                or self.track_validation_after == -1
+            ):
+                self.best_val_loss = self.trainer.logged_metrics["val_loss"]
+                self.trainer.save_checkpoint(
+                    f"{self.plmfit_logger.base_dir}/lightning_logs/best_model.ckpt"
+                )
+                self.best_epoch = self.current_epoch
+                self.epochs_no_improve = 0
+            else:
+                self.epochs_no_improve += 1
+            self.plmfit_logger.log(
+                f"The best model was last saved at epoch {self.best_epoch + 1}."
             )
-            self.best_epoch = self.current_epoch
-            self.epochs_no_improve = 0
-        else:
-            self.epochs_no_improve += 1
-        self.plmfit_logger.log(
-            f"The best model was last saved at epoch {self.best_epoch + 1}."
-        )
 
     ### TESTING STEPS ###
     def on_test_start(self) -> None:
@@ -459,7 +523,15 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
-            input, labels, ids = batch
+            #input, labels, weights, ids = batch
+            # Check if the batch contains 4 elements (input, labels, weights, ids)
+            if len(batch) == 4:
+                input, labels, weights, ids = batch
+            else:
+                # Handle case where weights and/or ids are missing
+                input, labels, ids = batch
+                weights = None
+            
             outputs = self(input)
 
             # No squeezing, leave logits as is for CrossEntropyLoss
@@ -491,7 +563,18 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.squeeze(dim=1)
             if torch.backends.mps.is_available():
                 labels = labels.to(torch.float32)
-            loss = self.loss_function(outputs, labels)
+            #loss = self.loss_function(outputs, labels,sample_weight=weights)
+            #weights_expanded = weights.unsqueeze(1).repeat(1, 2)
+            #loss = self.loss_function(outputs, labels,sample_weight=weights_expanded)
+            if weights is None:
+                loss = self.loss_function(outputs, labels)  # No weights provided, so don't pass them
+            else:
+                # If weights are provided, expand them accordingly and pass them to the loss function
+                if self.model.task == "multilabel_classification":
+                    weights_expanded = weights.unsqueeze(1).repeat(1, outputs.shape[1])
+                    loss = self.loss_function(outputs, labels, sample_weight=weights_expanded)
+                else:
+                    loss = self.loss_function(outputs, labels, sample_weight=weights)
         self.log(
             "test_loss", loss, on_step=True, on_epoch=True, logger=True, prog_bar=False
         )
@@ -510,6 +593,9 @@ class LightningModel(L.LightningModule):
             outputs = torch.sigmoid(outputs)
             labels = labels.int()
         self.metrics.add(outputs, labels, ids)
+        if hasattr(self, "extra_metrics"):
+            for value, metric in self.extra_metrics.items():
+                metric.add(outputs, labels, ids, value)
 
         if self.log_interval != -1 and batch_idx % self.log_interval == 0:
             self.plmfit_logger.log(
@@ -523,6 +609,15 @@ class LightningModel(L.LightningModule):
         self.metrics.actual_list = self.merge_lists(self.metrics.actual_list)
         self.metrics.ids = self.merge_lists(self.metrics.ids)
         metrics = self.metrics.get_metrics(device=self.device)
+        
+        if hasattr(self, "extra_metrics"):
+            extra_metrics = {}
+            for value, metric in self.extra_metrics.items():
+                metric.preds_list = self.merge_lists(metric.preds_list)
+                metric.actual_list = self.merge_lists(metric.actual_list)
+                metric.ids = self.merge_lists(metric.ids)
+                extra_metrics[value] = metric.get_metrics(device=self.device)
+                
         self.plmfit_logger.log(
             f'loss: {self.trainer.logged_metrics["test_loss_epoch"]:.4f} {time.time() - self.epoch_start_time:.4f}s'
         )
@@ -533,6 +628,13 @@ class LightningModel(L.LightningModule):
             self.metrics.save_metrics(
                 path=f"{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}"
             )
+            if hasattr(self, "extra_metrics"):
+                for value, metric in extra_metrics.items():
+                    self.plmfit_logger.save_data(metric["main"], f"metrics_{value}")
+                for value, metric in self.extra_metrics.items():
+                    metric.save_metrics(
+                        path=f"{self.plmfit_logger.base_dir}/{self.plmfit_logger.experiment_name}_{value}",
+                    )
 
     ### PREDICTION STEPS ###
     def on_predict_start(self) -> None:
@@ -542,7 +644,10 @@ class LightningModel(L.LightningModule):
 
     def predict_step(self, batch, batch_idx):
         batch_start_time = time.time()
-        (input,) = batch
+        if self.model.task == "masked_lm":
+            input = batch["input_ids"]
+        else:
+            (input,) = batch
         outputs = self(input)
         if hasattr(outputs, "logits"):
             outputs = outputs.logits
@@ -599,7 +704,7 @@ class LightningModel(L.LightningModule):
     def initialize_lr_scheduler(self, optimizer):
         if optimizer is None:
             return None
-        return torch.optim.lr_scheduler.ConstantLR(optimizer)
+        return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: 1.0)
 
     def initialize_loss_function(self):
         if self.hparams.loss_f == "bce":
@@ -619,7 +724,7 @@ class LightningModel(L.LightningModule):
                     self.hparams.pos_weight
                     if self.handle_hparam_exists("pos_weight")
                     else None
-                )
+                ),
             )
         elif self.hparams.loss_f == "masked_focal_logits":
             return MaskedFocalWithLogitsLoss()
@@ -678,279 +783,6 @@ class LightningModel(L.LightningModule):
             dist.all_gather_object(all_rank_list, lists)
             lists = [x for y in all_rank_list for x in y]
         return lists
-
-
-class Metrics(torch.nn.Module):
-    def __init__(self, task: str, no_classes=1, no_labels=1):
-        super().__init__()
-        self.task = task
-        self.preds_list = []
-        self.actual_list = []
-        self.ids = []
-        if task == "classification":
-            self.no_classes = no_classes
-            if self.no_classes < 2:
-                self.acc = BinaryAccuracy()
-                self.roc_auc = BinaryAUROC()
-                self.mcc = BinaryMatthewsCorrCoef()
-                self.cm = BinaryConfusionMatrix()
-                self.roc = BinaryROC()
-            else:
-                self.acc = MulticlassAccuracy(num_classes=self.no_classes)
-                self.micro_acc = MulticlassAccuracy(
-                    num_classes=self.no_classes, average="micro"
-                )
-                self.mcc = MulticlassMatthewsCorrCoef(num_classes=self.no_classes)
-                self.cm = MulticlassConfusionMatrix(num_classes=self.no_classes)
-        elif task == "regression":
-            self.mse = MeanSquaredError()
-            self.rmse = MeanSquaredError(squared=False)
-            self.mae = MeanAbsoluteError()
-            self.r2 = R2Score()
-            self.spearman = SpearmanCorrCoef()
-        elif task == "masked_lm":
-            self.perplexity = Perplexity(ignore_index=-100)
-        elif task == "token_classification":
-            self.no_classes = no_classes
-            self.acc = MulticlassAccuracy(
-                num_classes=self.no_classes, ignore_index=-100
-            )
-            self.micro_acc = MulticlassAccuracy(
-                num_classes=self.no_classes, average="micro", ignore_index=-100
-            )
-            self.mcc = MulticlassMatthewsCorrCoef(
-                num_classes=self.no_classes, ignore_index=-100
-            )
-            self.cm = MulticlassConfusionMatrix(
-                num_classes=self.no_classes, ignore_index=-100
-            )
-        elif task == "multilabel_classification":
-            self.no_labels = no_labels
-            self.acc = MultilabelAccuracy(num_labels=self.no_labels, ignore_index=-100)
-            self.mcc = MultilabelMatthewsCorrCoef(
-                num_labels=self.no_labels, ignore_index=-100
-            )
-            self.cm = MultilabelConfusionMatrix(
-                num_labels=self.no_labels, ignore_index=-100
-            )
-
-    def add(self, preds, actual, ids):
-        if (
-            self.task == "token_classification"
-            or self.task == "multilabel_classification"
-        ):
-            self.preds_list.extend(preds.tolist())
-            self.actual_list.extend(actual.tolist())
-            (
-                self.ids.extend(ids.tolist())
-                if len(ids.tolist()) > 1
-                else self.ids.append(ids.item())
-            )
-        else:
-            (
-                self.preds_list.extend(preds.tolist())
-                if len(preds.tolist()) > 1
-                else self.preds_list.append(preds.item())
-            )
-            (
-                self.actual_list.extend(actual.tolist())
-                if len(actual.tolist()) > 1
-                else self.actual_list.append(actual.item())
-            )
-            (
-                self.ids.extend(ids.tolist())
-                if len(ids.tolist()) > 1
-                else self.ids.append(ids.item())
-            )
-
-    def calculate(self, preds, actual):
-        if self.task == "classification":
-            self.calc_classification_metrics(preds, actual)
-        elif self.task == "regression":
-            self.calc_regression_metrics(preds, actual)
-        elif self.task == "masked_lm":
-            self.calc_masked_lm_metrics(preds, actual)
-        elif self.task == "token_classification":
-            self.calc_token_classification_metrics(preds, actual)
-        elif self.task == "multilabel_classification":
-            self.calc_multilabel_classification_metrics(preds, actual)
-
-    def calc_classification_metrics(self, preds, actual):
-        self.acc.update(preds, actual)
-        if self.no_classes < 2:
-            self.roc_auc.update(preds, actual)
-        else:
-            self.micro_acc.update(preds, actual)
-        self.mcc.update(preds, actual)
-        self.cm.update(preds, actual)
-        if self.no_classes < 2:
-            self.roc.update(preds, actual.int())
-
-    def calc_regression_metrics(self, preds, actual):
-        self.mse.update(preds, actual)
-        self.rmse.update(preds, actual)
-        self.mae.update(preds, actual)
-        self.r2.update(preds, actual)
-        self.spearman.update(preds, actual)
-
-    def calc_masked_lm_metrics(self, preds, actual):
-        self.perplexity.update(preds, actual)
-
-    def calc_token_classification_metrics(self, preds, actual):
-        self.acc.update(preds, actual)
-        self.micro_acc.update(preds, actual)
-        self.mcc.update(preds, actual)
-        self.cm.update(preds, actual)
-
-    def calc_multilabel_classification_metrics(self, preds, actual):
-        self.acc.update(preds, actual)
-        self.mcc.update(preds, actual)
-        self.cm.update(preds, actual)
-
-    def get_metrics(self, device="cpu"):
-        self.calculate(
-            torch.tensor(self.preds_list, device=device),
-            torch.tensor(self.actual_list, device=device),
-        )
-        if self.task == "classification":
-            return self.get_classification_metrics()
-        elif self.task == "regression":
-            return self.get_regression_metrics()
-        elif self.task == "masked_lm":
-            return self.get_masked_lm_metrics()
-        elif self.task == "token_classification":
-            return self.get_token_classification_metrics()
-        elif self.task == "multilabel_classification":
-            return self.get_multilabel_classification_metrics()
-
-    def get_classification_metrics(self):
-        if self.no_classes < 2:
-            fpr, tpr, thresholds = list(self.roc.compute())
-            self.report = {
-                "main": {
-                    "accuracy": self.acc.compute().item(),
-                    "roc_auc": self.roc_auc.compute().item(),
-                    "mcc": self.mcc.compute().item(),
-                    "confusion_matrix": self.cm.compute().tolist(),
-                },
-                "roc_auc_data": {
-                    "fpr": fpr.tolist(),
-                    "tpr": tpr.tolist(),
-                    "roc_auc_val": self.roc_auc.compute().item(),
-                },
-                "pred_data": {
-                    "preds": self.preds_list,
-                    "actual": self.actual_list,
-                    "ids": self.ids,
-                },
-            }
-        else:
-            self.report = {
-                "main": {
-                    "accuracy": self.acc.compute().item(),
-                    "micro_accuracy": self.micro_acc.compute().item(),
-                    "mcc": self.mcc.compute().item(),
-                    "confusion_matrix": self.cm.compute().tolist(),
-                },
-                "pred_data": {
-                    "preds": self.preds_list,
-                    "actual": self.actual_list,
-                    "ids": self.ids,
-                },
-            }
-        return self.report
-
-    def get_regression_metrics(self):
-        metrics = {
-            "mse": self.mse.compute().item(),
-            "rmse": self.rmse.compute().item(),
-            "mae": self.mae.compute().item(),
-            "r_sq": self.r2.compute().item(),
-            "spearman": self.spearman.compute().item(),
-        }
-
-        self.report = {
-            "main": metrics,
-            "pred_data": {
-                "preds": self.preds_list,
-                "actual": self.actual_list,
-                "ids": self.ids,
-                "eval_metrics": metrics,
-            },
-        }
-
-        return self.report
-
-    def get_masked_lm_metrics(self):
-        metrics = {
-            "perplexity": self.perplexity.compute().item(),
-        }
-
-        self.report = {"main": metrics}
-
-        return self.report
-
-    def get_token_classification_metrics(self):
-        self.report = {
-            "main": {
-                "accuracy": self.acc.compute().item(),
-                "micro_accuracy": self.micro_acc.compute().item(),
-                "mcc": self.mcc.compute().item(),
-                "confusion_matrix": self.cm.compute().tolist(),
-            },
-            "pred_data": {
-                "preds": self.preds_list,
-                "actual": self.actual_list,
-                "ids": self.ids,
-            },
-        }
-        return self.report
-
-    def get_multilabel_classification_metrics(self):
-        self.report = {
-            "main": {
-                "accuracy": self.acc.compute().item(),
-                "mcc": self.mcc.compute().item(),
-                "confusion_matrix": self.cm.compute().tolist(),
-            },
-            "pred_data": {
-                "preds": self.preds_list,
-                "actual": self.actual_list,
-                "ids": self.ids,
-            },
-        }
-        return self.report
-
-    def save_metrics(self, path):
-        metrics_path = f"{path}_metrics.json"
-        if self.report is None:
-            self.get_metrics()
-
-        # Check if the metrics file already exists
-        if os.path.exists(metrics_path):
-            # Load the existing data
-            with open(metrics_path, "r", encoding="utf-8") as f:
-                existing_data = json.load(f)
-
-            # Check if 'pred_data' field exists and update it
-            if "pred_data" in existing_data:
-                existing_data["pred_data"]["preds"].extend(
-                    self.report["pred_data"]["preds"]
-                )
-                existing_data["pred_data"]["actual"].extend(
-                    self.report["pred_data"]["actual"]
-                )
-                existing_data["pred_data"]["ids"].extend(
-                    self.report["pred_data"]["ids"]
-                )
-                self.report = existing_data
-            else:
-                # If 'pred_data' does not exist, simply prepare to write the current report
-                pass
-
-        # Write the updated or original report to the file
-        with open(metrics_path, "w", encoding="utf-8") as f:
-            json.dump(self.report, f, indent=4)
 
 
 class PredictionWriter(BasePredictionWriter):

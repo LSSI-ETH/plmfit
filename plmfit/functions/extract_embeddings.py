@@ -21,12 +21,22 @@ def extract_embeddings(args, logger):
     model.set_layer_to_use(args.layer)
     model.py_model.reduction = args.reduction
 
+    # Create mask of which sequences were valid
+    mask = ~data['aa_seq'].str.contains('X')
+    data_cleaned = data[mask].reset_index(drop=True)
+
     encs = model.categorical_encode(data)
     encs = torch.tensor(encs)
+   
+    #addition 
+    print(f"✅ Successfully encoded {len(encs)} sequences out of {len(data)}")
+    logger.save_data(data.iloc[:len(encs)].to_dict(orient="records"), "sequence_metadata")
 
     logger.save_data(vars(args), "arguments")
 
     data_loader = utils.create_predict_data_loader(encs, batch_size=args.batch_size)
+
+    model.py_model.task = "extract_embeddings"
 
     model = LightningModel(
         model.py_model,
@@ -37,7 +47,7 @@ def extract_embeddings(args, logger):
     )
     model.eval()
     lightning_logger = TensorBoardLogger(
-        save_dir=logger.base_dir, version=0, name="lightning_logs"
+        save_dir=logger.base_dir, name="lightning_logs"
     )
 
     strategy = DeepSpeedStrategy(

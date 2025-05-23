@@ -31,3 +31,14 @@ do
          scripts/fine_tuning/fine_tuning_mass.sh \
          "$function" "$ft_method" "$target_layers" "$head_config" "$data_type" "$split" "$plm" "$layer" "$reduction" "$output_dir" "$experiment_dir" "$experiment_name" "$gpus" "$nodes" "$experimenting"
 done
+
+#fine_tuning	lora	all	RBDDSFFT	default	esmc_300m	linear	classification	lora_last_linear_classification_head_config.json	last	mean	/cluster/scratch/askrika	6	rtx_4090	20g	1	72	False
+#fine_tuning	lora	all	RBDGFFT	default	esmc_300m	linear	multilabel_classification	lora_linear_multilabel_classification_head_config.json	last	mean	/cluster/scratch/askrika	6	rtx_4090	20g	1	72	False
+
+
+#fine_tuning	lora	all	RBDHCPWF	split	esmc_300m	linear	classification	lora_last_linear_classification_head_config_HC.json	last	bos	/cluster/scratch/askrika	6	rtx_4090	20g	1	72	False
+#fine_tuning	lora	all	RBDDSPWF	split	esmc_300m	linear	classification	lora_last_linear_classification_head_config_DS.json	last	bos	/cluster/scratch/askrika	6	rtx_4090	20g	1	72	False
+#fine_tuning	lora	all	RBDGPWF	split	esmc_300m	linear	multilabel_classification	lora_linear_multilabel_classification_head_config_G.json	last	bos	/cluster/scratch/askrika	6	rtx_4090	20g	1	72	False
+#fine_tuning	lora	all	RBDHCBF	split	esmc_300m	linear	classification	lora_last_linear_classification_head_config_B.json	last	bos	/cluster/scratch/askrika	6	rtx_4090	20g	1	72	False
+#fine_tuning	lora	all	RBDDSBF	split	esmc_300m	linear	classification	lora_last_linear_classification_head_config_B.json	last	bos	/cluster/scratch/askrika	6	rtx_4090	20g	1	72	False
+#fine_tuning	lora	all	RBDGBF	split	esmc_300m	linear	multilabel_classification	lora_linear_multilabel_classification_head_config_BG.json	last	bos	/cluster/scratch/askrika	6	rtx_4090	20g	1	72	False

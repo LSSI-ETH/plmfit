@@ -1,0 +1,33 @@
+{
+  "architecture_parameters":
+  {
+    "network_type": "cnn",
+    "num_filters": 32,
+    "kernel_size": 3,
+    "dropout": 0.25,
+    "hidden_activation": "relu",
+    "num_conv_layers": 2,
+    "output_dim": 8,
+    "task": "multilabel_classification"
+  },
+  "training_parameters": 
+  {
+    "learning_rate": 0.0001,
+    "epochs": 3,
+    "batch_size": 16,
+    "loss_f": "masked_bce_logits",
+    "optimizer": "adam",
+    "val_split": 0.2,
+    "weight_decay": 0.01,
+    "warmup_steps": 0,
+    "gradient_clipping": false,
+    "scheduler": false,
+    "scaler": false,
+    "gradient_accumulation": 1,
+    "early_stopping": 5,
+    "epoch_sizing": 1.0,
+    "model_output": "logits",
+    "no_classes": 1,
+    "no_labels": 8
+  }
+}

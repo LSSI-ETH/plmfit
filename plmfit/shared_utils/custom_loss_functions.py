@@ -12,6 +12,63 @@ class WeightedBCELoss(nn.Module):
         loss = -2 * (self.weights[0] * (targets * torch.log(pred + EPS)) + self.weights[1] * (1 - targets) * torch.log(1 - pred +EPS))
         return loss.mean()
 
+class MaskedBCELoss(nn.Module):
+    """
+    Custom BCE loss that assumes the inputs are probabilities (i.e. no sigmoid is applied)
+    and ignores targets equal to ignore_index.
+    """
+    def __init__(self, reduction="mean", ignore_index=-100, pos_weight=None):
+        super(MaskedBCELoss, self).__init__()
+        self.reduction = reduction
+        self.ignore_index = ignore_index
+        if pos_weight is not None:
+            pos_weight_tensor = torch.tensor(pos_weight, dtype=torch.float)
+            # Register the tensor so it moves with the model.
+            self.register_buffer("pos_weight", pos_weight_tensor)
+        else:
+            self.pos_weight = None
+
+    def forward(self, probs, targets):
+        """
+        probs:   Tensor of shape [batch_size, num_labels] with probabilities (in [0,1]).
+        targets: Tensor of shape [batch_size, num_labels], where positions with the value 
+                 `ignore_index` will be ignored.
+        """
+        # Create a mask for valid targets.
+        mask = targets != self.ignore_index
+        
+        if mask.sum() == 0:
+            return torch.tensor(0.0, device=probs.device, dtype=probs.dtype)
+
+        # Clamp ignored targets to 0.0 so that BCE computation remains valid.
+        clamped_targets = targets.clone()
+        clamped_targets[~mask] = 0.0
+
+        # To avoid log(0) issues, clamp probabilities to a small epsilon.
+        eps = 1e-7
+        probs = probs.clamp(min=eps, max=1 - eps)
+
+        # Compute the element-wise BCE loss.
+        # If pos_weight is provided, weight the positive examples accordingly.
+        if self.pos_weight is not None:
+            element_loss = - (clamped_targets * self.pos_weight * torch.log(probs) +
+                              (1 - clamped_targets) * torch.log(1 - probs))
+        else:
+            element_loss = - (clamped_targets * torch.log(probs) +
+                              (1 - clamped_targets) * torch.log(1 - probs))
+
+        # Apply the mask to zero out loss for ignored targets.
+        masked_loss = element_loss * mask.float()
+
+        # Reduce the loss over the valid elements.
+        if self.reduction == "mean":
+            loss = masked_loss.sum() / mask.sum().float()
+        elif self.reduction == "sum":
+            loss = masked_loss.sum()
+        else:  # "none": return the full loss matrix.
+            loss = masked_loss
+
+        return loss
 
 class MaskedBCEWithLogitsLoss(nn.Module):
     """
@@ -30,7 +87,7 @@ class MaskedBCEWithLogitsLoss(nn.Module):
         else:
             self.pos_weight = None
 
-    def forward(self, logits, targets):
+    def forward(self, logits, targets,sample_weight=None):
         """
         logits:   shape [batch_size, num_labels]
         targets:  shape [batch_size, num_labels], with ignore_index in some places
@@ -45,7 +102,8 @@ class MaskedBCEWithLogitsLoss(nn.Module):
         element_loss = F.binary_cross_entropy_with_logits(
             logits, clamped_targets,
             pos_weight=self.pos_weight,
-            reduction="none"  # shape [batch_size, num_labels]
+            reduction="none",  # shape [batch_size, num_labels]
+            weight=sample_weight,
         )
 
         # Zero out ignored labels
@@ -142,3 +200,64 @@ class MaskedFocalWithLogitsLoss(nn.Module):
                 f"Invalid 'reduction' mode: {self.reduction}. "
                 "Supported: 'none', 'mean', 'sum'."
             )
+
+class SampleWeightedCrossEntropyLoss(nn.Module):
+    def __init__(self, reduction="mean", ignore_index=-100):
+        super().__init__()
+        self.reduction = reduction
+        self.ignore_index = ignore_index
+
+    def forward(self, logits, targets, sample_weight=None):
+        if logits.dim() == 2:
+            # Shape: [B, C] → Sequence-level classification
+            loss = F.cross_entropy(
+                logits,
+                targets,
+                reduction="none"
+            )
+            if sample_weight is not None:
+                loss = loss * sample_weight.float()
+
+        elif logits.dim() == 3:
+            # Shape: [B, T, C] → Token-level classification
+            B, T, C = logits.shape
+            logits = logits.view(-1, C)          # [B*T, C]
+            targets = targets.view(-1)           # [B*T]
+            
+            # Expand sample weights to token level
+            if sample_weight is not None:
+                sample_weight = sample_weight.view(B, 1).expand(B, T).reshape(-1)  # [B*T]
+
+            loss = F.cross_entropy(
+                logits,
+                targets,
+                reduction="none",
+                ignore_index=self.ignore_index
+            )
+
+            mask = targets != self.ignore_index
+            loss = loss * mask.float()
+
+            if sample_weight is not None:
+                loss = loss * sample_weight
+
+            if self.reduction == "mean":
+                denom = mask.float().sum()
+                if sample_weight is not None:
+                    denom = sample_weight[mask].sum()
+                return loss.sum() / (denom + 1e-8)  # prevent divide-by-zero
+            elif self.reduction == "sum":
+                return loss.sum()
+            else:
+                return loss  # no reduction
+
+        else:
+            raise ValueError(f"Unsupported logits dim: {logits.dim()}")
+        
+        # For sequence-level case, apply reduction
+        if self.reduction == "mean":
+            return loss.mean()
+        elif self.reduction == "sum":
+            return loss.sum()
+        else:
+            return loss

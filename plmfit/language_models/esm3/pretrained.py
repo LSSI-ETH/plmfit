@@ -23,7 +23,7 @@ from esm.utils.constants.models import (
     ESMC_300M,
     ESMC_600M,
 )
-from plmfit.language_models.esmC.modeling_esmc import PlmfitEsmCForEmbdeddingsExtraction, PlmfitEsmCForSequenceClassification
+from plmfit.language_models.esm3.modeling_esmc import PlmfitEsmCForEmbdeddingsExtraction, PlmfitEsmCForSequenceClassification
 
 ModelBuilder = Callable[[torch.device | str], nn.Module]
 

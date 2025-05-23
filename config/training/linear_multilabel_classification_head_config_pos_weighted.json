@@ -1,0 +1,37 @@
+{
+  "architecture_parameters":
+  {
+    "network_type": "linear",
+    "output_dim": 8,
+    "task": "multilabel_classification"
+  },
+  "training_parameters":
+  {
+    "learning_rate": 0.00005,
+    "epochs": 200,
+    "batch_size": 1024,
+    "loss_f": "masked_bce_logits",
+    "optimizer": "adam",
+    "val_split": 0.2,
+    "weight_decay": 0.01,
+    "warmup_steps": 0,
+    "gradient_clipping": false,
+    "scheduler": false,
+    "scaler": false,
+    "gradient_accumulation": false,
+    "epoch_sizing": 1.0,
+    "early_stopping": 10,
+    "no_classes": 1,
+    "no_labels": 8,
+    "pos_weight": [
+      1.6589956998196698,
+      1.501829457931615,
+      11.922433625567368,
+      9.258320733796996,
+      9.805259492201515,
+      11.425273673041588,
+      9.047783991319589,
+      18.955828269907258
+    ]
+  }
+}

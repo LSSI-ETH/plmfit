@@ -4,8 +4,7 @@
     "network_type": "linear",
     "output_dim": 1,
     "task": "classification",
-    "dropout": 0,
-    "output_activation": "sigmoid"
+    "dropout": 0
   },
   "training_parameters":
   {
@@ -23,7 +22,7 @@
     "gradient_accumulation": false,
     "epoch_sizing": false,
     "early_stopping": 10,
-    "weights": "weights",
+    "weights": "random_weights",
     "sampler": true,
     "no_classes": 1
   }

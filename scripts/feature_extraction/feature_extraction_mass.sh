@@ -35,9 +35,28 @@ while true; do
 done &
 CPU_FREE_PID=$!
 
+# Debugging: Print all variables passed into the script
+echo "function: $1"
+echo "head_config: $2"
+echo "ray_tuning: $3"
+echo "data_type: $4"
+echo "split: $5"
+echo "plm: $6"
+echo "layer: $7"
+echo "reduction: $8"
+echo "output_dir: $9"
+echo "experiment_dir: ${10}"
+echo "experiment_name: ${11}"
+echo "gpus: ${12}"
+echo "nodes: ${13}"
+echo "experimenting: ${14}"
+echo "embeddings_path: ${15}" 
+
 python3 plmfit --function $1 --head_config $2 --ray_tuning $3 \
         --data_type $4 --split $5 --plm $6 --layer $7 --reduction $8 \
-        --output_dir $9 --experiment_dir ${10} --experiment_name ${11} --gpus ${12} --nodes ${13} --beta True --experimenting ${14}
+        --output_dir $9 --experiment_dir ${10} --experiment_name ${11} --gpus ${12} --nodes ${13} --beta True --experimenting ${14} --embeddings_path ${15}
+
+
 
 kill $NVIDIA_SMI_PID
 kill $CPU_FREE_PID

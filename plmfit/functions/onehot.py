@@ -14,6 +14,7 @@ from optuna.visualization import plot_optimization_history, plot_slice
 from plmfit.shared_utils import utils, data_explore
 from plmfit.logger import LogOptunaTrialCallback
 import copy
+import numpy as np
 
 
 def onehot(args, logger):
@@ -27,6 +28,27 @@ def onehot(args, logger):
         head_config["training_parameters"].get("sampler", False),
         dev=args.experimenting == "True",
     )
+
+    print("\n=== DEBUG: Output from data_pipeline ===")
+    print(f"Full dataset shape: {data.shape}")
+    print(f"Split type: {type(split)}")
+    if split is not None:
+        print(f"Split sample (first 10): {split[:10]}")
+        print(f"Unique split values: {set(split)}")
+    else:
+        print("Split is None!")
+
+    print(f"Weights type: {type(weights)}")
+    if weights is not None:
+        print(f"Weights sample (first 10): {weights[:10]}")
+    else:
+        print("Weights is None!")
+
+    print(f"Sampler: {sampler}")
+    print("=== END DEBUG ===\n")
+
+    print(f"Data loaded: {data.shape if isinstance(data, np.ndarray) else 'N/A'}")  # Check if data is loaded
+    print(f"Split: {split}, Weights: {weights}, Sampler: {sampler}") 
 
     max_len = max(data["len"].values)
     if args.evaluate == "True" and split is None:
@@ -45,12 +67,25 @@ def onehot(args, logger):
     if task == "regression":
         scores = data["score"].values
     elif task == "classification":
-        if "binary_score" in data:
-            scores = data["binary_score"].values
-        elif "label" in data:
+        # Check for multi-class setup using one-hot encoded label columns
+        one_hot_label_cols = [col for col in data.columns if col.startswith("label_")]
+
+        if len(one_hot_label_cols) > 1:
+            label_sums = data[one_hot_label_cols].sum(axis=1)
+            assert all(label_sums == 1), "Each row must have exactly one active label for multi-class classification."
+            data["label"] = data[one_hot_label_cols].values.argmax(axis=1)
             scores = data["label"].values
+
+        elif "label" in data:
+            # Binary classification
+            scores = data["label"].values
+
+        elif "binary_score" in data:
+            scores = data["binary_score"].values
+
         else:
-            raise KeyError("Neither 'binary_score' nor 'label' found in data")
+            raise KeyError("No valid classification label column found. Expected one-hot `label_*`, `label`, or `binary_score`.")     
+        
     elif task == "token_classification":
         scores = data["label"].values
         # Convert list of strings to list of list of integers
@@ -170,6 +205,11 @@ def objective(
         input_dim = num_classes
     else: 
         input_dim = embeddings.shape[1] * num_classes
+        #input_dim = embeddings.shape[1]
+        # Automatically infer the correct input dimension from one sample
+        #input_dim = data_loaders["train"].dataset[0][0].shape[0]
+
+
 
     model = heads.init_head(
         config=config, input_dim=input_dim
@@ -187,7 +227,7 @@ def objective(
         log_interval=100 if not on_ray_tuning else -1,
     )
     lightning_logger = TensorBoardLogger(
-        save_dir=logger.base_dir, version=0, name="lightning_logs"
+        save_dir=logger.base_dir, name="lightning_logs"
     )
 
     # TODO make this through the configuration defined
@@ -216,8 +256,8 @@ def objective(
         enable_progress_bar=False,
         accumulate_grad_batches=model.gradient_accumulation_steps(),
         gradient_clip_val=model.gradient_clipping(),
-        limit_train_batches=epoch_sizing,
-        limit_val_batches=epoch_sizing,
+        limit_train_batches=max(1, epoch_sizing),
+        limit_val_batches=max(1, epoch_sizing),
         devices=devices,
         strategy=strategy,
         precision="16-mixed",
@@ -248,12 +288,18 @@ def objective(
         ckpt_path=f"{logger.base_dir}/lightning_logs/best_model.ckpt"
     else:
         ckpt_path = args.model_path
-
+    
+    print(f"Using checkpoint path: {ckpt_path}")
     trainer.test(
         model=model,
         ckpt_path=ckpt_path,
         dataloaders=data_loaders["test"],
     )
+    
+    # ✅ Manually log metrics for evaluation mode
+    if args.evaluate == "True":
+        model.log_final_metrics(logger)
+
 
     if task == "classification":
         if config["architecture_parameters"]["output_dim"] == 1:

@@ -37,6 +37,9 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from plmfit.shared_utils.samplers import LabelWeightedSampler
 from esm.utils import encoding
 from optuna.trial import Trial
+from plmfit.shared_utils.deepspeed import (
+    convert_zero_checkpoint_to_fp32_state_dict,
+)
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
@@ -67,10 +70,13 @@ def set_path(base_path):
 
 def load_dataset(data_type):
     try:
-        return pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
+        dataset = pd.read_csv(f"{data_dir}/{data_type}/{data_type}_data_full.csv")
     except:
-        return pd.read_csv(data_type) # Assume it is a full path to dataset
-
+        dataset = pd.read_csv(data_type) # Assume it is a full path to dataset
+    # If "len" column does not exist, calculate it based on the "aa_seq" column
+    if "len" not in dataset.columns and "aa_seq" in dataset.columns:
+        dataset["len"] = dataset["aa_seq"].apply(len)
+    return dataset
 
 def load_embeddings(
     emb_path=None,
@@ -142,9 +148,215 @@ def create_data_loaders(
     Returns:
         dict: Dictionary containing DataLoader objects for train, validation, and test.
     """
-    random_state = get_random_state()
+    seed = 42
+    random_state = np.random.RandomState(seed)  # for train_test_split
+    torch_generator = torch.Generator().manual_seed(seed)  # for DataLoader
+    print("Starting data loader creation...")
+
     if split is None:
+        print("No custom split provided. Performing default split...")
         random_state = get_numpy_random_state()
+        X_train, X_test, y_train, y_test = train_test_split(
+            dataset, scores, test_size=test_size, random_state=random_state
+        )
+        print(f"Train-test split: X_train shape = {X_train.shape}, X_test shape = {X_test.shape}")
+        print(f"Train-test split: y_train shape = {y_train.shape}, y_test shape = {y_test.shape}")
+
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_train,
+            y_train,
+            test_size=validation_size / (1 - test_size),
+            random_state=random_state,
+        )
+        print(f"Train-validation split: X_train shape = {X_train.shape}, X_val shape = {X_val.shape}")
+        print(f"Train-validation split: y_train shape = {y_train.shape}, y_val shape = {y_val.shape}")
+
+        if weights is not None:
+            print("Weights provided. Splitting weights accordingly...")
+            # Splitting with weights for the initial train-test split
+            X_train, X_test, y_train, y_test, weights_train, weights_test = (
+                train_test_split(
+                    dataset,
+                    scores,
+                    weights,
+                    test_size=test_size,
+                    random_state=random_state,
+                )
+            )
+            print(f"Train-test split with weights: weights_train shape = {weights_train.shape}, weights_test shape = {weights_test.shape}")
+
+            # Splitting with weights for the train-validation split
+            X_train, X_val, y_train, y_val, weights_train, weights_val = (
+                train_test_split(
+                    X_train,
+                    y_train,
+                    weights_train,
+                    test_size=validation_size / (1 - test_size),
+                    random_state=random_state,
+                )
+            )
+            print(f"Train-validation split with weights: weights_train shape = {weights_train.shape}, weights_val shape = {weights_val.shape}")
+
+    else:
+        print("Using custom split provided...")
+        # Use the provided split
+        X_train, X_val, X_test = (
+            dataset[split == "train"],
+            dataset[split == "validation"],
+            dataset[split == "test"],
+        )
+        y_train, y_val, y_test = (
+            scores[split == "train"],
+            scores[split == "validation"],
+            scores[split == "test"],
+        )
+        print(f"Custom split: X_train shape = {X_train.shape}, X_val shape = {X_val.shape}, X_test shape = {X_test.shape}")
+        print(f"Custom split: y_train shape = {y_train.shape}, y_val shape = {y_val.shape}, y_test shape = {y_test.shape}")
+
+        if weights is not None:
+            weights_train, weights_val, weights_test = (
+                weights[split == "train"],
+                weights[split == "validation"],
+                weights[split == "test"],
+            )
+            print(f"Custom split with weights: weights_train shape = {weights_train.shape}, weights_val shape = {weights_val.shape}, weights_test shape = {weights_test.shape}")
+        
+        print(f"Train samples: {np.sum(split == 'train')}")
+        print(f"Validation samples: {np.sum(split == 'validation')}")
+        print(f"Test samples: {np.sum(split == 'test')}")
+
+        # Check the size of the training and validation data before the split
+        print(f"Before splitting: X_train shape = {X_train.shape}, y_train shape = {y_train.shape}")
+        if weights is not None:
+            print(f"Before splitting weights: weights_train shape = {weights_train.shape}")
+
+
+
+        # Check if the validation set is empty and split the training data if necessary
+        if X_val.shape[0] == 0 or y_val.shape[0] == 0:
+            print("Validation set is empty. Creating validation split from training data with weights...")
+            if weights is not None:
+                # Split the data and weights together
+                X_train, X_val, y_train, y_val, weights_train, weights_val = train_test_split(
+                    X_train,
+                    y_train,
+                    weights_train,
+                    test_size=validation_size,
+                    random_state=random_state,
+                )
+                print(f"Created validation split with weights: weights_train shape = {weights_train.shape}, weights_val shape = {weights_val.shape}")
+            else:
+                # Split the data without weights
+                X_train, X_val, y_train, y_val = train_test_split(
+                    X_train, y_train, test_size=validation_size, random_state=random_state
+                )
+                print(f"Created validation split: X_val shape = {X_val.shape}, y_val shape = {y_val.shape}")
+            
+    # Scale the features if scaler is provided
+    if scaler:
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_val = scaler.transform(X_val)
+        X_test = scaler.transform(X_test)
+
+    # Assuming X_train, X_val, X_test, y_train, y_val, y_test could be either NumPy arrays or PyTorch tensors
+    X_train = convert_or_clone_to_tensor(X_train, dtype=dtype)
+    X_val = convert_or_clone_to_tensor(X_val, dtype=dtype)
+    X_test = convert_or_clone_to_tensor(X_test, dtype=dtype)
+
+    print("Data converted to tensors.")
+
+    # Add to X_test an identifier
+    test_ids = torch.arange(X_test.size(0))
+
+    y_train = convert_or_clone_to_tensor(y_train, dtype=torch.float16)
+    y_val = convert_or_clone_to_tensor(y_val, dtype=torch.float16)
+    y_test = convert_or_clone_to_tensor(y_test, dtype=torch.float16)
+    print("Scores converted to tensors.")
+
+    if weights is not None:
+        weights_train = convert_or_clone_to_tensor(weights_train, dtype=torch.float16)
+        weights_val = convert_or_clone_to_tensor(weights_val, dtype=torch.float16)
+        weights_test = convert_or_clone_to_tensor(weights_test, dtype=torch.float16)
+        print("Weights converted to tensors.")
+
+    if dataset_type == "tensor":
+        Dataset = TensorDataset
+    elif dataset_type == "one_hot":
+        Dataset = OneHotDataset
+    else:
+        raise ValueError("dataset_type must be either 'tensor' or 'one_hot'")
+
+    # Create DataLoader for training, validation, and testing
+    if weights is not None and sampler is False:
+        print("Creating DataLoader with weights...")
+        train_dataset = Dataset(X_train, y_train, weights_train)
+        val_dataset = Dataset(X_val, y_val, weights_val)
+        test_dataset = Dataset(X_test, y_test, test_ids, weights_test)
+    else:
+        print("Creating DataLoader without weights...")
+        train_dataset = Dataset(X_train, y_train)
+        val_dataset = Dataset(X_val, y_val)
+        test_dataset = Dataset(X_test, y_test, test_ids)
+
+    if sampler:
+        train_sampler = init_weighted_sampler(
+            train_dataset,
+            weights_train,
+            num_samples_method="min_weighted",
+            sampler="weighted_random" if sampler is True else sampler
+        )
+        val_sampler = init_weighted_sampler(
+            val_dataset,
+            weights_val,
+            num_samples_method="min_weighted",
+            sampler="weighted_random" if sampler is True else sampler
+        )
+        test_sampler = None
+    else:
+        train_sampler = None
+        val_sampler = None
+        test_sampler = None
+
+    print("Creating DataLoaders for train, validation, and test sets...")
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=sampler == False,  # If sampler is used, shuffle is not needed
+        num_workers=num_workers,
+        pin_memory=num_workers > 0,
+        sampler=train_sampler,
+        generator=torch_generator,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=num_workers > 0,
+        sampler=val_sampler,
+        generator=torch_generator,
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=num_workers > 0,
+        sampler=test_sampler,
+        generator=torch_generator,
+    )
+
+    print("DataLoaders created successfully.")
+    return {"train": train_loader, "val": val_loader, "test": test_loader}
+
+'''
+    print("Before splitting:")
+    print(f"Dataset length: {len(dataset)}")
+    print(f"Scores length: {len(scores)}")
+
+    if split is None:
+        #random_state = get_numpy_random_state()
         X_train, X_test, y_train, y_test = train_test_split(
             dataset, scores, test_size=test_size, random_state=random_state
         )
@@ -154,6 +366,10 @@ def create_data_loaders(
             test_size=validation_size / (1 - test_size),
             random_state=random_state,
         )
+        print("\n=== DEBUG: After splitting ===")
+        print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+        print(f"X_val shape: {X_val.shape}, y_val shape: {y_val.shape}")
+        print(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
 
         if weights is not None:
             # Splitting with weights for the initial train-test split
@@ -166,6 +382,7 @@ def create_data_loaders(
                     random_state=random_state,
                 )
             )
+            print(f"Train weights shape: {weights_train.shape}, Test weights shape: {weights_test.shape}")
 
             # Splitting with weights for the train-validation split
             X_train, X_val, y_train, y_val, weights_train, weights_val = (
@@ -177,32 +394,52 @@ def create_data_loaders(
                     random_state=random_state,
                 )
             )
+            print(f"Train weights shape: {weights_train.shape}, Validation weights shape: {weights_val.shape}")
 
     else:
-        # Use the provided split
-        X_train, X_val, X_test = (
-            dataset[split == "train"],
-            dataset[split == "validation"],
-            dataset[split == "test"],
-        )
-        y_train, y_val, y_test = (
-            scores[split == "train"],
-            scores[split == "validation"],
-            scores[split == "test"],
-        )
-        if weights is not None:
-            weights_train, weights_val, weights_test = (
-                weights[split == "train"],
-                weights[split == "validation"],
-                weights[split == "test"],
+
+        # If validation data was missing, create it from the train set
+        if "validation" not in split:
+            X_train, X_val, y_train, y_val = train_test_split(
+                X_train,
+                y_train,
+                test_size=validation_size,
+                random_state=random_state,
+            )
+            print(f"Validation data was missing. Created validation split: X_val shape = {X_val.shape}, y_val shape = {y_val.shape}")
+
+            # Use the provided split
+            X_train, X_val, X_test = (
+                dataset[split == "train"],
+                dataset[split == "validation"],
+                dataset[split == "test"],
+            )
+            y_train, y_val, y_test = (
+                scores[split == "train"],
+                scores[split == "validation"],
+                scores[split == "test"],
             )
 
-        # Check if the validation set is empty and split the training data if necessary
-        if X_val.shape[0] == 0 or y_val.shape[0] == 0:
-            X_train, X_val, y_train, y_val = train_test_split(
-                X_train, y_train, test_size=validation_size, random_state=random_state
-            )
-            if weights is not None:
+            print(f"Train size: {X_train.shape[0]}, Validation size: {X_val.shape[0]}, Test size: {X_test.shape[0]}")
+            
+        # Check if weights is provided and handle resplitting
+        if weights is not None:
+            # Convert weights to numpy if it's a pandas Series
+            weights_train = weights[split == "train"].to_numpy() if isinstance(weights, pd.Series) else weights[split == "train"]
+            weights_val = weights[split == "validation"].to_numpy() if isinstance(weights, pd.Series) else weights[split == "validation"]
+            weights_test = weights[split == "test"].to_numpy() if isinstance(weights, pd.Series) else weights[split == "test"]
+            
+            # Print the sizes before splitting to ensure they align
+            # Print the sizes before splitting to ensure they align
+            print(f"Before resplitting: weights_train size = {weights_train.shape[0]}, weights_val size = {weights_val.shape[0]}")
+            print(f"Before resplitting: X_train size = {X_train.shape[0]}, y_train size = {y_train.shape[0]}")
+
+            
+            # Ensure X_train, y_train, and weights_train all have the same length
+            if X_train.shape[0] == y_train.shape[0] == weights_train.shape[0]:
+                print("Shapes are consistent. Proceeding with the split.")
+
+                # Perform the train-test split for weights along with data and target
                 X_train, X_val, y_train, y_val, weights_train, weights_val = (
                     train_test_split(
                         X_train,
@@ -212,6 +449,16 @@ def create_data_loaders(
                         random_state=random_state,
                     )
                 )
+                
+                # Print the new weight sizes after the split
+                print(f"After resplitting weights: Train weights size = {weights_train.shape[0]}, Validation weights size = {weights_val.shape[0]}")
+            else:
+                # Handle the case where shapes do not align
+                print(f"ERROR: Shapes do not align! X_train: {X_train.shape[0]}, y_train: {y_train.shape[0]}, weights_train: {weights_train.shape[0]}")
+
+        # Check the final sizes of X_train, y_train, X_val, y_val after resplitting
+        print(f"After resplitting: X_train = {X_train.shape}, X_val = {X_val.shape}")
+        print(f"After resplitting: y_train = {y_train.shape}, y_val = {y_val.shape}")
 
     # Scale the features if scaler is provided
     if scaler:
@@ -271,6 +518,10 @@ def create_data_loaders(
         train_sampler = None
         val_sampler = None
         test_sampler = None
+    
+    print("\n=== DEBUG: After Dataset creation ===")
+    print(f"Train dataset size: {len(train_dataset)}, Val dataset size: {len(val_dataset)}, Test dataset size: {len(test_dataset)}")
+
 
     train_loader = DataLoader(
         train_dataset,
@@ -279,7 +530,7 @@ def create_data_loaders(
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=train_sampler,
-        generator=random_state,
+        generator=torch_generator,
     )
     val_loader = DataLoader(
         val_dataset,
@@ -288,7 +539,7 @@ def create_data_loaders(
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=val_sampler,
-        generator=random_state,
+        generator=torch_generator,
     )
     test_loader = DataLoader(
         test_dataset,
@@ -297,10 +548,11 @@ def create_data_loaders(
         num_workers=num_workers,
         pin_memory=num_workers > 0,
         sampler=test_sampler,
-        generator=random_state,
+        generator=torch_generator,
     )
 
     return {"train": train_loader, "val": val_loader, "test": test_loader}
+'''
 
 def create_predict_data_loader(
     dataset,
@@ -594,6 +846,7 @@ def load_config(config_file_name):
         config = json.load(file)
 
     return config
+    
 
 
 def get_activation_function(name):
@@ -766,6 +1019,7 @@ def categorical_encode(
         pad_token = tokenizer.get_vocab()["<pad>"]
     elif "esmc" in model_name:
         pad_token = tokenizer.pad_token_id
+        print(tokenizer, flush=True)
     else:
         raise ValueError("Model tokenizer not defined")
 
@@ -1135,7 +1389,7 @@ def find_mutation_positions(seq, ref, padding_id=None):
     return [i for i, (s, r) in enumerate(zip(seq, ref)) if s != r]
 
 
-def init_plm(model_name, logger, task="regression"):
+def init_plm(model_name, logger, task="regression", **args):
     model = None
     supported_progen2 = ["progen2-small", "progen2-medium", "progen2-xlarge"]
     supported_ESM = [
@@ -1159,7 +1413,7 @@ def init_plm(model_name, logger, task="regression"):
 
     elif "esm2" in model_name:
         assert model_name in supported_ESM, "ESM version is not supported"
-        model = ESMFamily(model_name, logger, task)
+        model = ESMFamily(model_name, logger, task, output_attentions=args.get("output_attentions", False))
     # elif "ankh" in model_name:
     #     assert model_name in supported_Ankh, "Ankh version is not supported"
     #     model = AnkhFamily(model_name)
@@ -1307,8 +1561,8 @@ def create_mlm_data_loaders(
 
 def data_pipeline(dataset, split=None, weights=None, sampler=None, dev=False):
     # Load dataset
+    global dataset_test
     dataset = load_dataset(dataset)
-
     # For development purposes, we can sample the dataset to speed up the process
     if dev:
         dataset = dataset[:100000]
@@ -1317,6 +1571,9 @@ def data_pipeline(dataset, split=None, weights=None, sampler=None, dev=False):
     split = (
         None if split == "sampled" and "sampled" not in dataset else dataset.get(split)
     )
+
+    if split is not None:
+        dataset_test = dataset[split == "test"].reset_index(drop=True)
 
     # If weights are provided, load them
     weights = None if weights is None else dataset.get(weights)
@@ -1333,3 +1590,12 @@ def suggest_number_of_type(trial: Trial, name, min, max, type):
         return trial.suggest_float(name, min, max)
     else:
         raise ValueError("Type of hyperparameter not supported")
+
+def is_checkpoint_valid(ckpt_path, new_path=None):
+    # If directory run conversion
+    if os.path.isdir(ckpt_path):
+        convert_zero_checkpoint_to_fp32_state_dict(ckpt_path, new_path)
+
+def get_test_dataset():
+    # Return only the test dataset
+    return dataset_test

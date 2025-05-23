@@ -2,15 +2,14 @@
   "architecture_parameters": {
     "network_type": "linear",
     "output_dim": 3,
-    "task": "token_classification",
-    "dropout": 0,
-    "output_activation": "softmax"
+    "task": "multilabel_classification",
+    "dropout": 0
   },
   "training_parameters": {
     "learning_rate": 0.0001,
     "epochs": 30,
     "batch_size": 4,
-    "loss_f": "cross_entropy",
+    "loss_f": "bce_logits",
     "optimizer": "adam",
     "val_split": 0.2,
     "weight_decay": 0.01,

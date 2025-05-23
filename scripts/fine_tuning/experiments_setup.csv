@@ -1,2 +1,4 @@
 function	ft_method	target_layers	data_type	split	plm	head	task	head_config	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-fine_tuning	lora	all	R1_240821	sampled	esm2_t33_650M_UR50D	linear	classification	lora_linear_mutliclassification_head_config.json	last	mean	/cluster/scratch/eirvine	6	rtx_4090	35g	1	72	False
+fine_tuning	lora	all	RBDHCWF	split	esmc_300m	linear	classification	lora_last_linear_classification_head_config.json	last	bos	/cluster/scratch/askrika	6	rtx_4090	20g	1	72	False
+fine_tuning	lora	all	RBDDSWF	split	esmc_300m	linear	classification	lora_last_linear_classification_head_config.json	last	bos	/cluster/scratch/askrika	6	rtx_4090	20g	1	72	False
+fine_tuning	lora	all	RBDGWF	split	esmc_300m	linear	multilabel_classification	lora_linear_multilabel_classification_head_config.json	last	bos	/cluster/scratch/askrika	6	rtx_4090	20g	1	72	False

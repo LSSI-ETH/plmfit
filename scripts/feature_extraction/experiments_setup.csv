@@ -1,3 +1,2 @@
-function	data_type	split	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir		gpus	gres	mem-per-cpu	nodes	run_time	experimenting
-feature_extraction	FcRprofile_binary	random	esmc_300m	mlp	multilabel_classification	mlp_multilabel_classification_head_config.json	True	last	bos	/cluster/scratch/eirvine	2	rtx_4090	120g	1	24	False
-feature_extraction	FcRprofile_binary	random	esmc_300m	mlp	multilabel_classification	mlp_multilabel_classification_head_config_weighted.json	True	last	bos	/cluster/scratch/eirvine	2	rtx_4090	120g	1	24	False
+function	data_type	split	plm	head	task	head_config	ray_tuning	layer	reduction	output_dir	gpus	gres	mem-per-cpu	nodes	run_time	experimenting	embeddings_path
+feature_extraction	RBDGF	random	esmc_300m	mlp	multilabel_classification	RBD_mlp_multilabel_classification_head_config_weighted.json	True	last	bos	/cluster/scratch/askrika	2	rtx_4090	120g	1	24	False	/cluster/scratch/askrika/GEF/extract_embeddings/RBDGF_esmc_300m_embs_last_bos/RBDGF_esmc_300m_embs_last_bos.pt

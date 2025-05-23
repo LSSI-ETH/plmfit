@@ -8,7 +8,7 @@ from plmfit.models.fine_tuners import (
 )
 from lightning import Trainer
 from lightning.pytorch.loggers import TensorBoardLogger
-from lightning.pytorch.utilities.deepspeed import (
+from plmfit.shared_utils.deepspeed import (
     convert_zero_checkpoint_to_fp32_state_dict,
 )
 from deepspeed.runtime.zero.stage3 import estimate_zero3_model_states_mem_needs_all_live
@@ -88,8 +88,7 @@ def fine_tune(args, logger):
     model = fine_tuner.prepare_model(model, target_layers=args.target_layers)
 
     utils.trainable_parameters_summary(model, logger)
-    model.py_model.task = task
-
+    
     model = LightningModel(
         model.py_model,
         training_params,
@@ -97,8 +96,11 @@ def fine_tune(args, logger):
         log_interval=100,
         experimenting=model.experimenting,
     )
+    if args.model_path is not None:
+        checkpoint = torch.load(args.model_path, map_location="cpu", weights_only=False)
+        model.load_state_dict(checkpoint['state_dict'])
     lightning_logger = TensorBoardLogger(
-        save_dir=logger.base_dir, version=0, name="lightning_logs"
+        save_dir=logger.base_dir, name="lightning_logs"
     )
 
     # TODO make this through the configuration defined
@@ -108,12 +110,16 @@ def fine_tune(args, logger):
         model.track_validation_after = -1
     if args.data_type == "herH3" and args.split == "one_vs_rest":
         model.track_validation_after = -1
+    
+    load_full_weights = True
+    if args.evaluate != "True" and args.model_path is None and args.checkpoint is not None:
+        load_full_weights = False
 
     strategy = DeepSpeedStrategy(
         stage=3,
         offload_optimizer=True,
         offload_parameters=True,
-        load_full_weights=True,
+        load_full_weights=load_full_weights,
         initial_scale_power=20,
         loss_scale_window=2000,
         min_loss_scale=0.25,
@@ -143,7 +149,7 @@ def fine_tune(args, logger):
 
     if args.evaluate != "True":
         model.train()
-        trainer.fit(model, data_loaders["train"], data_loaders["val"])
+        trainer.fit(model, data_loaders["train"], data_loaders["val"], ckpt_path=args.checkpoint)
 
         ckpt_path = f"{logger.base_dir}/lightning_logs/best_model.ckpt"
         if torch.cuda.is_available():
@@ -152,7 +158,6 @@ def fine_tune(args, logger):
                 f"{logger.base_dir}/best_model.ckpt",
             )
             ckpt_path = f"{logger.base_dir}/best_model.ckpt"
-
             loss_plot = data_explore.create_loss_plot(
                 json_path=f"{logger.base_dir}/{logger.experiment_name}_loss.json"
             )
@@ -194,10 +199,15 @@ def fine_tune(args, logger):
             json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
         )
         logger.save_plot(fig, "confusion_matrix")
+    elif task == "multilabel_classification":
+        fig = data_explore.plot_confusion_matrix_heatmap(
+            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
+        )
+        logger.save_plot(fig, "confusion_matrix")
 
-    if torch.cuda.is_available():
-        shutil.rmtree(f"{logger.base_dir}/lightning_logs/best_model.ckpt")
-        shutil.rmtree(f"{logger.base_dir}/lightning_logs/version_0/checkpoints")
+    # if torch.cuda.is_available():
+    #     shutil.rmtree(f"{logger.base_dir}/lightning_logs/best_model.ckpt")
+    #     shutil.rmtree(f"{logger.base_dir}/lightning_logs/version_0/checkpoints")
 
 
 def downstream_prep(
@@ -239,6 +249,12 @@ def downstream_prep(
             prepend_single_pad=True,
             append_single_pad=True,
         )
+    elif task == "multilabel_classification":
+        # Labels are all columns starting with 'label_'
+        scores = data[[col for col in data.columns if "label_" in col]].values
+
+        # Replace -1 with -100
+        scores[scores == -1] = -100
     else:
         raise ValueError("Task not supported")
 

@@ -1,27 +1,26 @@
 {
-  "architecture_parameters":
-  {
+  "architecture_parameters": {
     "network_type": "linear",
     "output_dim": 8,
     "task": "multilabel_classification"
   },
-  "training_parameters":
-  {
-    "learning_rate": 0.00005,
+  "training_parameters": {
+    "learning_rate": 7.553707083479324e-05,
     "epochs": 200,
-    "batch_size": 1024,
+    "batch_size": 16,
     "loss_f": "masked_bce_logits",
     "optimizer": "adam",
     "val_split": 0.2,
-    "weight_decay": 0.01,
+    "weight_decay": 7.010143920483967e-06,
     "warmup_steps": 0,
     "gradient_clipping": false,
     "scheduler": false,
     "scaler": false,
     "gradient_accumulation": false,
-    "epoch_sizing": 1000000,
+    "epoch_sizing": 1.0,
     "early_stopping": 10,
     "no_classes": 1,
-    "no_labels": 8
+    "no_labels": 8,
+    "extra_divisions": ["is_monotone", "is_mixed", "is_wanted", "is_literature"]
   }
 }

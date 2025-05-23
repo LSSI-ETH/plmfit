@@ -73,16 +73,19 @@ class MLP(nn.Module):
     def init_weights(self):
         """Initialize weights using Xavier initialization for internal layers 
         and near-zero initialization for the output layer."""
-        random_state = get_random_state()
+        #random_state = get_random_state()
+        torch_generator = torch.Generator()
+        torch_generator.manual_seed(42)
+
         for i, layer in enumerate(self.layers):
             if isinstance(layer, nn.Linear):
                 if i == len(self.layers) - 2:  # Check if it's the output layer
                     # Initialize output layer weights near zero for classification
-                    init.normal_(layer.weight, mean=0.0, std=0.01, generator=random_state)
+                    init.normal_(layer.weight, mean=0.0, std=0.01, generator=torch_generator)
                     init.constant_(layer.bias, 0)
                 else:
                     # Xavier initialization for internal layers
-                    init.xavier_uniform_(layer.weight, generator=random_state)
+                    init.xavier_uniform_(layer.weight, generator=torch_generator)
                     if layer.bias is not None:
                         init.constant_(layer.bias, 0)
 
@@ -125,6 +128,96 @@ class RNN(nn.Module):
         # Initialize output layer weights
         init.normal_(self.fc.weight, mean=0.0, std=0.01, generator=random_state)
         init.constant_(self.fc.bias, 0)
+        
+
+# This CNN head expects each input sample to be of shape:
+# (sequence_length, embedding_dimension)
+# It uses a 1D convolution that treats the embedding dimension as channels.
+class CNN(nn.Module):
+    def __init__(self, config):
+        """
+        CNN head for sequence inputs.
+        Expected config keys:
+            - input_dim: embedding dimension (number of channels).
+            - num_filters: number of convolutional filters (default: 32)
+            - kernel_size: size of the convolution kernel (default: 3)
+            - stride: stride for the convolution (default: 1)
+            - padding: padding for the convolution (default: 1)
+            - dropout: dropout rate after convolution (default: 0.25)
+            - output_dim: dimension of the final output.
+            - hidden_activation: activation function after convolution.
+            - num_conv_layers: number of convolutional layers to stack (default: 1)
+            - output_activation (optional): activation function after the final linear layer.
+        """
+        super(CNN, self).__init__()
+        self.task = config['task']
+        in_channels = config['input_dim']
+        num_filters = config.get('num_filters', 32)
+        kernel_size = config.get('kernel_size', 3)
+        stride = config.get('stride', 1)
+        padding = config.get('padding', 1)
+        dropout_rate = config.get('dropout', 0.25)
+        num_conv_layers = config.get('num_conv_layers', 1)
+        
+        # Create a list of convolutional layers.
+        self.convs = nn.ModuleList()
+        # First conv layer takes input channels from the embedding dimension.
+        self.convs.append(nn.Conv1d(in_channels=in_channels, out_channels=num_filters, 
+                                    kernel_size=kernel_size, stride=stride, padding=padding))
+        # Subsequent layers take num_filters as both input and output channels.
+        for _ in range(1, num_conv_layers):
+            self.convs.append(nn.Conv1d(in_channels=num_filters, out_channels=num_filters,
+                                        kernel_size=kernel_size, stride=stride, padding=padding))
+        
+        # Activation function after each convolution.
+        if 'hidden_activation' in config:
+            self.activation = get_activation_function(config['hidden_activation'])
+        else:
+            self.activation = nn.ReLU()
+            
+        self.dropout = nn.Dropout(dropout_rate)
+        # Pool across the sequence dimension after all convolutions.
+        self.pool = nn.AdaptiveAvgPool1d(1)
+        self.fc = nn.Linear(num_filters, config['output_dim'])
+        if "output_activation" in config:
+            self.output_activation = get_activation_function(config["output_activation"])
+        else:
+            self.output_activation = None
+        self.init_weights()
+
+    def init_weights(self):
+        random_state = get_random_state()
+        # Initialize each convolutional layer.
+        for conv in self.convs:
+            init.xavier_uniform_(conv.weight, generator=random_state)
+            if conv.bias is not None:
+                init.constant_(conv.bias, 0)
+        # Initialize the final fully connected layer.
+        init.normal_(self.fc.weight, mean=0.0, std=0.01, generator=random_state)
+        init.constant_(self.fc.bias, 0)
+
+    def forward(self, x):
+        """
+        Expects input x of shape (batch, sequence_length, embedding_dimension).
+        Transposes x to (batch, embedding_dimension, sequence_length) before applying Conv1d.
+        """
+        if torch.backends.mps.is_available():
+            x = x.to(torch.float)
+        # Transpose to (batch, channels, sequence_length)
+        x = x.transpose(1, 2)
+        # Apply each convolutional layer with activation and dropout.
+        for conv in self.convs:
+            x = conv(x)
+            x = self.activation(x)
+            x = self.dropout(x)
+        # Pool the features across the sequence length.
+        x = self.pool(x)  # shape: (batch, num_filters, 1)
+        x = torch.flatten(x, 1)  # shape: (batch, num_filters)
+        x = self.fc(x)
+        if self.output_activation is not None:
+            x = self.output_activation(x)
+        return x
+
 
 class AdapterLayer(nn.Module):
     def __init__(self, in_features, bottleneck_dim ,dropout= 0.25 , eps = 1e-5):
@@ -161,6 +254,10 @@ def init_head(config, input_dim):
     elif network_type == "rnn":
         config["architecture_parameters"]["input_dim"] = input_dim
         model = RNN(config["architecture_parameters"])
+    elif network_type == "cnn":
+        # For CNN head, we assume input_dim corresponds to the number of input channels.
+        config["architecture_parameters"]["input_dim"] = input_dim
+        model = CNN(config["architecture_parameters"])
     elif network_type == "transformer":
         config["architecture_parameters"]["vocab_size"] = input_dim
         model = TransformerPWFF.from_config(config["architecture_parameters"])
