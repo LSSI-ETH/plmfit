@@ -19,12 +19,10 @@ from torchmetrics.regression import (
 )
 from torchmetrics.text import Perplexity
 from lightning.pytorch.callbacks import BasePredictionWriter
-from plmfit.shared_utils.custom_loss_functions import MaskedBCEWithLogitsLoss, MaskedFocalWithLogitsLoss,SampleWeightedCrossEntropyLoss
 from plmfit.shared_utils.custom_loss_functions import (
     MaskedBCEWithLogitsLoss,
     MaskedFocalWithLogitsLoss,
 )
-from plmfit.shared_utils.custom_loss_functions import MaskedBCEWithLogitsLoss, MaskedFocalWithLogitsLoss,SampleWeightedCrossEntropyLoss
 import numpy as np
 from plmfit.shared_utils.metrics import (
     ClassificationMetrics,
@@ -201,20 +199,22 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
+            if len(batch) == 3:
+                input, labels, weights = batch
+            else:
+                input, labels = batch
+                weights = None  # If weights are missing, set them to None
+            
             #input, labels, weights = batch
-            #input, labels = batch
-            input, labels = batch
             outputs = self(input)
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == "classification" and self.hparams.no_classes > 1:
                 if hasattr(outputs, "logits"):
                     outputs = outputs.logits
-                #labels = torch.nn.functional.one_hot(
-                    #labels.long(), num_classes=self.hparams.no_classes
-                #)
-                #labels = labels.float()
-                labels = labels.long()
-
+                labels = torch.nn.functional.one_hot(
+                    labels.long(), num_classes=self.hparams.no_classes
+                )
+                labels = labels.float()
             elif (
                 self.model.task == "token_classification"
                 and self.hparams.no_classes > 1
@@ -236,13 +236,18 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.squeeze(dim=1)
             if torch.backends.mps.is_available():
                 labels = labels.to(torch.float32)
-            #loss = self.loss_function(outputs, labels)
-            #loss = self.loss_function(outputs, labels, sample_weight=weights)
-            if self.hparams.loss_f in ["masked_bce_logits", "masked_focal_logits","sample_weighted_cross_entropy"]:
-                loss = self.loss_function(outputs, labels, sample_weight=weights)
+            #weights_expanded = weights.unsqueeze(1).repeat(1, 2)
+            #loss = self.loss_function(outputs, labels,sample_weight=weights_expanded)
+            # Only expand weights if multi-label
+            if weights is None:
+                loss = self.loss_function(outputs, labels)  # No weights provided, so don't pass them
             else:
-                loss = self.loss_function(outputs, labels)
-
+                # If weights are provided, expand them accordingly and pass them to the loss function
+                if self.model.task == "multilabel_classification":
+                    weights_expanded = weights.unsqueeze(1).repeat(1, outputs.shape[1])
+                    loss = self.loss_function(outputs, labels, sample_weight=weights_expanded)
+                else:
+                    loss = self.loss_function(outputs, labels, sample_weight=weights)
 
         if self.model.task == "classification" and self.hparams.no_classes > 1:
             labels = torch.argmax(labels, dim=1)
@@ -292,9 +297,7 @@ class LightningModel(L.LightningModule):
         return loss
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
-        # print(batch, flush=True)
         if batch_idx == 99 and self.experimenting:
-            raise ValueError("Please work")
             # self.profiler.print_model_profile(profile_step=batch_idx, output_file=f'{self.plmfit_logger.base_dir}/flops.log')
             self.profiler.end_profile()
 
@@ -369,19 +372,23 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
+            # Check if batch contains 3 elements (input, labels, weights)
+            if len(batch) == 3:
+                input, labels, weights = batch
+            else:
+                input, labels = batch
+                weights = None  # If weights are missing, set them to None
+
             #input, labels, weights = batch
-            input, labels = batch
             outputs = self(input)
             # No squeezing, leave logits as is for CrossEntropyLoss
             if self.model.task == "classification" and self.hparams.no_classes > 1:
                 if hasattr(outputs, "logits"):
                     outputs = outputs.logits
-                #labels = torch.nn.functional.one_hot(
-                    #labels.long(), num_classes=self.hparams.no_classes
-                #)
-                #labels = labels.float()
-                labels = labels.long()
-
+                labels = torch.nn.functional.one_hot(
+                    labels.long(), num_classes=self.hparams.no_classes
+                )
+                labels = labels.float()
             elif (
                 self.model.task == "token_classification"
                 and self.hparams.no_classes > 1
@@ -402,12 +409,19 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.squeeze(dim=1)
             if torch.backends.mps.is_available():
                 labels = labels.to(torch.float32)
-            #loss = self.loss_function(outputs, labels)
-            if self.hparams.loss_f in ["masked_bce_logits", "masked_focal_logits","sample_weighted_cross_entropy"]:
-                loss = self.loss_function(outputs, labels, sample_weight=weights)
+            #loss = self.loss_function(outputs, labels, sample_weight=weights)
+            #weights_expanded = weights.unsqueeze(1).repeat(1, 2)
+            #loss = self.loss_function(outputs, labels,sample_weight=weights_expanded)
+            # Handle loss calculation based on whether weights are available
+            if weights is None:
+                loss = self.loss_function(outputs, labels)  # No weights provided, so don't pass them
             else:
-                loss = self.loss_function(outputs, labels)
-
+                # If weights are provided, expand them accordingly and pass them to the loss function
+                if self.model.task == "multilabel_classification":
+                    weights_expanded = weights.unsqueeze(1).repeat(1, outputs.shape[1])
+                    loss = self.loss_function(outputs, labels, sample_weight=weights_expanded)
+                else:
+                    loss = self.loss_function(outputs, labels, sample_weight=weights)
 
         if self.model.task == "classification" and self.hparams.no_classes > 1:
             labels = torch.argmax(labels, dim=1)
@@ -509,7 +523,15 @@ class LightningModel(L.LightningModule):
             outputs = outputs.logits.squeeze(dim=1)
             outputs = outputs.to(torch.float32)
         else:
-            input, labels, ids = batch
+            #input, labels, weights, ids = batch
+            # Check if the batch contains 4 elements (input, labels, weights, ids)
+            if len(batch) == 4:
+                input, labels, weights, ids = batch
+            else:
+                # Handle case where weights and/or ids are missing
+                input, labels, ids = batch
+                weights = None
+            
             outputs = self(input)
 
             # No squeezing, leave logits as is for CrossEntropyLoss
@@ -541,7 +563,18 @@ class LightningModel(L.LightningModule):
                     outputs = outputs.squeeze(dim=1)
             if torch.backends.mps.is_available():
                 labels = labels.to(torch.float32)
-            loss = self.loss_function(outputs, labels)
+            #loss = self.loss_function(outputs, labels,sample_weight=weights)
+            #weights_expanded = weights.unsqueeze(1).repeat(1, 2)
+            #loss = self.loss_function(outputs, labels,sample_weight=weights_expanded)
+            if weights is None:
+                loss = self.loss_function(outputs, labels)  # No weights provided, so don't pass them
+            else:
+                # If weights are provided, expand them accordingly and pass them to the loss function
+                if self.model.task == "multilabel_classification":
+                    weights_expanded = weights.unsqueeze(1).repeat(1, outputs.shape[1])
+                    loss = self.loss_function(outputs, labels, sample_weight=weights_expanded)
+                else:
+                    loss = self.loss_function(outputs, labels, sample_weight=weights)
         self.log(
             "test_loss", loss, on_step=True, on_epoch=True, logger=True, prog_bar=False
         )
@@ -680,16 +713,10 @@ class LightningModel(L.LightningModule):
             return torch.nn.BCEWithLogitsLoss()
         elif self.hparams.loss_f == "mse":
             return torch.nn.MSELoss()
-        elif self.hparams.loss_f == "sample_weighted_cross_entropy":
-            return SampleWeightedCrossEntropyLoss(ignore_index=-100)
-            
-        elif self.hparams.loss_f == "cross_entropy":  # multiclass case
-            if self.handle_hparam_exists("weights"):
-                weights = torch.tensor(self.hparams.weights, dtype=torch.float32)
-                return torch.nn.CrossEntropyLoss(weight=weights, ignore_index=-100)
+        elif (
+            self.hparams.loss_f == "cross_entropy"
+        ):  # Add cross-entropy loss for multiclass
             return torch.nn.CrossEntropyLoss(ignore_index=-100)
-        
-        
         elif self.hparams.loss_f == "masked_bce_logits":
             return MaskedBCEWithLogitsLoss(
                 ignore_index=-100,
@@ -756,16 +783,6 @@ class LightningModel(L.LightningModule):
             dist.all_gather_object(all_rank_list, lists)
             lists = [x for y in all_rank_list for x in y]
         return lists
-    
-    def log_final_metrics(self, logger):
-        if hasattr(self, "metrics"):
-            metrics_dict = self.metrics.get_metrics(device=self.device)
-            if self.trainer.global_rank == 0:
-                logger.save_data(metrics_dict["main"], "metrics")
-                self.metrics.save_metrics(
-                    path=f"{logger.base_dir}/{logger.experiment_name}"
-                )
-
 
 
 class PredictionWriter(BasePredictionWriter):

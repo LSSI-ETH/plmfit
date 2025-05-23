@@ -25,7 +25,13 @@
     "epoch_sizing": 1000000,
     "early_stopping": 10,
     "no_classes": 1,
-    "no_labels": 2
+    "no_labels": 2,
+    "pos_weight":[0.469,0.470]
   }
 }
+
+
+
+
+
 

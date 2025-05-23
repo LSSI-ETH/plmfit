@@ -17,14 +17,11 @@ from lightning.pytorch.strategies import DeepSpeedStrategy
 import ast
 import shutil
 from pathlib import Path
-import numpy as np
 
 
 def fine_tune(args, logger):
     head_config = utils.load_config(f"training/{args.head_config}")
     task = head_config["architecture_parameters"]["task"]
-    print(f"Loaded head config: {head_config}") 
-    print(f"Task: {task}") 
 
     data, split, weights, sampler = utils.data_pipeline(
         args.data_type,
@@ -34,36 +31,13 @@ def fine_tune(args, logger):
         dev=args.experimenting == "True",
     )
 
-    print("\n=== DEBUG: Output from data_pipeline ===")
-    print(f"Full dataset shape: {data.shape}")
-    print(f"Split type: {type(split)}")
-    if split is not None:
-        print(f"Split sample (first 10): {split[:10]}")
-        print(f"Unique split values: {set(split)}")
-    else:
-        print("Split is None!")
-
-    print(f"Weights type: {type(weights)}")
-    if weights is not None:
-        print(f"Weights sample (first 10): {weights[:10]}")
-    else:
-        print("Weights is None!")
-
-    print(f"Sampler: {sampler}")
-    print("=== END DEBUG ===\n")
-
-    print(f"Data loaded: {data.shape if isinstance(data, np.ndarray) else 'N/A'}")  # Check if data is loaded
-    print(f"Split: {split}, Weights: {weights}, Sampler: {sampler}") 
-
     if args.evaluate == "True" and split is None:
         raise ValueError("Cannot evaluate without a standard testing split")
 
     model = utils.init_plm(args.plm, logger, task=task)
-    print(f"Model initialized: {model}")
 
     if args.zeroed == "True":
         model.zeroed_model()
-        print("Model has been zeroed.")
 
     model.experimenting = (
         args.experimenting == "True"
@@ -95,13 +69,11 @@ def fine_tune(args, logger):
             weights=weights,
             sampler=sampler,
         )
-        print("Data loaders and training params for downstream prepared.")
 
     if args.ft_method == "lora":
         fine_tuner = LowRankAdaptationFineTuner(
             logger=logger
         )
-        print("Using LowRankAdaptationFineTuner for fine-tuning.")
     elif args.ft_method == "bottleneck_adapters":
         fine_tuner = BottleneckAdaptersFineTuner(
             logger=logger
@@ -114,7 +86,6 @@ def fine_tune(args, logger):
         raise ValueError("Fine-tuning method not supported")
 
     model = fine_tuner.prepare_model(model, target_layers=args.target_layers)
-    print(f"Model prepared for fine-tuning with layers: {args.target_layers}")
 
     utils.trainable_parameters_summary(model, logger)
     
@@ -157,16 +128,6 @@ def fine_tune(args, logger):
     devices = args.gpus if torch.cuda.is_available() else 1
     strategy = strategy if torch.cuda.is_available() else "auto"
 
-    print(f"Trainer setup:")
-    print(f"Max epochs: {model.hparams.epochs}")
-    print(f"Batch size: {model.hparams.batch_size}")
-    print(f"Gradient accumulation: {model.gradient_accumulation_steps()}")
-    print(f"Gradient clipping: {model.gradient_clipping()}")
-    print(f"Limit train batches: {model.epoch_sizing()}")
-    print(f"Devices: {devices}")
-    print(f"Precision: {'16-mixed' if torch.cuda.is_available() else 32}")
-
-
     trainer = Trainer(
         default_root_dir=logger.base_dir,
         logger=lightning_logger,
@@ -187,7 +148,6 @@ def fine_tune(args, logger):
         )
 
     if args.evaluate != "True":
-        print("Starting training...")
         model.train()
         trainer.fit(model, data_loaders["train"], data_loaders["val"], ckpt_path=args.checkpoint)
 
@@ -229,27 +189,6 @@ def fine_tune(args, logger):
             json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
         )
         logger.save_plot(fig, "confusion_matrix")
-    
-    elif task == "multilabel_classification":
-    # For multilabel classification, we handle each label as a separate binary classification task.
-    # We will calculate the metrics for each label and plot accordingly.
-
-        print("Plotting metrics for multilabel classification...")
-
-        # If you want to plot multiple ROC curves, one for each label:
-        # You could use a plotting function that handles multilabel ROC curves or use one of the following methods.
-        # Example: plot ROC curves for each label
-        fig, _ = data_explore.plot_multilabel_roc_curve(
-            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
-        )
-        logger.save_plot(fig, "multilabel_roc_curve")
-
-        # For the multilabel confusion matrix, each label has its own confusion matrix
-        fig = data_explore.plot_multilabel_confusion_matrix_heatmap(
-            json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
-        )
-        logger.save_plot(fig, "multilabel_confusion_matrix")
-
     elif task == "regression":
         fig = data_explore.plot_actual_vs_predicted(
             json_path=f"{logger.base_dir}/{logger.experiment_name}_metrics.json"
@@ -297,13 +236,6 @@ def downstream_prep(
             scores = data["label"].values
         else:
             raise KeyError("Neither 'binary_score' nor 'label' found in data")
-
-    elif task == "multilabel_classification":
-        # Labels are all columns starting with 'label_'
-        scores = data[[col for col in data.columns if "label_" in col]].values
-        # Ensure that -1 is replaced with -100
-        scores[scores == -1] = -100
-        
     elif task == "token_classification":
         scores = data["label"].values
         # Convert list of strings to list of list of integers

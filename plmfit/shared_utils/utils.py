@@ -151,7 +151,206 @@ def create_data_loaders(
     seed = 42
     random_state = np.random.RandomState(seed)  # for train_test_split
     torch_generator = torch.Generator().manual_seed(seed)  # for DataLoader
+    print("Starting data loader creation...")
 
+    if split is None:
+        print("No custom split provided. Performing default split...")
+        random_state = get_numpy_random_state()
+        X_train, X_test, y_train, y_test = train_test_split(
+            dataset, scores, test_size=test_size, random_state=random_state
+        )
+        print(f"Train-test split: X_train shape = {X_train.shape}, X_test shape = {X_test.shape}")
+        print(f"Train-test split: y_train shape = {y_train.shape}, y_test shape = {y_test.shape}")
+
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_train,
+            y_train,
+            test_size=validation_size / (1 - test_size),
+            random_state=random_state,
+        )
+        print(f"Train-validation split: X_train shape = {X_train.shape}, X_val shape = {X_val.shape}")
+        print(f"Train-validation split: y_train shape = {y_train.shape}, y_val shape = {y_val.shape}")
+
+        if weights is not None:
+            print("Weights provided. Splitting weights accordingly...")
+            # Splitting with weights for the initial train-test split
+            X_train, X_test, y_train, y_test, weights_train, weights_test = (
+                train_test_split(
+                    dataset,
+                    scores,
+                    weights,
+                    test_size=test_size,
+                    random_state=random_state,
+                )
+            )
+            print(f"Train-test split with weights: weights_train shape = {weights_train.shape}, weights_test shape = {weights_test.shape}")
+
+            # Splitting with weights for the train-validation split
+            X_train, X_val, y_train, y_val, weights_train, weights_val = (
+                train_test_split(
+                    X_train,
+                    y_train,
+                    weights_train,
+                    test_size=validation_size / (1 - test_size),
+                    random_state=random_state,
+                )
+            )
+            print(f"Train-validation split with weights: weights_train shape = {weights_train.shape}, weights_val shape = {weights_val.shape}")
+
+    else:
+        print("Using custom split provided...")
+        # Use the provided split
+        X_train, X_val, X_test = (
+            dataset[split == "train"],
+            dataset[split == "validation"],
+            dataset[split == "test"],
+        )
+        y_train, y_val, y_test = (
+            scores[split == "train"],
+            scores[split == "validation"],
+            scores[split == "test"],
+        )
+        print(f"Custom split: X_train shape = {X_train.shape}, X_val shape = {X_val.shape}, X_test shape = {X_test.shape}")
+        print(f"Custom split: y_train shape = {y_train.shape}, y_val shape = {y_val.shape}, y_test shape = {y_test.shape}")
+
+        if weights is not None:
+            weights_train, weights_val, weights_test = (
+                weights[split == "train"],
+                weights[split == "validation"],
+                weights[split == "test"],
+            )
+            print(f"Custom split with weights: weights_train shape = {weights_train.shape}, weights_val shape = {weights_val.shape}, weights_test shape = {weights_test.shape}")
+        
+        print(f"Train samples: {np.sum(split == 'train')}")
+        print(f"Validation samples: {np.sum(split == 'validation')}")
+        print(f"Test samples: {np.sum(split == 'test')}")
+
+        # Check the size of the training and validation data before the split
+        print(f"Before splitting: X_train shape = {X_train.shape}, y_train shape = {y_train.shape}")
+        if weights is not None:
+            print(f"Before splitting weights: weights_train shape = {weights_train.shape}")
+
+
+
+        # Check if the validation set is empty and split the training data if necessary
+        if X_val.shape[0] == 0 or y_val.shape[0] == 0:
+            print("Validation set is empty. Creating validation split from training data with weights...")
+            if weights is not None:
+                # Split the data and weights together
+                X_train, X_val, y_train, y_val, weights_train, weights_val = train_test_split(
+                    X_train,
+                    y_train,
+                    weights_train,
+                    test_size=validation_size,
+                    random_state=random_state,
+                )
+                print(f"Created validation split with weights: weights_train shape = {weights_train.shape}, weights_val shape = {weights_val.shape}")
+            else:
+                # Split the data without weights
+                X_train, X_val, y_train, y_val = train_test_split(
+                    X_train, y_train, test_size=validation_size, random_state=random_state
+                )
+                print(f"Created validation split: X_val shape = {X_val.shape}, y_val shape = {y_val.shape}")
+            
+    # Scale the features if scaler is provided
+    if scaler:
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_val = scaler.transform(X_val)
+        X_test = scaler.transform(X_test)
+
+    # Assuming X_train, X_val, X_test, y_train, y_val, y_test could be either NumPy arrays or PyTorch tensors
+    X_train = convert_or_clone_to_tensor(X_train, dtype=dtype)
+    X_val = convert_or_clone_to_tensor(X_val, dtype=dtype)
+    X_test = convert_or_clone_to_tensor(X_test, dtype=dtype)
+
+    print("Data converted to tensors.")
+
+    # Add to X_test an identifier
+    test_ids = torch.arange(X_test.size(0))
+
+    y_train = convert_or_clone_to_tensor(y_train, dtype=torch.float16)
+    y_val = convert_or_clone_to_tensor(y_val, dtype=torch.float16)
+    y_test = convert_or_clone_to_tensor(y_test, dtype=torch.float16)
+    print("Scores converted to tensors.")
+
+    if weights is not None:
+        weights_train = convert_or_clone_to_tensor(weights_train, dtype=torch.float16)
+        weights_val = convert_or_clone_to_tensor(weights_val, dtype=torch.float16)
+        weights_test = convert_or_clone_to_tensor(weights_test, dtype=torch.float16)
+        print("Weights converted to tensors.")
+
+    if dataset_type == "tensor":
+        Dataset = TensorDataset
+    elif dataset_type == "one_hot":
+        Dataset = OneHotDataset
+    else:
+        raise ValueError("dataset_type must be either 'tensor' or 'one_hot'")
+
+    # Create DataLoader for training, validation, and testing
+    if weights is not None and sampler is False:
+        print("Creating DataLoader with weights...")
+        train_dataset = Dataset(X_train, y_train, weights_train)
+        val_dataset = Dataset(X_val, y_val, weights_val)
+        test_dataset = Dataset(X_test, y_test, test_ids, weights_test)
+    else:
+        print("Creating DataLoader without weights...")
+        train_dataset = Dataset(X_train, y_train)
+        val_dataset = Dataset(X_val, y_val)
+        test_dataset = Dataset(X_test, y_test, test_ids)
+
+    if sampler:
+        train_sampler = init_weighted_sampler(
+            train_dataset,
+            weights_train,
+            num_samples_method="min_weighted",
+            sampler="weighted_random" if sampler is True else sampler
+        )
+        val_sampler = init_weighted_sampler(
+            val_dataset,
+            weights_val,
+            num_samples_method="min_weighted",
+            sampler="weighted_random" if sampler is True else sampler
+        )
+        test_sampler = None
+    else:
+        train_sampler = None
+        val_sampler = None
+        test_sampler = None
+
+    print("Creating DataLoaders for train, validation, and test sets...")
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=sampler == False,  # If sampler is used, shuffle is not needed
+        num_workers=num_workers,
+        pin_memory=num_workers > 0,
+        sampler=train_sampler,
+        generator=torch_generator,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=num_workers > 0,
+        sampler=val_sampler,
+        generator=torch_generator,
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=num_workers > 0,
+        sampler=test_sampler,
+        generator=torch_generator,
+    )
+
+    print("DataLoaders created successfully.")
+    return {"train": train_loader, "val": val_loader, "test": test_loader}
+
+'''
     print("Before splitting:")
     print(f"Dataset length: {len(dataset)}")
     print(f"Scores length: {len(scores)}")
@@ -198,20 +397,31 @@ def create_data_loaders(
             print(f"Train weights shape: {weights_train.shape}, Validation weights shape: {weights_val.shape}")
 
     else:
-        # Use the provided split
-        X_train, X_val, X_test = (
-            dataset[split == "train"],
-            dataset[split == "validation"],
-            dataset[split == "test"],
-        )
-        y_train, y_val, y_test = (
-            scores[split == "train"],
-            scores[split == "validation"],
-            scores[split == "test"],
-        )
 
-        print(f"Train size: {X_train.shape[0]}, Validation size: {X_val.shape[0]}, Test size: {X_test.shape[0]}")
-        
+        # If validation data was missing, create it from the train set
+        if "validation" not in split:
+            X_train, X_val, y_train, y_val = train_test_split(
+                X_train,
+                y_train,
+                test_size=validation_size,
+                random_state=random_state,
+            )
+            print(f"Validation data was missing. Created validation split: X_val shape = {X_val.shape}, y_val shape = {y_val.shape}")
+
+            # Use the provided split
+            X_train, X_val, X_test = (
+                dataset[split == "train"],
+                dataset[split == "validation"],
+                dataset[split == "test"],
+            )
+            y_train, y_val, y_test = (
+                scores[split == "train"],
+                scores[split == "validation"],
+                scores[split == "test"],
+            )
+
+            print(f"Train size: {X_train.shape[0]}, Validation size: {X_val.shape[0]}, Test size: {X_test.shape[0]}")
+            
         # Check if weights is provided and handle resplitting
         if weights is not None:
             # Convert weights to numpy if it's a pandas Series
@@ -342,6 +552,7 @@ def create_data_loaders(
     )
 
     return {"train": train_loader, "val": val_loader, "test": test_loader}
+'''
 
 def create_predict_data_loader(
     dataset,

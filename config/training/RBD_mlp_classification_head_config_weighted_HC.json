@@ -2,18 +2,18 @@
   "architecture_parameters":
   {
     "network_type": "mlp",
-    "output_dim": 2,
+    "output_dim": 1,
     "hidden_dim": 128,
     "hidden_layers": 2,
-    "task": "multilabel_classification",
-    "hidden_dropout": 0.25
+    "task": "classification",
+    "hidden_dropout": 0.0
   },
   "training_parameters":
   {
-    "learning_rate": 0.00005,
+    "learning_rate": 0.0001,
     "epochs": 200,
     "batch_size": 512,
-    "loss_f": "masked_bce_logits",
+    "loss_f": "bce_logits",
     "optimizer": "adam",
     "val_split": 0.2,
     "weight_decay": 0.01,
@@ -24,8 +24,7 @@
     "gradient_accumulation": false,
     "epoch_sizing": 1000000,
     "early_stopping": 10,
-    "no_classes": 1,
-    "no_labels": 2
+    "no_classes":1,
+    "pos_weight":[0.3696]
   }
 }
-

@@ -102,17 +102,12 @@ class MaskedBCEWithLogitsLoss(nn.Module):
         element_loss = F.binary_cross_entropy_with_logits(
             logits, clamped_targets,
             pos_weight=self.pos_weight,
-            reduction="none"  # shape [batch_size, num_labels]
+            reduction="none",  # shape [batch_size, num_labels]
+            weight=sample_weight,
         )
 
         # Zero out ignored labels
         masked_loss = element_loss * mask 
-
-        # Apply sample weights, if provided
-        if sample_weight is not None:
-            if sample_weight.ndim == 1:
-                sample_weight = sample_weight.unsqueeze(1)
-            masked_loss = masked_loss * sample_weight
 
         # 3) Reduce over the valid elements only
         if self.reduction == "mean":

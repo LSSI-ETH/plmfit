@@ -2,10 +2,10 @@
   "architecture_parameters":
   {
     "network_type": "mlp",
-    "output_dim": 2,
+    "output_dim": 1,
     "hidden_dim": 128,
     "hidden_layers": 2,
-    "task": "multilabel_classification",
+    "task": "classification",
     "hidden_dropout": 0.25
   },
   "training_parameters":
@@ -24,8 +24,7 @@
     "gradient_accumulation": false,
     "epoch_sizing": 1000000,
     "early_stopping": 10,
-    "no_classes": 1,
-    "no_labels": 2
+    "no_classes":1
+
   }
 }
-

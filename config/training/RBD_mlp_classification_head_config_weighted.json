@@ -13,7 +13,7 @@
     "learning_rate": 0.00005,
     "epochs": 200,
     "batch_size": 512,
-    "loss_f": "bce_logits",
+    "loss_f": "masked_bce_logits",
     "optimizer": "adam",
     "val_split": 0.2,
     "weight_decay": 0.01,
@@ -23,6 +23,10 @@
     "scaler": false,
     "gradient_accumulation": false,
     "epoch_sizing": 1000000,
-    "early_stopping": 10
+    "early_stopping": 10,
+    "no_classes":1,
+    "weights":"weights",
+    "sampler": false
+
   }
 }
