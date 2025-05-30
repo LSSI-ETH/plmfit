@@ -40,6 +40,7 @@ from optuna.trial import Trial
 from plmfit.shared_utils.deepspeed import (
     convert_zero_checkpoint_to_fp32_state_dict,
 )
+from plmfit.shared_utils.random_state import get_seed
 
 load_dotenv()
 plmfit_path = os.getenv("PLMFIT_PATH", "./plmfit")
@@ -148,15 +149,16 @@ def create_data_loaders(
     Returns:
         dict: Dictionary containing DataLoader objects for train, validation, and test.
     """
+    print(f"Random seed is {get_seed()}", flush=True)
     if split is None:
         
         X_train, X_test, y_train, y_test = train_test_split(
-            dataset, scores, test_size=test_size
+            dataset, scores, test_size=test_size, random_state=get_seed()
         )
         X_train, X_val, y_train, y_val = train_test_split(
             X_train,
             y_train,
-            test_size=validation_size / (1 - test_size),
+            test_size=validation_size / (1 - test_size), random_state=get_seed()
         )
 
         if weights is not None:
@@ -166,7 +168,7 @@ def create_data_loaders(
                     dataset,
                     scores,
                     weights,
-                    test_size=test_size
+                    test_size=test_size, random_state=get_seed()
                 )
             )
 
@@ -176,7 +178,7 @@ def create_data_loaders(
                     X_train,
                     y_train,
                     weights_train,
-                    test_size=validation_size / (1 - test_size)
+                    test_size=validation_size / (1 - test_size), random_state=get_seed()
                 )
             )
 
@@ -199,6 +201,8 @@ def create_data_loaders(
                 weights[split == "test"],
             )
 
+        
+
         # Check if the validation set is empty and split the training data if necessary
         if X_val.shape[0] == 0 or y_val.shape[0] == 0:
 
@@ -208,7 +212,7 @@ def create_data_loaders(
                         X_train,
                         y_train,
                         weights_train,
-                        test_size=validation_size,
+                        test_size=validation_size, random_state=get_seed()
                     )
                 )
             else:
@@ -247,6 +251,11 @@ def create_data_loaders(
         Dataset = OneHotDataset
     else:
         raise ValueError("dataset_type must be either 'tensor' or 'one_hot'")
+
+    # print first 10 entries of X_train, X_val and X_test
+    print("First 10 entries of X_train:", X_train[:10], flush=True)
+    print("First 10 entries of y_train:", X_test[:10], flush=True)
+    print("First 10 entries of X_val:", X_val[:10], flush=True)
 
     # Create DataLoader for training, validation, and testing
     if weights is not None and sampler is False:

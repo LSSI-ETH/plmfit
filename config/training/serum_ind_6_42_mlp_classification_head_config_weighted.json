@@ -9,7 +9,6 @@
     "hidden_dropout": 0.25
   },
   "training_parameters": {
-    
     "learning_rate": 0.007807490197620891,
     "epochs": 200,
     "batch_size": 58,
