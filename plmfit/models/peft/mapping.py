@@ -35,7 +35,6 @@ TRANSFORMERS_MODELS_TO_BOTTLENECK_TARGET_MODULES_MAPPING = {
 }
 
 def _prepare_lora_config(peft_config, model_config):
-    print(model_config)
     if peft_config.target_modules is None:
         if model_config["model_type"] not in TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING:
             raise ValueError("Please specify `target_modules` in `peft_config`")
@@ -49,5 +48,6 @@ def _prepare_bottleneck_config(peft_config, model_config):
         peft_config.target_modules = TRANSFORMERS_MODELS_TO_BOTTLENECK_TARGET_MODULES_MAPPING[model_config["model_type"]]
         # This is the only way to target only specific layers with ESM having two modules named 'ouput' in each layer, 
         # since we have to use regexp to get the desired module but this then means layers_to_transform does not work
-        if peft_config.layers_to_transform is not None and model_config["model_type"] is 'esm': peft_config.target_modules = f'.*encoder\\.layer\\.{peft_config.layers_to_transform}\\.output$'
+        if peft_config.layers_to_transform is not None and model_config["model_type"] == 'esm': 
+            peft_config.target_modules = f'.*encoder\\.layer\\.{peft_config.layers_to_transform}\\.output$'
     return peft_config

@@ -1307,7 +1307,7 @@ def create_mlm_data_loaders(
 
 def data_pipeline(dataset, split=None, weights=None, sampler=None, dev=False):
     # Load dataset
-    dataset = load_dataset(dataset)
+    dataset = load_dataset(dataset) if not isinstance(dataset, pd.DataFrame) else dataset
 
     # For development purposes, we can sample the dataset to speed up the process
     if dev:

@@ -70,7 +70,6 @@ class Logger(object):
         if self.mute and (not force_unmute): return
         if self.current_global_rank != 0:
             return
-
         with open(os.path.join(self.base_dir, self.file_name), 'a') as f:
             f.write(f'{text}\n')
 

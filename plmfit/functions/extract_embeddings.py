@@ -6,23 +6,23 @@ from plmfit.models.lightning_model import LightningModel, PredictionWriter
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from deepspeed.runtime.zero.stage3 import estimate_zero3_model_states_mem_needs_all_live
 from lightning.pytorch.tuner import Tuner
+from typing import Optional
+import pandas as pd
 
-def extract_embeddings(args, logger):
+def extract_embeddings(args, logger, data: Optional[pd.DataFrame] = None):
 
     # Load dataset
-    data = utils.load_dataset(args.data_type)
+    data = utils.load_dataset(args.data_type) if data is None else data
 
     model = utils.init_plm(args.plm, logger, task="extract_embeddings")
 
-    model.experimenting = (
-        args.experimenting == "True"
-    )  # If we are in experimenting mode
+    model.experimenting = False
 
     model.set_layer_to_use(args.layer)
     model.py_model.reduction = args.reduction
 
     encs = model.categorical_encode(data)
-    encs = torch.tensor(encs)
+    encs = torch.tensor(encs).clone().detach()
 
     logger.save_data(vars(args), "arguments")
 
@@ -71,4 +71,6 @@ def extract_embeddings(args, logger):
             model, num_gpus_per_node=int(args.gpus), num_nodes=1
         )
 
-    trainer.predict(model=model, dataloaders=data_loader)
+    output = trainer.predict(model=model, dataloaders=data_loader)
+
+    return output

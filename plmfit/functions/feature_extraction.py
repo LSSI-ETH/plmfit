@@ -14,14 +14,16 @@ from plmfit.shared_utils import utils, data_explore
 from plmfit.logger import LogOptunaTrialCallback
 import gc
 import copy
+import pandas as pd
+from typing import Optional
 
 
-def feature_extraction(args, logger):
-    head_config = utils.load_config(f"training/{args.head_config}")
+def feature_extraction(args, logger, data: Optional[pd.DataFrame] = None, head_config: Optional[dict] = None):
+    head_config = utils.load_config(f"training/{args.head_config}") if not isinstance(head_config, dict) else head_config
     task = head_config["architecture_parameters"]["task"]
 
     data, split, weights, sampler = utils.data_pipeline(
-        args.data_type,
+        args.data_type if data is None else data,
         args.split,
         head_config["training_parameters"].get("weights", None),
         head_config["training_parameters"].get("sampler", False),

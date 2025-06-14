@@ -207,3 +207,4 @@ data/*/*.csv
 *venv/
 test.py
 *.ckpt
+!tutorial/aav_data_sample.csv

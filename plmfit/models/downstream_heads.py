@@ -73,16 +73,15 @@ class MLP(nn.Module):
     def init_weights(self):
         """Initialize weights using Xavier initialization for internal layers 
         and near-zero initialization for the output layer."""
-        random_state = get_random_state()
         for i, layer in enumerate(self.layers):
             if isinstance(layer, nn.Linear):
                 if i == len(self.layers) - 2:  # Check if it's the output layer
                     # Initialize output layer weights near zero for classification
-                    init.normal_(layer.weight, mean=0.0, std=0.01, generator=random_state)
+                    init.normal_(layer.weight, mean=0.0, std=0.01)
                     init.constant_(layer.bias, 0)
                 else:
                     # Xavier initialization for internal layers
-                    init.xavier_uniform_(layer.weight, generator=random_state)
+                    init.xavier_uniform_(layer.weight)
                     if layer.bias is not None:
                         init.constant_(layer.bias, 0)
 
@@ -115,15 +114,14 @@ class RNN(nn.Module):
     def init_weights(self):
         """Initialize weights using Xavier initialization for internal layers 
         and near-zero initialization for the output layer."""
-        random_state = get_random_state()
         # Initialize RNN weights
         for name, param in self.rnn.named_parameters():
             if 'weight' in name:
-                init.xavier_uniform_(param, generator=random_state)
+                init.xavier_uniform_(param)
             else:
                 init.constant_(param, 0)
         # Initialize output layer weights
-        init.normal_(self.fc.weight, mean=0.0, std=0.01, generator=random_state)
+        init.normal_(self.fc.weight, mean=0.0, std=0.01)
         init.constant_(self.fc.bias, 0)
 
 class AdapterLayer(nn.Module):
@@ -136,11 +134,10 @@ class AdapterLayer(nn.Module):
         self.init_weights()
 
     def init_weights(self):
-        random_state = get_random_state()
         self.ln.weight.data.fill_(0.01)
-        init.kaiming_normal_(self.fc_down.weight, generator=random_state)
+        init.kaiming_normal_(self.fc_down.weight)
         self.fc_down.bias.data.zero_()
-        init.kaiming_normal_(self.fc_up.weight, generator=random_state)
+        init.kaiming_normal_(self.fc_up.weight)
         self.fc_up.bias.data.zero_()
 
     def forward(self, src):
