@@ -14,6 +14,7 @@ from optuna.visualization import plot_optimization_history, plot_slice
 from plmfit.shared_utils import utils, data_explore
 from plmfit.logger import LogOptunaTrialCallback
 import copy
+import numpy as np
 
 
 def onehot(args, logger):
@@ -131,7 +132,7 @@ def objective(
     network_type = config["architecture_parameters"]["network_type"]
 
 
-    from plmfit.shared_utils.random_state import set_seed
+    from plmfit.shared_utils.random_state import set_seed, get_seed
     set_seed(config['training_parameters']['seed'])
 
     epochs = config["training_parameters"]["epochs"]
@@ -175,9 +176,18 @@ def objective(
     else: 
         input_dim = embeddings.shape[1] * num_classes
 
+    #sanity check for seed
+    print("[seed-check] seed =", get_seed())
+    print("[seed-check] torch.rand(3) =", torch.rand(3).tolist())
+    print("[seed-check] numpy.rand(3) =", np.random.rand(3).tolist())
+
     model = heads.init_head(
         config=config, input_dim=input_dim
     )
+
+    # Sanity check for model parameters
+    first_param = next(model.parameters()).detach().cpu()
+    print("[seed-check] first_layer_weight_sum =", float(first_param.sum()))
 
     if not on_ray_tuning:
         logger.save_data(config, "head_config")

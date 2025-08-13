@@ -77,11 +77,11 @@ class MLP(nn.Module):
             if isinstance(layer, nn.Linear):
                 if i == len(self.layers) - 2:  # Check if it's the output layer
                     # Initialize output layer weights near zero for classification
-                    init.normal_(layer.weight, mean=0.0, std=0.01, generator=random_state)
+                    init.normal_(layer.weight, mean=0.0, std=0.01) #commented out  generator=random_state
                     init.constant_(layer.bias, 0)
                 else:
                     # Xavier initialization for internal layers
-                    init.xavier_uniform_(layer.weight, generator=random_state)
+                    init.xavier_uniform_(layer.weight) # generator=random_state
                     if layer.bias is not None:
                         init.constant_(layer.bias, 0)
 
